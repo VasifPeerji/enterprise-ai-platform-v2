@@ -1,0 +1,1628 @@
+{
+  "_meta": {
+    "description": "Representative queries for training the benchmark router. Each query is categorised by dominant rubric dimension and complexity level. Labels (best_model) are assigned during training by matching rubric profiles against benchmark scores weighted by cost.",
+    "total_queries": 110,
+    "categories": [
+      "knowledge_breadth",
+      "reasoning_hops",
+      "task_count",
+      "output_structure",
+      "domain_depth"
+    ],
+    "complexity_levels": [
+      "trivial",
+      "simple",
+      "moderate",
+      "complex",
+      "expert"
+    ],
+    "labeling_method": "multi_llm_consensus",
+    "labeling_framework": "Bloom's Revised Taxonomy (Anderson & Krathwohl, 2001) × Webb's Depth of Knowledge (Webb, 1997)",
+    "judge_models": [
+      "groq-llama-3.3-70b-free",
+      "groq-llama-3.1-8b-free",
+      "gemini-2.0-flash-lite-free"
+    ],
+    "framework_mapping": {
+      "trivial": {
+        "blooms_level": "Remember",
+        "webbs_dok": 1,
+        "description": "Single fact recall, greeting, basic arithmetic",
+        "criteria": "Requires only retrieval of memorized information"
+      },
+      "simple": {
+        "blooms_level": "Understand",
+        "webbs_dok": "1-2",
+        "description": "Single concept explanation, definition, simple procedure",
+        "criteria": "Requires comprehension of a single concept without multi-step reasoning"
+      },
+      "moderate": {
+        "blooms_level": "Apply/Analyze",
+        "webbs_dok": "2-3",
+        "description": "Multi-step reasoning, comparison, standard coding",
+        "criteria": "Requires application of knowledge or analysis of relationships"
+      },
+      "complex": {
+        "blooms_level": "Evaluate/Create",
+        "webbs_dok": "3-4",
+        "description": "System design, multi-domain synthesis, high-stakes advice",
+        "criteria": "Requires judgment, creation, or synthesis across domains"
+      },
+      "expert": {
+        "blooms_level": "Create (novel)",
+        "webbs_dok": "4+",
+        "description": "Open research problems, formal proofs, novel algorithms",
+        "criteria": "Requires novel intellectual contribution beyond existing knowledge"
+      }
+    }
+  },
+  "queries": [
+    {
+      "text": "What is the capital of France?",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup of common knowledge"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup"
+        }
+      }
+    },
+    {
+      "text": "Hi there!",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "trivial",
+          "reasoning_summary": "single greeting, zero reasoning"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "trivial",
+          "reasoning_summary": "single greeting, zero reasoning"
+        }
+      }
+    },
+    {
+      "text": "What is 2+2?",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "trivial",
+          "reasoning_summary": "instant arithmetic"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "trivial",
+          "reasoning_summary": "instant arithmetic"
+        }
+      }
+    },
+    {
+      "text": "Thanks for your help!",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "trivial",
+          "reasoning_summary": "single greeting with no information request"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "trivial",
+          "reasoning_summary": "acknowledgment"
+        }
+      }
+    },
+    {
+      "text": "Hello, how are you?",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "trivial",
+          "reasoning_summary": "single greeting, zero reasoning"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "trivial",
+          "reasoning_summary": "single greeting, zero reasoning"
+        }
+      }
+    },
+    {
+      "text": "What does HTML stand for?",
+      "complexity": "trivial",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.1,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.05,
+        "raw_score": 0.0275
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.2,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.1,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup of HTML acronym"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup"
+        }
+      }
+    },
+    {
+      "text": "Say hello in French",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single lookup of a basic phrase in a foreign language"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup"
+        }
+      }
+    },
+    {
+      "text": "What color is the sky?",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup of common knowledge"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "direct lookup of common knowledge"
+        }
+      }
+    },
+    {
+      "text": "Name three fruits",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.1,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.1,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.04
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.2,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.2,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "simple factual recall of common knowledge"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup"
+        }
+      }
+    },
+    {
+      "text": "What is the opposite of hot?",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup for antonym"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "direct lookup of antonym"
+        }
+      }
+    },
+    {
+      "text": "Explain what photosynthesis is",
+      "complexity": "trivial",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.1,
+        "reasoning_hops": 0.05,
+        "output_structure": 0.05,
+        "knowledge_breadth": 0.05,
+        "raw_score": 0.0475
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.2,
+          "reasoning_hops": 0.1,
+          "output_structure": 0.1,
+          "knowledge_breadth": 0.1,
+          "band": "simple",
+          "reasoning_summary": "single definition with basic explanation"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup"
+        }
+      }
+    },
+    {
+      "text": "What is machine learning?",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup"
+        }
+      }
+    },
+    {
+      "text": "Write a Python hello world program",
+      "complexity": "simple",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "What is the difference between TCP and UDP?",
+      "complexity": "simple",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_understand_x_webbs_dok_1-2",
+      "consensus_scores": {
+        "task_count": 0.1,
+        "domain_depth": 0.3,
+        "reasoning_hops": 0.2,
+        "output_structure": 0.1,
+        "knowledge_breadth": 0.1,
+        "raw_score": 0.165
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.2,
+          "domain_depth": 0.6,
+          "reasoning_hops": 0.4,
+          "output_structure": 0.2,
+          "knowledge_breadth": 0.2,
+          "band": "simple",
+          "reasoning_summary": "requires basic networking knowledge to explain the difference between two protocols"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "direct lookup of network protocols"
+        }
+      }
+    },
+    {
+      "text": "Summarize the French Revolution in 3 sentences",
+      "complexity": "simple",
+      "dominant_rubric": "output_structure"
+    },
+    {
+      "text": "What are the primary colors?",
+      "complexity": "simple",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "How do you declare a variable in JavaScript?",
+      "complexity": "simple",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "What is the speed of light?",
+      "complexity": "simple",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "Explain the water cycle",
+      "complexity": "simple",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_understand_x_webbs_dok_1-2",
+      "consensus_scores": {
+        "task_count": 0.2,
+        "domain_depth": 0.4,
+        "reasoning_hops": 0.3,
+        "output_structure": 0.4,
+        "knowledge_breadth": 0.2,
+        "raw_score": 0.295
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.2,
+          "domain_depth": 0.4,
+          "reasoning_hops": 0.3,
+          "output_structure": 0.4,
+          "knowledge_breadth": 0.2,
+          "band": "moderate",
+          "reasoning_summary": "requires multi-paragraph explanation of a natural process"
+        }
+      }
+    },
+    {
+      "text": "What is the Pythagorean theorem?",
+      "complexity": "simple",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "List all continents",
+      "complexity": "simple",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "What is an API?",
+      "complexity": "simple",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Convert 100 Fahrenheit to Celsius",
+      "complexity": "simple",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "What year did World War 2 end?",
+      "complexity": "trivial",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.1,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.05,
+        "raw_score": 0.0275
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.2,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.1,
+          "band": "simple",
+          "reasoning_summary": "single historical fact lookup"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup"
+        }
+      }
+    },
+    {
+      "text": "Define the term 'algorithm'",
+      "complexity": "simple",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "Write a function to add two numbers in Python",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "trivial coding task"
+        }
+      }
+    },
+    {
+      "text": "What is DNA?",
+      "complexity": "simple",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "Explain what a database is",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup"
+        }
+      }
+    },
+    {
+      "text": "What is the boiling point of water?",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "single factual lookup of a common physical constant"
+        }
+      }
+    },
+    {
+      "text": "Name five programming languages",
+      "complexity": "trivial",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_remember_x_webbs_dok_1",
+      "consensus_scores": {
+        "task_count": 0.0,
+        "domain_depth": 0.0,
+        "reasoning_hops": 0.0,
+        "output_structure": 0.0,
+        "knowledge_breadth": 0.0,
+        "raw_score": 0.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.0,
+          "domain_depth": 0.0,
+          "reasoning_hops": 0.0,
+          "output_structure": 0.0,
+          "knowledge_breadth": 0.0,
+          "band": "simple",
+          "reasoning_summary": "listing common knowledge"
+        }
+      }
+    },
+    {
+      "text": "Explain how neural networks learn through backpropagation",
+      "complexity": "moderate",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Write a Python function to sort a list using merge sort and explain the time complexity",
+      "complexity": "expert",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.8,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.8,
+        "knowledge_breadth": 0.8,
+        "raw_score": 0.8
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.8,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "multi-step algorithm implementation with analysis"
+        }
+      }
+    },
+    {
+      "text": "Compare and contrast SQL and NoSQL databases with examples",
+      "complexity": "moderate",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Explain the difference between inheritance and composition in OOP with code examples",
+      "complexity": "complex",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_evaluate_create_x_webbs_dok_3-4",
+      "consensus_scores": {
+        "task_count": 0.6,
+        "domain_depth": 0.7,
+        "reasoning_hops": 0.55,
+        "output_structure": 0.7,
+        "knowledge_breadth": 0.6,
+        "raw_score": 0.6225
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.4,
+          "domain_depth": 0.6,
+          "reasoning_hops": 0.5,
+          "output_structure": 0.6,
+          "knowledge_breadth": 0.4,
+          "band": "moderate",
+          "reasoning_summary": "requires explanation of OOP concepts with code examples, involving multiple paragraphs and code snippets"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.8,
+          "reasoning_hops": 0.6,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "multi-paragraph explanation with code examples"
+        }
+      }
+    },
+    {
+      "text": "How does HTTPS encryption work step by step?",
+      "complexity": "moderate",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Write a REST API endpoint in FastAPI that handles CRUD operations for a user model",
+      "complexity": "moderate",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Explain the CAP theorem and its implications for distributed systems",
+      "complexity": "moderate",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Create a React component that fetches data from an API and displays it in a table",
+      "complexity": "moderate",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "What are the key differences between transformers and RNNs for NLP tasks?",
+      "complexity": "moderate",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_apply_analyze_x_webbs_dok_2-3",
+      "consensus_scores": {
+        "task_count": 0.2,
+        "domain_depth": 0.6,
+        "reasoning_hops": 0.4,
+        "output_structure": 0.3,
+        "knowledge_breadth": 0.4,
+        "raw_score": 0.375
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.2,
+          "domain_depth": 0.6,
+          "reasoning_hops": 0.4,
+          "output_structure": 0.3,
+          "knowledge_breadth": 0.4,
+          "band": "moderate",
+          "reasoning_summary": "requires understanding of NLP concepts and comparing two architectures"
+        }
+      }
+    },
+    {
+      "text": "Explain how garbage collection works in Java vs Python",
+      "complexity": "moderate",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Write a SQL query to find the top 5 customers by total spending across multiple tables",
+      "complexity": "moderate",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Explain the concept of eventual consistency in distributed databases",
+      "complexity": "moderate",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Write a Python decorator that caches function results with TTL expiry",
+      "complexity": "moderate",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "What is the difference between supervised, unsupervised, and reinforcement learning?",
+      "complexity": "moderate",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "Explain how Docker containers differ from virtual machines with a diagram",
+      "complexity": "complex",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_evaluate_create_x_webbs_dok_3-4",
+      "consensus_scores": {
+        "task_count": 0.5,
+        "domain_depth": 0.7,
+        "reasoning_hops": 0.6,
+        "output_structure": 0.7,
+        "knowledge_breadth": 0.6,
+        "raw_score": 0.61
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.2,
+          "domain_depth": 0.6,
+          "reasoning_hops": 0.4,
+          "output_structure": 0.6,
+          "knowledge_breadth": 0.4,
+          "band": "moderate",
+          "reasoning_summary": "requires explanation of technical concepts and creation of a diagram, but the topic is specific and well-defined"
+        },
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.8,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "multi-paragraph explanation with diagram"
+        }
+      }
+    },
+    {
+      "text": "Solve this calculus problem: find the derivative of x^3 * sin(x)",
+      "complexity": "moderate",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Design a database schema for an e-commerce platform",
+      "complexity": "moderate",
+      "dominant_rubric": "output_structure"
+    },
+    {
+      "text": "Explain the time complexity of quicksort in best, average, and worst cases",
+      "complexity": "moderate",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Write unit tests for a user authentication module",
+      "complexity": "moderate",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Explain how OAuth 2.0 authorization code flow works",
+      "complexity": "moderate",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_apply_analyze_x_webbs_dok_2-3",
+      "consensus_scores": {
+        "task_count": 0.2,
+        "domain_depth": 0.6,
+        "reasoning_hops": 0.4,
+        "output_structure": 0.3,
+        "knowledge_breadth": 0.2,
+        "raw_score": 0.345
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.2,
+          "domain_depth": 0.6,
+          "reasoning_hops": 0.4,
+          "output_structure": 0.3,
+          "knowledge_breadth": 0.2,
+          "band": "moderate",
+          "reasoning_summary": "requires understanding of OAuth 2.0 protocol and authorization code flow, involving multiple steps and components"
+        }
+      }
+    },
+    {
+      "text": "What are the legal implications of using open-source software in commercial products?",
+      "complexity": "complex",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_evaluate_create_x_webbs_dok_3-4",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.6,
+        "output_structure": 0.8,
+        "knowledge_breadth": 0.8,
+        "raw_score": 0.77
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.6,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "multi-paragraph explanation of legal concepts"
+        }
+      }
+    },
+    {
+      "text": "Compare the economic policies of Keynesian and Austrian schools of thought",
+      "complexity": "moderate",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "Explain how mRNA vaccines work at the molecular level",
+      "complexity": "moderate",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Write a comprehensive cover letter for a software engineering position",
+      "complexity": "moderate",
+      "dominant_rubric": "output_structure"
+    },
+    {
+      "text": "Analyze the themes of existentialism in Dostoevsky's Crime and Punishment",
+      "complexity": "complex",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_evaluate_create_x_webbs_dok_3-4",
+      "consensus_scores": {
+        "task_count": 0.6,
+        "domain_depth": 0.8,
+        "reasoning_hops": 0.7,
+        "output_structure": 0.6,
+        "knowledge_breadth": 0.5,
+        "raw_score": 0.65
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.6,
+          "domain_depth": 0.8,
+          "reasoning_hops": 0.7,
+          "output_structure": 0.6,
+          "knowledge_breadth": 0.5,
+          "band": "complex",
+          "reasoning_summary": "requires in-depth literary analysis and understanding of philosophical concepts"
+        }
+      }
+    },
+    {
+      "text": "Explain the greenhouse effect and its role in climate change",
+      "complexity": "moderate",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "Create a meal plan for a week that is vegetarian and under 2000 calories per day",
+      "complexity": "moderate",
+      "dominant_rubric": "output_structure"
+    },
+    {
+      "text": "Explain how blockchain consensus mechanisms work",
+      "complexity": "moderate",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "What are the psychological stages of grief and how do they manifest?",
+      "complexity": "moderate",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "Write a bash script that backs up a PostgreSQL database and rotates old backups",
+      "complexity": "moderate",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Design a distributed caching system like Redis with support for TTL, eviction policies, and replication",
+      "complexity": "complex",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_evaluate_create_x_webbs_dok_3-4",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.7,
+        "knowledge_breadth": 0.6,
+        "raw_score": 0.775
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.7,
+          "knowledge_breadth": 0.6,
+          "band": "complex",
+          "reasoning_summary": "requires multi-component system design with expertise in distributed systems and caching mechanisms"
+        }
+      }
+    },
+    {
+      "text": "Write a Python function to parse CSV, validate each row against a schema, transform the data, and return structured JSON with error reporting",
+      "complexity": "expert",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.8,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.8,
+        "knowledge_breadth": 0.8,
+        "raw_score": 0.8
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.8,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "multi-step data processing"
+        }
+      }
+    },
+    {
+      "text": "Implement a rate limiter using the token bucket algorithm with distributed state via Redis",
+      "complexity": "complex",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Design a microservices architecture for a multi-tenant SaaS platform with RBAC, audit logging, and tenant isolation",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.9,
+        "knowledge_breadth": 0.8,
+        "raw_score": 0.835
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.9,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "multi-component system design with domain-specific requirements"
+        }
+      }
+    },
+    {
+      "text": "Compare Django, FastAPI, and Express.js for building a real-time collaborative document editor with WebSocket support",
+      "complexity": "complex",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Implement a custom memory allocator in C that uses buddy system allocation with coalescing",
+      "complexity": "complex",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_evaluate_create_x_webbs_dok_3-4",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.7,
+        "knowledge_breadth": 0.6,
+        "raw_score": 0.775
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.7,
+          "knowledge_breadth": 0.6,
+          "band": "complex",
+          "reasoning_summary": "requires understanding of memory management, buddy system allocation, and C programming, as well as the ability to design and implement a custom allocator"
+        }
+      }
+    },
+    {
+      "text": "Design a CI/CD pipeline for a monorepo with multiple services, including canary deployments and automatic rollback",
+      "complexity": "complex",
+      "dominant_rubric": "output_structure"
+    },
+    {
+      "text": "Analyze the trade-offs between event sourcing and CRUD for a financial trading platform",
+      "complexity": "complex",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Implement a B-tree data structure with insert, delete, and range query operations",
+      "complexity": "complex",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Design an API gateway that handles authentication, rate limiting, circuit breaking, and request transformation",
+      "complexity": "complex",
+      "dominant_rubric": "output_structure"
+    },
+    {
+      "text": "What are the implications of GDPR on cross-border data transfers and how should a multinational tech company architect its data infrastructure to comply?",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.7,
+        "knowledge_breadth": 0.8,
+        "raw_score": 0.805
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.7,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "requires understanding of GDPR regulations, cross-border data transfer implications, and architectural design for compliance, involving multiple sub-tasks, specialized knowledge, and synthesis of legal and technical topics"
+        }
+      }
+    },
+    {
+      "text": "Should I take ibuprofen with metformin? Explain the drug interactions and risks",
+      "complexity": "complex",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Explain the mathematical foundation of attention mechanisms in transformers including the scaling dot-product formulation",
+      "complexity": "complex",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Design an end-to-end machine learning pipeline for fraud detection including feature engineering, model selection, and deployment strategy",
+      "complexity": "complex",
+      "dominant_rubric": "output_structure"
+    },
+    {
+      "text": "Implement a concurrent task scheduler in Python using asyncio with priority queues, task dependencies, and deadlock detection",
+      "complexity": "expert",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.9,
+        "domain_depth": 0.8,
+        "reasoning_hops": 0.9,
+        "output_structure": 0.9,
+        "knowledge_breadth": 0.8,
+        "raw_score": 0.865
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.9,
+          "domain_depth": 0.8,
+          "reasoning_hops": 0.9,
+          "output_structure": 0.9,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "multi-component system design with concurrency and synchronization"
+        }
+      }
+    },
+    {
+      "text": "Analyze the geopolitical implications of semiconductor supply chain dependencies between Taiwan, the US, and China",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.7,
+        "knowledge_breadth": 0.8,
+        "raw_score": 0.805
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.7,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "requires multi-step analysis of geopolitical relationships, economic dependencies, and technological implications across multiple countries"
+        }
+      }
+    },
+    {
+      "text": "Write a compiler frontend for a simple programming language including lexer, parser, and AST generation",
+      "complexity": "complex",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Design a real-time recommendation engine that handles cold start, uses collaborative filtering, and scales to millions of users",
+      "complexity": "complex",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Compare the monetary policies of the Federal Reserve, ECB, and Bank of Japan during the 2020-2025 period and their effects on global markets",
+      "complexity": "complex",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "Implement a distributed consensus protocol similar to Raft with leader election, log replication, and safety guarantees",
+      "complexity": "complex",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Design a HIPAA-compliant healthcare data platform with end-to-end encryption, role-based access, and audit trails",
+      "complexity": "complex",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Analyze the ethical implications of autonomous weapons systems under international humanitarian law",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.7,
+        "knowledge_breadth": 0.8,
+        "raw_score": 0.805
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.7,
+          "knowledge_breadth": 0.8,
+          "band": "complex",
+          "reasoning_summary": "requires in-depth analysis of international humanitarian law, ethics, and autonomous weapons systems, involving multiple reasoning steps and synthesis of various topics"
+        }
+      }
+    },
+    {
+      "text": "Create a comprehensive business plan for an AI startup including market analysis, competitive landscape, financial projections, and go-to-market strategy",
+      "complexity": "complex",
+      "dominant_rubric": "output_structure"
+    },
+    {
+      "text": "Implement a neural network from scratch in Python without using any ML frameworks, including backpropagation and gradient descent",
+      "complexity": "complex",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Explain the sociological factors that contributed to the rise and fall of the Roman Empire with comparison to modern civilizations",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.8,
+        "knowledge_breadth": 0.9,
+        "raw_score": 0.835
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.9,
+          "band": "complex",
+          "reasoning_summary": "multi-paragraph historical analysis with comparative synthesis"
+        }
+      }
+    },
+    {
+      "text": "Design a zero-downtime database migration strategy for a system serving 10 million daily active users",
+      "complexity": "complex",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Write a comprehensive legal brief analyzing fair use doctrine in the context of AI-generated content",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.8,
+        "output_structure": 0.8,
+        "knowledge_breadth": 0.7,
+        "raw_score": 0.805
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.8,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.7,
+          "band": "expert",
+          "reasoning_summary": "requires in-depth knowledge of fair use doctrine, AI-generated content, and legal analysis to produce a comprehensive brief"
+        }
+      }
+    },
+    {
+      "text": "Implement a graph database query engine that supports Cypher-like syntax with query optimization",
+      "complexity": "complex",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Analyze the environmental impact of large language model training and propose sustainable AI computing strategies",
+      "complexity": "complex",
+      "dominant_rubric": "knowledge_breadth"
+    },
+    {
+      "text": "Design a real-time streaming data pipeline using Kafka, Spark, and Flink with exactly-once semantics",
+      "complexity": "complex",
+      "dominant_rubric": "output_structure"
+    },
+    {
+      "text": "Prove the Riemann hypothesis or explain why current approaches have failed and propose a novel angle of attack",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Design a formally verified operating system kernel with mathematical proofs of memory safety and type soundness",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.9,
+        "domain_depth": 0.95,
+        "reasoning_hops": 0.95,
+        "output_structure": 0.9,
+        "knowledge_breadth": 0.8,
+        "raw_score": 0.9075
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.9,
+          "domain_depth": 0.95,
+          "reasoning_hops": 0.95,
+          "output_structure": 0.9,
+          "knowledge_breadth": 0.8,
+          "band": "expert",
+          "reasoning_summary": "requires novel mathematical proofs and formal verification of complex system design"
+        }
+      }
+    },
+    {
+      "text": "Derive the complete mathematical framework for quantum error correction codes and prove their distance bounds",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Prove the convergence properties of transformer attention under non-stationary distributions with formal guarantees",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Design a Byzantine fault-tolerant consensus protocol that achieves sub-second finality with formal safety and liveness proofs",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Prove P != NP under the assumption of the Exponential Time Hypothesis and discuss implications for cryptography",
+      "complexity": "expert",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 1.0,
+        "domain_depth": 1.0,
+        "reasoning_hops": 1.0,
+        "output_structure": 1.0,
+        "knowledge_breadth": 1.0,
+        "raw_score": 1.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 1.0,
+          "domain_depth": 1.0,
+          "reasoning_hops": 1.0,
+          "output_structure": 1.0,
+          "knowledge_breadth": 1.0,
+          "band": "expert",
+          "reasoning_summary": "formal proof with domain-specific implications"
+        }
+      }
+    },
+    {
+      "text": "Derive the complete renormalization group equations for the Standard Model and explain the hierarchy problem",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Design a provably secure homomorphic encryption scheme with practical performance for arbitrary computations",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.9,
+        "output_structure": 0.8,
+        "knowledge_breadth": 0.7,
+        "raw_score": 0.83
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.9,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.7,
+          "band": "expert",
+          "reasoning_summary": "requires novel cryptography and mathematical proofs for security and performance guarantees"
+        }
+      }
+    },
+    {
+      "text": "Write a formal verification of a distributed lock-free concurrent data structure using TLA+ or Coq",
+      "complexity": "expert",
+      "dominant_rubric": "task_count"
+    },
+    {
+      "text": "Prove the optimal regret bounds for contextual bandits in adversarial settings with side information",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Design a complete type theory that unifies dependent types, linear types, and effect systems with decidable type checking",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Derive optimal transport solutions for comparing probability measures on Riemannian manifolds",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Design a novel neural architecture search algorithm with provable convergence guarantees and sample efficiency bounds",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.9,
+        "output_structure": 0.8,
+        "knowledge_breadth": 0.7,
+        "raw_score": 0.83
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.9,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.7,
+          "band": "expert",
+          "reasoning_summary": "requires novel algorithm design, formal proofs, and deep understanding of neural architecture search and theoretical guarantees"
+        }
+      }
+    },
+    {
+      "text": "Prove the impossibility results for distributed computing under asynchronous networks with crash failures and propose tight circumventions",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Write a comprehensive treatise on the mathematical foundations of category theory and its applications to programming language semantics",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth"
+    },
+    {
+      "text": "Design a formally verified compiler for a dependently typed language targeting WebAssembly with correctness proofs",
+      "complexity": "expert",
+      "dominant_rubric": "task_count",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 1.0,
+        "domain_depth": 1.0,
+        "reasoning_hops": 1.0,
+        "output_structure": 1.0,
+        "knowledge_breadth": 1.0,
+        "raw_score": 1.0
+      },
+      "individual_model_scores": {
+        "groq-llama-3.1-8b-free": {
+          "task_count": 1.0,
+          "domain_depth": 1.0,
+          "reasoning_hops": 1.0,
+          "output_structure": 1.0,
+          "knowledge_breadth": 1.0,
+          "band": "expert",
+          "reasoning_summary": "novel algorithm design with formal proofs"
+        }
+      }
+    },
+    {
+      "text": "Prove the universality theorem for neural networks under minimal smoothness assumptions",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Design a privacy-preserving federated learning protocol with differential privacy guarantees and formal proofs of convergence",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth",
+      "labeling_method": "multi_llm_consensus",
+      "framework": "blooms_create (novel)_x_webbs_dok_4+",
+      "consensus_scores": {
+        "task_count": 0.8,
+        "domain_depth": 0.9,
+        "reasoning_hops": 0.9,
+        "output_structure": 0.8,
+        "knowledge_breadth": 0.7,
+        "raw_score": 0.83
+      },
+      "individual_model_scores": {
+        "groq-llama-3.3-70b-free": {
+          "task_count": 0.8,
+          "domain_depth": 0.9,
+          "reasoning_hops": 0.9,
+          "output_structure": 0.8,
+          "knowledge_breadth": 0.7,
+          "band": "expert",
+          "reasoning_summary": "requires novel mathematical derivations, formal proofs, and expertise in multiple areas including federated learning, differential privacy, and convergence analysis"
+        }
+      }
+    },
+    {
+      "text": "Derive the information-theoretic limits of channel coding for non-ergodic fading channels",
+      "complexity": "expert",
+      "dominant_rubric": "reasoning_hops"
+    },
+    {
+      "text": "Write a comprehensive analysis of the Langlands program connecting number theory, representation theory, and algebraic geometry",
+      "complexity": "expert",
+      "dominant_rubric": "domain_depth"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+...............................F.                                        [100%]
+================================== FAILURES ===================================
+_______ test_rag_service_article_query_does_not_bleed_into_next_article _______
+
+    def test_rag_service_article_query_does_not_bleed_into_next_article():
+        service = GroundedRAGService.for_local_testing(domain="law", top_k=6)
+        document = IngestedDocument(
+            document_id="constitution",
+            tenant_id="tenant-a",
+            domain="law",
+            title="Constitution of India",
+            source_uri="/docs/constitution.pdf",
+            pages=[
+                IngestedPage(
+                    document_id="constitution",
+                    tenant_id="tenant-a",
+                    domain="law",
+                    title="Constitution of India",
+                    source_uri="/docs/constitution.pdf",
+                    source_type="pdf",
+                    page_number=11,
+                    text=(
+                        "*[21A. The State shall provide free and compulsory education to all children "
+                        "of the age of six to fourteen years in such manner as the State may, by law, determine.] "
+                        "22. (1) No person who is arrested shall be detained in custody without being informed."
+                    ),
+                    language="en",
+                )
+            ],
+        )
+    
+        async def _run():
+            await service.index_documents([document])
+            return await service.answer_query(
+                "What does Article 21A of the Constitution provide?",
+                tenant_id="tenant-a",
+                domain="law",
+            )
+    
+        response = asyncio.run(_run())
+    
+        assert "free and compulsory education" in response.answer
+        assert "No person who is arrested" not in response.answer
+        assert response.citations
+        assert "No person who is arrested" not in response.citations[0].snippet
+        assert response.page_proofs[0].highlights
+>       assert "No person who is arrested" not in response.page_proofs[0].highlights[0].text
+E       AssertionError: assert 'No person who is arrested' not in '21A. The St...ng informed.'
+E         
+E         'No person who is arrested' is contained here:
+E           ] 22. (1) No person who is arrested shall be detained in custody without being informed.
+E         ?           +++++++++++++++++++++++++
+
+D:\College\enterprise-ai-platform\tests\unit\test_rag_service.py:367: AssertionError
+============================== warnings summary ===============================
+D:\Software_Download_Files\anaconda3\envs\enterprise-ai-platform\Lib\site-packages\starlette\formparsers.py:12
+  D:\Software_Download_Files\anaconda3\envs\enterprise-ai-platform\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED D:\College\enterprise-ai-platform\tests\unit\test_rag_service.py::test_rag_service_article_query_does_not_bleed_into_next_article
+1 failed, 32 passed, 1 warning in 7.75s
+ERROR conda.cli.main_run:execute(127): `conda run python -m pytest D:/College/enterprise-ai-platform/tests/unit/test_grounded_answer.py D:/College/enterprise-ai-platform/tests/unit/test_document_grounding.py D:/College/enterprise-ai-platform/tests/unit/test_rag_service.py -q --no-header --no-cov` failed. (See above for error)

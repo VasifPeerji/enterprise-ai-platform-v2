@@ -1,0 +1,811 @@
+{
+  "_meta": {
+    "experiment": "layer_0_model2vec_vs_heuristic",
+    "produced_at_iso": "2026-05-17T23:59:57",
+    "thresholds_swept": [
+      0.55,
+      0.6,
+      0.65,
+      0.7,
+      0.75,
+      0.8,
+      0.85
+    ],
+    "model2vec_model": "minishlab/potion-base-8M",
+    "embedding_dim": 256
+  },
+  "datasets": {
+    "golden_set": {
+      "name": "Golden Set (Tier 1 native)",
+      "n": 77,
+      "heuristic": {
+        "confusion": {
+          "tp": 56,
+          "fp": 0,
+          "tn": 20,
+          "fn": 1,
+          "n": 77,
+          "accuracy": 0.987012987012987,
+          "precision": 1.0,
+          "recall": 0.9824561403508771,
+          "f1": 0.9911504424778761
+        },
+        "p50_us": 36.1,
+        "p99_us": 136.3
+      },
+      "model2vec": {
+        "0.55": {
+          "confusion": {
+            "tp": 39,
+            "fp": 0,
+            "tn": 20,
+            "fn": 18,
+            "n": 77,
+            "accuracy": 0.7662337662337663,
+            "precision": 1.0,
+            "recall": 0.6842105263157895,
+            "f1": 0.8125000000000001
+          },
+          "p50_us": 157.7,
+          "p99_us": 483.3
+        },
+        "0.6": {
+          "confusion": {
+            "tp": 38,
+            "fp": 0,
+            "tn": 20,
+            "fn": 19,
+            "n": 77,
+            "accuracy": 0.7532467532467533,
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.8
+          },
+          "p50_us": 149.6,
+          "p99_us": 299.7
+        },
+        "0.65": {
+          "confusion": {
+            "tp": 38,
+            "fp": 0,
+            "tn": 20,
+            "fn": 19,
+            "n": 77,
+            "accuracy": 0.7532467532467533,
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.8
+          },
+          "p50_us": 147.7,
+          "p99_us": 256.9
+        },
+        "0.7": {
+          "confusion": {
+            "tp": 38,
+            "fp": 0,
+            "tn": 20,
+            "fn": 19,
+            "n": 77,
+            "accuracy": 0.7532467532467533,
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.8
+          },
+          "p50_us": 147.2,
+          "p99_us": 195.0
+        },
+        "0.75": {
+          "confusion": {
+            "tp": 38,
+            "fp": 0,
+            "tn": 20,
+            "fn": 19,
+            "n": 77,
+            "accuracy": 0.7532467532467533,
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.8
+          },
+          "p50_us": 146.7,
+          "p99_us": 201.5
+        },
+        "0.8": {
+          "confusion": {
+            "tp": 38,
+            "fp": 0,
+            "tn": 20,
+            "fn": 19,
+            "n": 77,
+            "accuracy": 0.7532467532467533,
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.8
+          },
+          "p50_us": 145.2,
+          "p99_us": 227.1
+        },
+        "0.85": {
+          "confusion": {
+            "tp": 37,
+            "fp": 0,
+            "tn": 20,
+            "fn": 20,
+            "n": 77,
+            "accuracy": 0.7402597402597403,
+            "precision": 1.0,
+            "recall": 0.6491228070175439,
+            "f1": 0.7872340425531915
+          },
+          "p50_us": 153.0,
+          "p99_us": 876.3
+        }
+      },
+      "hybrid": {
+        "0.55": {
+          "confusion": {
+            "tp": 57,
+            "fp": 0,
+            "tn": 20,
+            "fn": 0,
+            "n": 77,
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "p50_us": 37.7,
+          "p99_us": 323.9
+        },
+        "0.6": {
+          "confusion": {
+            "tp": 57,
+            "fp": 0,
+            "tn": 20,
+            "fn": 0,
+            "n": 77,
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "p50_us": 37.0,
+          "p99_us": 444.0
+        },
+        "0.65": {
+          "confusion": {
+            "tp": 57,
+            "fp": 0,
+            "tn": 20,
+            "fn": 0,
+            "n": 77,
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "p50_us": 37.4,
+          "p99_us": 289.9
+        },
+        "0.7": {
+          "confusion": {
+            "tp": 57,
+            "fp": 0,
+            "tn": 20,
+            "fn": 0,
+            "n": 77,
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "p50_us": 37.6,
+          "p99_us": 322.5
+        },
+        "0.75": {
+          "confusion": {
+            "tp": 57,
+            "fp": 0,
+            "tn": 20,
+            "fn": 0,
+            "n": 77,
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "p50_us": 38.8,
+          "p99_us": 404.6
+        },
+        "0.8": {
+          "confusion": {
+            "tp": 57,
+            "fp": 0,
+            "tn": 20,
+            "fn": 0,
+            "n": 77,
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "p50_us": 37.4,
+          "p99_us": 356.0
+        },
+        "0.85": {
+          "confusion": {
+            "tp": 57,
+            "fp": 0,
+            "tn": 20,
+            "fn": 0,
+            "n": 77,
+            "accuracy": 1.0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0
+          },
+          "p50_us": 38.2,
+          "p99_us": 399.2
+        }
+      }
+    },
+    "paraphrase_corpus": {
+      "name": "Paraphrase Corpus (OOD for Tier 1)",
+      "n": 68,
+      "heuristic": {
+        "confusion": {
+          "tp": 9,
+          "fp": 0,
+          "tn": 24,
+          "fn": 35,
+          "n": 68,
+          "accuracy": 0.4852941176470588,
+          "precision": 1.0,
+          "recall": 0.20454545454545456,
+          "f1": 0.339622641509434
+        },
+        "p50_us": 23.9,
+        "p99_us": 62.6,
+        "misclassifications": [
+          {
+            "query": "yo whats good",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "wassup",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "g'day",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "good day to you",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "morning everyone",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "evening folks",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "wsp",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "que tal",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "what's poppin",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "howdy partner",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "long time no see",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_greeting",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "ta a lot",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "ta very much",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "cheers",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "cheers mate",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "appreciate ya",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "no worries",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "no problem",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "much obliged",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "you're a lifesaver",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "much love",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "shukran habibi",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "merci mon ami",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "you rock",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "appreciate the effort",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "catch you on the flip side",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_farewell",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "peace out",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_farewell",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "ttyl",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_farewell",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "gtg",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_farewell",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "have a good one",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_farewell",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "take care",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_farewell",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "talk soon",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_farewell",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "bbiab",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_farewell",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "smell ya later",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_farewell",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          },
+          {
+            "query": "alright then",
+            "tag": "paraphrase",
+            "expected_bypass": true,
+            "expected_category": "trivial_acknowledgment",
+            "actual_bypass": false,
+            "actual_category": "none",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "model2vec": {
+        "0.55": {
+          "confusion": {
+            "tp": 29,
+            "fp": 7,
+            "tn": 17,
+            "fn": 15,
+            "n": 68,
+            "accuracy": 0.6764705882352942,
+            "precision": 0.8055555555555556,
+            "recall": 0.6590909090909091,
+            "f1": 0.7250000000000001
+          },
+          "p50_us": 157.05,
+          "p99_us": 538.1
+        },
+        "0.6": {
+          "confusion": {
+            "tp": 28,
+            "fp": 7,
+            "tn": 17,
+            "fn": 16,
+            "n": 68,
+            "accuracy": 0.6617647058823529,
+            "precision": 0.8,
+            "recall": 0.6363636363636364,
+            "f1": 0.7088607594936709
+          },
+          "p50_us": 147.6,
+          "p99_us": 339.9
+        },
+        "0.65": {
+          "confusion": {
+            "tp": 27,
+            "fp": 4,
+            "tn": 20,
+            "fn": 17,
+            "n": 68,
+            "accuracy": 0.6911764705882353,
+            "precision": 0.8709677419354839,
+            "recall": 0.6136363636363636,
+            "f1": 0.72
+          },
+          "p50_us": 148.75,
+          "p99_us": 190.3
+        },
+        "0.7": {
+          "confusion": {
+            "tp": 24,
+            "fp": 3,
+            "tn": 21,
+            "fn": 20,
+            "n": 68,
+            "accuracy": 0.6617647058823529,
+            "precision": 0.8888888888888888,
+            "recall": 0.5454545454545454,
+            "f1": 0.676056338028169
+          },
+          "p50_us": 155.3,
+          "p99_us": 433.6
+        },
+        "0.75": {
+          "confusion": {
+            "tp": 24,
+            "fp": 3,
+            "tn": 21,
+            "fn": 20,
+            "n": 68,
+            "accuracy": 0.6617647058823529,
+            "precision": 0.8888888888888888,
+            "recall": 0.5454545454545454,
+            "f1": 0.676056338028169
+          },
+          "p50_us": 143.3,
+          "p99_us": 313.7
+        },
+        "0.8": {
+          "confusion": {
+            "tp": 19,
+            "fp": 0,
+            "tn": 24,
+            "fn": 25,
+            "n": 68,
+            "accuracy": 0.6323529411764706,
+            "precision": 1.0,
+            "recall": 0.4318181818181818,
+            "f1": 0.6031746031746031
+          },
+          "p50_us": 138.95,
+          "p99_us": 195.3
+        },
+        "0.85": {
+          "confusion": {
+            "tp": 18,
+            "fp": 0,
+            "tn": 24,
+            "fn": 26,
+            "n": 68,
+            "accuracy": 0.6176470588235294,
+            "precision": 1.0,
+            "recall": 0.4090909090909091,
+            "f1": 0.5806451612903226
+          },
+          "p50_us": 140.2,
+          "p99_us": 378.8
+        }
+      },
+      "hybrid": {
+        "0.55": {
+          "confusion": {
+            "tp": 33,
+            "fp": 7,
+            "tn": 17,
+            "fn": 11,
+            "n": 68,
+            "accuracy": 0.7352941176470589,
+            "precision": 0.825,
+            "recall": 0.75,
+            "f1": 0.7857142857142856
+          },
+          "p50_us": 184.45,
+          "p99_us": 466.5
+        },
+        "0.6": {
+          "confusion": {
+            "tp": 33,
+            "fp": 7,
+            "tn": 17,
+            "fn": 11,
+            "n": 68,
+            "accuracy": 0.7352941176470589,
+            "precision": 0.825,
+            "recall": 0.75,
+            "f1": 0.7857142857142856
+          },
+          "p50_us": 198.25,
+          "p99_us": 433.9
+        },
+        "0.65": {
+          "confusion": {
+            "tp": 32,
+            "fp": 4,
+            "tn": 20,
+            "fn": 12,
+            "n": 68,
+            "accuracy": 0.7647058823529411,
+            "precision": 0.8888888888888888,
+            "recall": 0.7272727272727273,
+            "f1": 0.7999999999999999
+          },
+          "p50_us": 196.8,
+          "p99_us": 481.1
+        },
+        "0.7": {
+          "confusion": {
+            "tp": 30,
+            "fp": 3,
+            "tn": 21,
+            "fn": 14,
+            "n": 68,
+            "accuracy": 0.75,
+            "precision": 0.9090909090909091,
+            "recall": 0.6818181818181818,
+            "f1": 0.7792207792207791
+          },
+          "p50_us": 184.7,
+          "p99_us": 561.8
+        },
+        "0.75": {
+          "confusion": {
+            "tp": 30,
+            "fp": 3,
+            "tn": 21,
+            "fn": 14,
+            "n": 68,
+            "accuracy": 0.75,
+            "precision": 0.9090909090909091,
+            "recall": 0.6818181818181818,
+            "f1": 0.7792207792207791
+          },
+          "p50_us": 187.95,
+          "p99_us": 587.1
+        },
+        "0.8": {
+          "confusion": {
+            "tp": 27,
+            "fp": 0,
+            "tn": 24,
+            "fn": 17,
+            "n": 68,
+            "accuracy": 0.75,
+            "precision": 1.0,
+            "recall": 0.6136363636363636,
+            "f1": 0.7605633802816901
+          },
+          "p50_us": 202.75,
+          "p99_us": 563.8
+        },
+        "0.85": {
+          "confusion": {
+            "tp": 26,
+            "fp": 0,
+            "tn": 24,
+            "fn": 18,
+            "n": 68,
+            "accuracy": 0.7352941176470589,
+            "precision": 1.0,
+            "recall": 0.5909090909090909,
+            "f1": 0.7428571428571429
+          },
+          "p50_us": 193.65,
+          "p99_us": 458.7
+        }
+      }
+    }
+  },
+  "recommendation": {
+    "decision": "adopt",
+    "reason": "Hybrid F1 improves by +42.1% at precision 100.0% (threshold=0.80)",
+    "best_threshold": 0.8,
+    "heuristic_only_paraphrase_f1": 0.339622641509434,
+    "hybrid_paraphrase_f1": 0.7605633802816901,
+    "delta_f1": 0.42094073877225613,
+    "delta_recall": 0.40909090909090906
+  }
+}

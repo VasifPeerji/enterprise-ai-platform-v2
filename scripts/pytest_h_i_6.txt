@@ -1,0 +1,116 @@
+............FF...................                                        [100%]
+================================== FAILURES ===================================
+______ test_weight_range_45kg_query_highlights_only_under_50kg_paragraph ______
+
+    def test_weight_range_45kg_query_highlights_only_under_50kg_paragraph():
+        """Bug H regression: a query about a 45 kg patient against a chunk
+        that contains BOTH the ≥50 kg dosing paragraph AND the <50 kg dosing
+        paragraph must produce highlights ONLY in the <50 kg section. The
+        pre-fix behaviour highlighted both paragraphs because they share
+        most query tokens (maximum, daily, dose, mg, kg).
+        """
+        assembler = GroundedAnswerAssembler()
+        content = (
+            "Adults and adolescents weighing 50 kg and over: 1000 mg every 6 hours OR 650 mg every 4 hours. "
+            "Maximum single dose: 1000 mg. "
+            "Minimum dosing interval: 4 hours. "
+            "Maximum daily dose: 4000 mg per day (all routes + all acetaminophen-containing products). "
+            "Adults and adolescents weighing under 50 kg: 15 mg/kg every 6 hours OR 12.5 mg/kg every 4 hours. "
+            "Maximum single dose: 15 mg/kg. "
+            "Minimum dosing interval: 4 hours. "
+            "Maximum daily dose: 75 mg/kg per day (all routes + all acetaminophen-containing products)."
+        )
+    
+        context = assembler.assemble(
+            "What is the maximum daily dose of acetaminophen injection for an adult weighing 45 kg?",
+            [
+                _result(
+                    "c1",
+                    "acetaminophen",
+                    2,
+                    content,
+                    title="Acetaminophen.pdf",
+                    section_title="DOSAGE AND ADMINISTRATION",
+                )
+            ],
+        )
+    
+        proof = context.page_proofs[0]
+        assert proof.highlights, "expected at least one highlight on page 2"
+    
+        # The CORRECT-range answer ("75 mg/kg per day") must be highlighted.
+        highlight_text = " | ".join(h.text for h in proof.highlights)
+        assert "75 mg/kg per day" in highlight_text, (
+            f"expected the <50 kg max daily dose to be highlighted, got: {highlight_text!r}"
+        )
+        # The WRONG-range answer ("4000 mg per day") must NOT be highlighted.
+>       assert "4000 mg per day" not in highlight_text, (
+            f"≥50 kg dosing leaked into highlights for a 45 kg query: {highlight_text!r}"
+        )
+E       AssertionError: ≥50 kg dosing leaked into highlights for a 45 kg query: 'Adults and adolescents weighing 50 kg and over: 1000 mg every 6 hours OR 650 mg every 4 hours. Maximum single dose: 1000 mg. Minimum dosing interval: 4 hours. Maximum daily dose: 4000 mg per day (all routes + all acetaminophen-containing products). Adults and adolescents weighing under 50 kg: 15 mg/kg every 6 hours OR 12.5 mg/kg every 4 hours. Maximum single dose: 15 mg/kg. Minimum dosing interval: 4 hours. Maximum daily dose: 75 mg/kg per day (all routes + all acetaminophen-containing products). | Maximum daily dose: 75 mg/kg per day (all routes + all acetaminophen-containing products). | Maximum single dose: 15 mg/kg. | Adults and adolescents weighing under 50 kg: 15 mg/kg every 6 hours OR 12.5 mg/kg every 4 hours.'
+E       assert '4000 mg per day' not in 'Adults and ...ery 4 hours.'
+E         
+E         '4000 mg per day' is contained here:
+E           ily dose: 4000 mg per day (all routes + all acetaminophen-containing products). Adults and adolescents weighing under 50 kg: 15 mg/kg every 6 hours OR 12.5 mg/kg every 4 hours. Maximum single dose: 15 mg/kg. Minimum dosing interval: 4 hours. Maximum daily dose: 75 mg/kg per day (all routes + all acetaminophen-containing products). | Maximum daily dose: 75 mg/kg per day (all routes + all acetaminophen-containing products). | Maximum single dose: 15 mg/kg. | Adults and adolescents weighing under 50 kg: 15 mg/kg every 6 hours OR 12.5 mg/kg every 4 hours.
+E         ?           +++++++++++++++
+
+D:\College\enterprise-ai-platform\tests\unit\test_grounded_answer.py:440: AssertionError
+______ test_weight_range_70kg_query_highlights_only_over_50kg_paragraph _______
+
+    def test_weight_range_70kg_query_highlights_only_over_50kg_paragraph():
+        """Counterpart to the previous test: a 70 kg query must select the
+        ≥50 kg paragraph and exclude the <50 kg one. Verifies the weight-range
+        direction works both ways.
+        """
+        assembler = GroundedAnswerAssembler()
+        content = (
+            "Adults and adolescents weighing 50 kg and over: 1000 mg every 6 hours OR 650 mg every 4 hours. "
+            "Maximum single dose: 1000 mg. "
+            "Minimum dosing interval: 4 hours. "
+            "Maximum daily dose: 4000 mg per day (all routes + all acetaminophen-containing products). "
+            "Adults and adolescents weighing under 50 kg: 15 mg/kg every 6 hours OR 12.5 mg/kg every 4 hours. "
+            "Maximum single dose: 15 mg/kg. "
+            "Minimum dosing interval: 4 hours. "
+            "Maximum daily dose: 75 mg/kg per day (all routes + all acetaminophen-containing products)."
+        )
+    
+        context = assembler.assemble(
+            "What is the maximum daily dose of acetaminophen injection for an adult weighing 70 kg?",
+            [
+                _result(
+                    "c1",
+                    "acetaminophen",
+                    2,
+                    content,
+                    title="Acetaminophen.pdf",
+                    section_title="DOSAGE AND ADMINISTRATION",
+                )
+            ],
+        )
+    
+        highlight_text = " | ".join(h.text for h in context.page_proofs[0].highlights)
+        assert "4000 mg per day" in highlight_text, (
+            f"expected the ≥50 kg max daily dose to be highlighted, got: {highlight_text!r}"
+        )
+>       assert "75 mg/kg per day" not in highlight_text, (
+            f"<50 kg dosing leaked into highlights for a 70 kg query: {highlight_text!r}"
+        )
+E       AssertionError: <50 kg dosing leaked into highlights for a 70 kg query: 'Adults and adolescents weighing 50 kg and over: 1000 mg every 6 hours OR 650 mg every 4 hours. Maximum single dose: 1000 mg. Minimum dosing interval: 4 hours. Maximum daily dose: 4000 mg per day (all routes + all acetaminophen-containing products). Adults and adolescents weighing under 50 kg: 15 mg/kg every 6 hours OR 12.5 mg/kg every 4 hours. Maximum single dose: 15 mg/kg. Minimum dosing interval: 4 hours. Maximum daily dose: 75 mg/kg per day (all routes + all acetaminophen-containing products). | Maximum daily dose: 4000 mg per day (all routes + all acetaminophen-containing products). | Maximum single dose: 1000 mg. | Adults and adolescents weighing 50 kg and over: 1000 mg every 6 hours OR 650 mg every 4 hours.'
+E       assert '75 mg/kg per day' not in 'Adults and ...ery 4 hours.'
+E         
+E         '75 mg/kg per day' is contained here:
+E           ily dose: 75 mg/kg per day (all routes + all acetaminophen-containing products). | Maximum daily dose: 4000 mg per day (all routes + all acetaminophen-containing products). | Maximum single dose: 1000 mg. | Adults and adolescents weighing 50 kg and over: 1000 mg every 6 hours OR 650 mg every 4 hours.
+E         ?           ++++++++++++++++
+
+D:\College\enterprise-ai-platform\tests\unit\test_grounded_answer.py:480: AssertionError
+============================== warnings summary ===============================
+D:\Software_Download_Files\anaconda3\envs\enterprise-ai-platform\Lib\site-packages\starlette\formparsers.py:12
+  D:\Software_Download_Files\anaconda3\envs\enterprise-ai-platform\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED D:\College\enterprise-ai-platform\tests\unit\test_grounded_answer.py::test_weight_range_45kg_query_highlights_only_under_50kg_paragraph
+FAILED D:\College\enterprise-ai-platform\tests\unit\test_grounded_answer.py::test_weight_range_70kg_query_highlights_only_over_50kg_paragraph
+2 failed, 31 passed, 1 warning in 8.49s
+ERROR conda.cli.main_run:execute(127): `conda run python -m pytest D:/College/enterprise-ai-platform/tests/unit/test_grounded_answer.py D:/College/enterprise-ai-platform/tests/unit/test_document_grounding.py D:/College/enterprise-ai-platform/tests/unit/test_rag_service.py -q --no-header --no-cov` failed. (See above for error)

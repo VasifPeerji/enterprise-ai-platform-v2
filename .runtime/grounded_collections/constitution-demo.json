@@ -1,0 +1,46 @@
+{
+  "collection_id": "constitution-demo",
+  "tenant_id": "default",
+  "domain": "law",
+  "generation_mode": "heuristic",
+  "documents": [
+    {
+      "document_id": "constitution:1",
+      "tenant_id": "default",
+      "domain": "law",
+      "title": "Constitution of India",
+      "source_uri": "constitution.txt",
+      "source_type": "text",
+      "language": "en",
+      "pages": [
+        {
+          "document_id": "constitution:1",
+          "tenant_id": "default",
+          "domain": "law",
+          "title": "Constitution of India",
+          "source_uri": "constitution.txt",
+          "source_type": "text",
+          "page_number": 1,
+          "text": "Article 14 guarantees equality before law.",
+          "section_title": null,
+          "language": "en",
+          "metadata": {}
+        },
+        {
+          "document_id": "constitution:1",
+          "tenant_id": "default",
+          "domain": "law",
+          "title": "Constitution of India",
+          "source_uri": "constitution.txt",
+          "source_type": "text",
+          "page_number": 2,
+          "text": "Article 21 protects life and personal liberty.",
+          "section_title": null,
+          "language": "en",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    }
+  ]
+}

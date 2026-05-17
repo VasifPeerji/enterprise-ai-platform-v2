@@ -1,0 +1,9 @@
+name: enterprise-ai-platform
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - poetry>=1.7.0

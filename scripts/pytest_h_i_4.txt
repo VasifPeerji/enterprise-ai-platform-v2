@@ -1,0 +1,53 @@
+..........F.......                                                       [100%]
+================================== FAILURES ===================================
+___________ test_pharma_table_answer_highlights_multiple_sentences ____________
+
+    def test_pharma_table_answer_highlights_multiple_sentences():
+        """Bug G regression: page proofs used to carry only the focal-snippet
+        highlight (~one sentence). Verify multi-sentence highlights now cover
+        every answer-bearing sentence in a table-like chunk so the UI shows
+        meaningful highlight coverage instead of half a line.
+        """
+        assembler = GroundedAnswerAssembler()
+        content = (
+            "5.2 Serotonin Syndrome. "
+            "SSRIs including sertraline can precipitate serotonin syndrome, a potentially life-threatening condition. "
+            "Mental status: Agitation, hallucinations, delirium, coma. "
+            "Autonomic instability: Tachycardia, labile blood pressure, dizziness, diaphoresis, flushing, hyperthermia. "
+            "Neuromuscular: Tremor, rigidity, myoclonus, hyperreflexia, incoordination. "
+            "Gastrointestinal: Nausea, vomiting, diarrhea."
+        )
+    
+        context = assembler.assemble(
+            "What are the neuromuscular and autonomic instability signs of Serotonin Syndrome?",
+            [
+                _result(
+                    "c1",
+                    "sertraline",
+                    6,
+                    content,
+                    title="Sertraline.pdf",
+                    section_title="WARNINGS AND PRECAUTIONS",
+                )
+            ],
+        )
+    
+        proof = context.page_proofs[0]
+        # Multi-sentence highlights — at minimum the autonomic and neuromuscular
+        # rows of the table-like layout should both be highlighted.
+        highlight_text = " ".join(h.text for h in proof.highlights).lower()
+        assert "autonomic instability" in highlight_text or "tachycardia" in highlight_text
+>       assert "neuromuscular" in highlight_text or "myoclonus" in highlight_text
+E       AssertionError: assert ('neuromuscular' in '5.2 serotonin syndrome. ssris including sertraline can precipitate serotonin syndrome, a potentially life-threatening condition. autonomic instability: tachycardia, labile blood pressure, dizziness, diaphoresis, flushing, hyperthermia.' or 'myoclonus' in '5.2 serotonin syndrome. ssris including sertraline can precipitate serotonin syndrome, a potentially life-threatening condition. autonomic instability: tachycardia, labile blood pressure, dizziness, diaphoresis, flushing, hyperthermia.')
+
+D:\College\enterprise-ai-platform\tests\unit\test_grounded_answer.py:359: AssertionError
+============================== warnings summary ===============================
+D:\Software_Download_Files\anaconda3\envs\enterprise-ai-platform\Lib\site-packages\starlette\formparsers.py:12
+  D:\Software_Download_Files\anaconda3\envs\enterprise-ai-platform\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED D:\College\enterprise-ai-platform\tests\unit\test_grounded_answer.py::test_pharma_table_answer_highlights_multiple_sentences
+1 failed, 17 passed, 1 warning in 7.61s
+ERROR conda.cli.main_run:execute(127): `conda run python -m pytest D:/College/enterprise-ai-platform/tests/unit/test_grounded_answer.py -q --no-header --no-cov` failed. (See above for error)

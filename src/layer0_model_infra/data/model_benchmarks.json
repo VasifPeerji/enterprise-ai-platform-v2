@@ -1,0 +1,451 @@
+{
+  "_meta": {
+    "description": "Benchmark performance data for major industry LLMs across standardised evaluation suites. Scores represent model capability on each benchmark (0.0-1.0). Costs are per 1K tokens (input+output average) in USD.",
+    "last_updated": "2026-04",
+    "benchmarks": {
+      "mmlu": "Massive Multitask Language Understanding — 57-domain general knowledge & reasoning",
+      "humaneval": "Code generation — function-level Python code synthesis",
+      "gsm8k": "Grade School Math 8K — multi-step arithmetic and word problems",
+      "arc_challenge": "AI2 Reasoning Challenge — science exam reasoning",
+      "mt_bench": "Multi-Turn Benchmark — conversational quality & instruction following (normalized 0-1)",
+      "ifeval": "Instruction Following Eval — strict format/constraint adherence",
+      "bbh": "Big-Bench Hard — complex compositional reasoning tasks"
+    },
+    "tiers": {
+      "premium": "Frontier models — best quality, highest cost",
+      "moderate": "Balanced models — strong quality, reasonable cost",
+      "cheap": "Efficient models — good enough quality, minimal cost"
+    }
+  },
+
+  "models": {
+
+    "gpt-5.4": {
+      "display_name": "GPT-5.4",
+      "provider": "openai",
+      "tier": "premium",
+      "benchmarks": {
+        "mmlu": 0.928,
+        "humaneval": 0.952,
+        "gsm8k": 0.971,
+        "arc_challenge": 0.982,
+        "mt_bench": 0.955,
+        "ifeval": 0.921,
+        "bbh": 0.938
+      },
+      "cost_per_1k_tokens": 0.035,
+      "latency_p50_ms": 1800,
+      "strengths": ["complex_reasoning", "code_generation", "multi_step_math", "research"],
+      "model_size_category": "frontier"
+    },
+
+    "gpt-5-mini": {
+      "display_name": "GPT-5 Mini",
+      "provider": "openai",
+      "tier": "moderate",
+      "benchmarks": {
+        "mmlu": 0.875,
+        "humaneval": 0.882,
+        "gsm8k": 0.915,
+        "arc_challenge": 0.941,
+        "mt_bench": 0.908,
+        "ifeval": 0.870,
+        "bbh": 0.878
+      },
+      "cost_per_1k_tokens": 0.006,
+      "latency_p50_ms": 900,
+      "strengths": ["general_qa", "coding", "instruction_following"],
+      "model_size_category": "mid"
+    },
+
+    "gpt-5-nano": {
+      "display_name": "GPT-5 Nano",
+      "provider": "openai",
+      "tier": "cheap",
+      "benchmarks": {
+        "mmlu": 0.762,
+        "humaneval": 0.710,
+        "gsm8k": 0.785,
+        "arc_challenge": 0.852,
+        "mt_bench": 0.815,
+        "ifeval": 0.742,
+        "bbh": 0.735
+      },
+      "cost_per_1k_tokens": 0.0008,
+      "latency_p50_ms": 350,
+      "strengths": ["speed", "cost_efficiency", "simple_qa"],
+      "model_size_category": "small"
+    },
+
+    "claude-opus-4.6": {
+      "display_name": "Claude Opus 4.6",
+      "provider": "anthropic",
+      "tier": "premium",
+      "benchmarks": {
+        "mmlu": 0.935,
+        "humaneval": 0.961,
+        "gsm8k": 0.978,
+        "arc_challenge": 0.985,
+        "mt_bench": 0.962,
+        "ifeval": 0.935,
+        "bbh": 0.945
+      },
+      "cost_per_1k_tokens": 0.045,
+      "latency_p50_ms": 2200,
+      "strengths": ["deep_reasoning", "safety", "code_generation", "formal_proofs"],
+      "model_size_category": "frontier"
+    },
+
+    "claude-sonnet-4.6": {
+      "display_name": "Claude Sonnet 4.6",
+      "provider": "anthropic",
+      "tier": "moderate",
+      "benchmarks": {
+        "mmlu": 0.895,
+        "humaneval": 0.928,
+        "gsm8k": 0.955,
+        "arc_challenge": 0.962,
+        "mt_bench": 0.930,
+        "ifeval": 0.905,
+        "bbh": 0.910
+      },
+      "cost_per_1k_tokens": 0.009,
+      "latency_p50_ms": 1200,
+      "strengths": ["coding", "reasoning", "instruction_following", "safety"],
+      "model_size_category": "mid"
+    },
+
+    "claude-haiku": {
+      "display_name": "Claude Haiku",
+      "provider": "anthropic",
+      "tier": "cheap",
+      "benchmarks": {
+        "mmlu": 0.775,
+        "humaneval": 0.745,
+        "gsm8k": 0.798,
+        "arc_challenge": 0.865,
+        "mt_bench": 0.830,
+        "ifeval": 0.768,
+        "bbh": 0.752
+      },
+      "cost_per_1k_tokens": 0.0006,
+      "latency_p50_ms": 300,
+      "strengths": ["speed", "cost_efficiency", "simple_tasks", "safety"],
+      "model_size_category": "small"
+    },
+
+    "gemini-3.1-pro": {
+      "display_name": "Gemini 3.1 Pro",
+      "provider": "google",
+      "tier": "premium",
+      "benchmarks": {
+        "mmlu": 0.940,
+        "humaneval": 0.938,
+        "gsm8k": 0.968,
+        "arc_challenge": 0.979,
+        "mt_bench": 0.948,
+        "ifeval": 0.928,
+        "bbh": 0.942
+      },
+      "cost_per_1k_tokens": 0.030,
+      "latency_p50_ms": 1600,
+      "strengths": ["multilingual", "long_context", "reasoning", "multimodal"],
+      "model_size_category": "frontier"
+    },
+
+    "gemini-2.5-pro": {
+      "display_name": "Gemini 2.5 Pro",
+      "provider": "google",
+      "tier": "moderate",
+      "benchmarks": {
+        "mmlu": 0.888,
+        "humaneval": 0.895,
+        "gsm8k": 0.932,
+        "arc_challenge": 0.955,
+        "mt_bench": 0.920,
+        "ifeval": 0.888,
+        "bbh": 0.895
+      },
+      "cost_per_1k_tokens": 0.005,
+      "latency_p50_ms": 800,
+      "strengths": ["general_qa", "multilingual", "coding", "long_context"],
+      "model_size_category": "mid"
+    },
+
+    "gemini-flash": {
+      "display_name": "Gemini Flash",
+      "provider": "google",
+      "tier": "cheap",
+      "benchmarks": {
+        "mmlu": 0.790,
+        "humaneval": 0.725,
+        "gsm8k": 0.810,
+        "arc_challenge": 0.878,
+        "mt_bench": 0.838,
+        "ifeval": 0.770,
+        "bbh": 0.760
+      },
+      "cost_per_1k_tokens": 0.0003,
+      "latency_p50_ms": 250,
+      "strengths": ["speed", "cost_efficiency", "multilingual", "simple_qa"],
+      "model_size_category": "small"
+    },
+
+    "grok-3": {
+      "display_name": "Grok 3",
+      "provider": "xai",
+      "tier": "premium",
+      "benchmarks": {
+        "mmlu": 0.920,
+        "humaneval": 0.935,
+        "gsm8k": 0.958,
+        "arc_challenge": 0.972,
+        "mt_bench": 0.940,
+        "ifeval": 0.912,
+        "bbh": 0.928
+      },
+      "cost_per_1k_tokens": 0.025,
+      "latency_p50_ms": 1500,
+      "strengths": ["reasoning", "real_time_knowledge", "code_generation", "math"],
+      "model_size_category": "frontier"
+    },
+
+    "grok-3-mini": {
+      "display_name": "Grok 3 Mini",
+      "provider": "xai",
+      "tier": "moderate",
+      "benchmarks": {
+        "mmlu": 0.862,
+        "humaneval": 0.870,
+        "gsm8k": 0.905,
+        "arc_challenge": 0.938,
+        "mt_bench": 0.898,
+        "ifeval": 0.858,
+        "bbh": 0.865
+      },
+      "cost_per_1k_tokens": 0.004,
+      "latency_p50_ms": 700,
+      "strengths": ["general_qa", "real_time_knowledge", "coding"],
+      "model_size_category": "mid"
+    },
+
+    "grok-lite": {
+      "display_name": "Grok Lite",
+      "provider": "xai",
+      "tier": "cheap",
+      "benchmarks": {
+        "mmlu": 0.738,
+        "humaneval": 0.680,
+        "gsm8k": 0.755,
+        "arc_challenge": 0.835,
+        "mt_bench": 0.802,
+        "ifeval": 0.718,
+        "bbh": 0.710
+      },
+      "cost_per_1k_tokens": 0.0005,
+      "latency_p50_ms": 280,
+      "strengths": ["speed", "cost_efficiency", "simple_tasks"],
+      "model_size_category": "small"
+    },
+
+    "llama-4-ultra": {
+      "display_name": "Llama 4 Ultra",
+      "provider": "meta",
+      "tier": "premium",
+      "benchmarks": {
+        "mmlu": 0.918,
+        "humaneval": 0.940,
+        "gsm8k": 0.962,
+        "arc_challenge": 0.975,
+        "mt_bench": 0.942,
+        "ifeval": 0.915,
+        "bbh": 0.930
+      },
+      "cost_per_1k_tokens": 0.012,
+      "latency_p50_ms": 1400,
+      "strengths": ["code_generation", "reasoning", "open_source", "multilingual"],
+      "model_size_category": "frontier"
+    },
+
+    "llama-4": {
+      "display_name": "Llama 4",
+      "provider": "meta",
+      "tier": "moderate",
+      "benchmarks": {
+        "mmlu": 0.870,
+        "humaneval": 0.885,
+        "gsm8k": 0.918,
+        "arc_challenge": 0.948,
+        "mt_bench": 0.905,
+        "ifeval": 0.868,
+        "bbh": 0.875
+      },
+      "cost_per_1k_tokens": 0.002,
+      "latency_p50_ms": 600,
+      "strengths": ["general_qa", "coding", "open_source", "cost_efficiency"],
+      "model_size_category": "mid"
+    },
+
+    "llama-small": {
+      "display_name": "Llama Small",
+      "provider": "meta",
+      "tier": "cheap",
+      "benchmarks": {
+        "mmlu": 0.745,
+        "humaneval": 0.698,
+        "gsm8k": 0.768,
+        "arc_challenge": 0.842,
+        "mt_bench": 0.808,
+        "ifeval": 0.730,
+        "bbh": 0.722
+      },
+      "cost_per_1k_tokens": 0.0002,
+      "latency_p50_ms": 200,
+      "strengths": ["speed", "cost_efficiency", "open_source", "simple_tasks"],
+      "model_size_category": "small"
+    },
+
+    "mistral-large-3": {
+      "display_name": "Mistral Large 3",
+      "provider": "mistral",
+      "tier": "premium",
+      "benchmarks": {
+        "mmlu": 0.915,
+        "humaneval": 0.932,
+        "gsm8k": 0.955,
+        "arc_challenge": 0.970,
+        "mt_bench": 0.938,
+        "ifeval": 0.910,
+        "bbh": 0.925
+      },
+      "cost_per_1k_tokens": 0.018,
+      "latency_p50_ms": 1300,
+      "strengths": ["coding", "reasoning", "multilingual", "function_calling"],
+      "model_size_category": "frontier"
+    },
+
+    "mistral-medium": {
+      "display_name": "Mistral Medium",
+      "provider": "mistral",
+      "tier": "moderate",
+      "benchmarks": {
+        "mmlu": 0.858,
+        "humaneval": 0.868,
+        "gsm8k": 0.902,
+        "arc_challenge": 0.935,
+        "mt_bench": 0.895,
+        "ifeval": 0.855,
+        "bbh": 0.862
+      },
+      "cost_per_1k_tokens": 0.003,
+      "latency_p50_ms": 550,
+      "strengths": ["general_qa", "coding", "multilingual", "cost_efficiency"],
+      "model_size_category": "mid"
+    },
+
+    "mistral-small": {
+      "display_name": "Mistral Small",
+      "provider": "mistral",
+      "tier": "cheap",
+      "benchmarks": {
+        "mmlu": 0.730,
+        "humaneval": 0.675,
+        "gsm8k": 0.748,
+        "arc_challenge": 0.828,
+        "mt_bench": 0.795,
+        "ifeval": 0.712,
+        "bbh": 0.705
+      },
+      "cost_per_1k_tokens": 0.0003,
+      "latency_p50_ms": 220,
+      "strengths": ["speed", "cost_efficiency", "multilingual", "simple_tasks"],
+      "model_size_category": "small"
+    },
+
+    "deepseek-r2": {
+      "display_name": "DeepSeek R2",
+      "provider": "deepseek",
+      "tier": "premium",
+      "benchmarks": {
+        "mmlu": 0.922,
+        "humaneval": 0.948,
+        "gsm8k": 0.975,
+        "arc_challenge": 0.978,
+        "mt_bench": 0.935,
+        "ifeval": 0.918,
+        "bbh": 0.940
+      },
+      "cost_per_1k_tokens": 0.014,
+      "latency_p50_ms": 1600,
+      "strengths": ["math", "reasoning", "code_generation", "formal_proofs"],
+      "model_size_category": "frontier"
+    },
+
+    "qwen-3.5": {
+      "display_name": "Qwen 3.5",
+      "provider": "alibaba",
+      "tier": "moderate",
+      "benchmarks": {
+        "mmlu": 0.880,
+        "humaneval": 0.892,
+        "gsm8k": 0.925,
+        "arc_challenge": 0.952,
+        "mt_bench": 0.912,
+        "ifeval": 0.878,
+        "bbh": 0.885
+      },
+      "cost_per_1k_tokens": 0.003,
+      "latency_p50_ms": 650,
+      "strengths": ["multilingual", "coding", "math", "cost_efficiency"],
+      "model_size_category": "mid"
+    },
+
+    "cohere-command-r-plus": {
+      "display_name": "Cohere Command R+",
+      "provider": "cohere",
+      "tier": "moderate",
+      "benchmarks": {
+        "mmlu": 0.865,
+        "humaneval": 0.842,
+        "gsm8k": 0.895,
+        "arc_challenge": 0.940,
+        "mt_bench": 0.910,
+        "ifeval": 0.862,
+        "bbh": 0.855
+      },
+      "cost_per_1k_tokens": 0.004,
+      "latency_p50_ms": 750,
+      "strengths": ["rag", "enterprise", "multilingual", "grounding"],
+      "model_size_category": "mid"
+    },
+
+    "yi-lightning": {
+      "display_name": "Yi Lightning",
+      "provider": "01ai",
+      "tier": "moderate",
+      "benchmarks": {
+        "mmlu": 0.852,
+        "humaneval": 0.838,
+        "gsm8k": 0.888,
+        "arc_challenge": 0.932,
+        "mt_bench": 0.895,
+        "ifeval": 0.845,
+        "bbh": 0.848
+      },
+      "cost_per_1k_tokens": 0.002,
+      "latency_p50_ms": 500,
+      "strengths": ["speed", "general_qa", "multilingual", "cost_efficiency"],
+      "model_size_category": "mid"
+    }
+  },
+
+  "benchmark_to_rubric_mapping": {
+    "mmlu":          {"primary_rubric": "knowledge_breadth", "secondary_rubric": "domain_depth",     "description": "Tests breadth and depth of world knowledge"},
+    "humaneval":     {"primary_rubric": "task_count",        "secondary_rubric": "output_structure",  "description": "Tests code generation requiring structured multi-step output"},
+    "gsm8k":         {"primary_rubric": "reasoning_hops",    "secondary_rubric": "task_count",        "description": "Tests multi-step mathematical reasoning"},
+    "arc_challenge": {"primary_rubric": "reasoning_hops",    "secondary_rubric": "knowledge_breadth", "description": "Tests science reasoning with domain knowledge"},
+    "mt_bench":      {"primary_rubric": "output_structure",  "secondary_rubric": "knowledge_breadth", "description": "Tests conversational quality and coherence"},
+    "ifeval":        {"primary_rubric": "output_structure",  "secondary_rubric": "task_count",        "description": "Tests strict instruction and format adherence"},
+    "bbh":           {"primary_rubric": "reasoning_hops",    "secondary_rubric": "domain_depth",      "description": "Tests complex compositional reasoning"}
+  }
+}

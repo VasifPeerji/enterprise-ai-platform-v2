@@ -1,0 +1,37 @@
+{
+  "collection_id": "loan-faq",
+  "tenant_id": "tenant-a",
+  "domain": "lending",
+  "generation_mode": "heuristic",
+  "documents": [
+    {
+      "document_id": "loan-faq:faq",
+      "tenant_id": "tenant-a",
+      "domain": "lending",
+      "title": "faq",
+      "source_uri": "/docs/faq.txt",
+      "source_type": "text",
+      "language": "en",
+      "pages": [
+        {
+          "document_id": "loan-faq:faq",
+          "tenant_id": "tenant-a",
+          "domain": "lending",
+          "title": "faq",
+          "source_uri": "/docs/faq.txt",
+          "source_type": "text",
+          "page_number": 1,
+          "text": "EMI means equated monthly installment.",
+          "section_title": "Document Section",
+          "language": "en",
+          "metadata": {
+            "drug_name": "Faq",
+            "section_name": "Document Section",
+            "rag_section_boundary": "page"
+          }
+        }
+      ],
+      "metadata": {}
+    }
+  ]
+}

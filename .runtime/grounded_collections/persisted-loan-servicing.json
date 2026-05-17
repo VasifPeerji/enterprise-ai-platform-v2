@@ -1,0 +1,54 @@
+{
+  "collection_id": "persisted-loan-servicing",
+  "tenant_id": "tenant-a",
+  "domain": "lending",
+  "generation_mode": "heuristic",
+  "documents": [
+    {
+      "document_id": "persisted-loan-servicing:agreement",
+      "tenant_id": "tenant-a",
+      "domain": "lending",
+      "title": "agreement",
+      "source_uri": "/docs/agreement.txt",
+      "source_type": "text",
+      "language": "en",
+      "pages": [
+        {
+          "document_id": "persisted-loan-servicing:agreement",
+          "tenant_id": "tenant-a",
+          "domain": "lending",
+          "title": "agreement",
+          "source_uri": "/docs/agreement.txt",
+          "source_type": "text",
+          "page_number": 1,
+          "text": "Foreclosure charges are 2% of outstanding principal.",
+          "section_title": "Document Section",
+          "language": "en",
+          "metadata": {
+            "drug_name": "Agreement",
+            "section_name": "Document Section",
+            "rag_section_boundary": "page"
+          }
+        },
+        {
+          "document_id": "persisted-loan-servicing:agreement",
+          "tenant_id": "tenant-a",
+          "domain": "lending",
+          "title": "agreement",
+          "source_uri": "/docs/agreement.txt",
+          "source_type": "text",
+          "page_number": 2,
+          "text": "Late payment fee is 500 rupees.",
+          "section_title": "Document Section",
+          "language": "en",
+          "metadata": {
+            "drug_name": "Agreement",
+            "section_name": "Document Section",
+            "rag_section_boundary": "page"
+          }
+        }
+      ],
+      "metadata": {}
+    }
+  ]
+}

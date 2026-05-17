@@ -1,0 +1,88 @@
+{
+  "collection_id": "attach-v07-b3266c54-406-mp40zfn0",
+  "tenant_id": "default",
+  "domain": "general",
+  "generation_mode": "gateway",
+  "documents": [
+    {
+      "document_id": "attach-v07-b3266c54-406-mp40zfn0:0:CPUT_Document.pdf",
+      "tenant_id": "default",
+      "domain": "general",
+      "title": "CPUT_Document.pdf",
+      "source_uri": "CPUT_Document.pdf",
+      "source_type": "pdf",
+      "language": "en",
+      "pages": [
+        {
+          "document_id": "attach-v07-b3266c54-406-mp40zfn0:0:CPUT_Document.pdf",
+          "tenant_id": "default",
+          "domain": "general",
+          "title": "CPUT_Document.pdf",
+          "source_uri": "CPUT_Document.pdf",
+          "source_type": "pdf",
+          "page_number": 1,
+          "text": "RE\nQUEST FOR QUOTATION\nDate 05 February 2026\nDepartment CTS\nRequestor Moegamat Alexander\nDue Date 16 February 2026\nContact Person Dillin Nel\nBudget Available (not shown) 490 000\nCost Centre 8550\nAccount 43422\nQuantity Specification\nDevelopmen\nt hours X\n800\nBACKGROUND\nCape Peninsula University of Technology (CPUT) is implementing Phase 3 of the Staff Development\nAcademy (SDA) . This phase includes the end- to- end development of a Customised AI Tutor Bot to\nbe integrated into the SDA\u2019s Joomla 5\u2013based online learning platform.\nThe AI Tutor Bot will deliver personalised, competency- based learning to CPUT staff, support real-\ntime assessment, generate analytics for WSP/ATR and BBBEE reporting, and comply with POPIA\nand public- sector data governance standards.\nCPUT now invites qualified vendors to submit quotations for the full development, integration, and\nlicensing of this AI Tutor Bot\nSCOPE OF WORK\nThe selected vendor shall:\n\u2022 Design, build, and deploy a custom AI Tutor Bot trained on CPUT- specific HR and policy\nco\nntent (e.g., Code of Conduct, Disciplinary Procedures)\n\u2022 I\nntegrate the bot with the existing SDA platform (Joomla 5) and CPUT HR systems (e.g.,\nITS/HRIS)\n\u2022 Deliver a annual, on- premises licence with full source code and documentation\n\u2022 Pro\nvide user and admin training\n\u2022 Offer 6 months of post- deployment technical support\n3. TECHNICAL & FUNCTIONAL REQUIREMENTS\nT\nhe AI Tutor Bot must support the following features:\nNatural Language Interaction Understand plain- English queries; maintain context across session\ndialogue\nPersonalisation Adapt learning paths based on user role, progress, and performan\nContent Integration Trainable on CPUT documents (PDF, Word, SCORM); auto- genera\nfrom uploaded material\nAssessment & Feedback Dynamic competency- based quizzes; real- time feedback; user rat\nAdmin & Reporting Dashboard for L&D and line managers; exportable reports for WS\nDHET",
+          "section_title": "QUEST FOR QUOTATION",
+          "language": "en",
+          "metadata": {
+            "drug_name": "Cput Document",
+            "section_name": "QUEST FOR QUOTATION",
+            "rag_section_boundary": "page"
+          }
+        },
+        {
+          "document_id": "attach-v07-b3266c54-406-mp40zfn0:0:CPUT_Document.pdf",
+          "tenant_id": "default",
+          "domain": "general",
+          "title": "CPUT_Document.pdf",
+          "source_uri": "CPUT_Document.pdf",
+          "source_type": "pdf",
+          "page_number": 2,
+          "text": "Compliance POPIA- compliant; no external data sharing; audit logs; role- based access\n4. MANDATORY SUBMISSION REQUIREMENTS\n4.1 Skills Matrix\nBidders must provide a detailed skills matrix for their proposed project team, covering at\nleast the following roles:\nProject Manager PMP/PRINCE2 certified; min. 3 years managing AI/Ed Tech projects i\nsector or higher education\nAI/NLP Developer(s) Proficiency in Python, Tensor Flow/Py Torch, Hugging Face, Rasa or L\nexperience fine- tuning LLMs on domain- specific content\nFull- Stack\nDeveloper(s) Joomla 5 plugin/module development; RESTful APIs; MySQL; Java Sc\nData Scientist(s) Experience building adaptive learning algorithms; analytics dashboa\nInstructional\nDesigner(s)\nBackground in adult learning theory; experience converting HR poli\ninteractive e- learning\nQA/Test Engineer(s) Automated/manual testing; UAT coordination; WCAG accessibility c\nAttach CVs/resumes for all key personnel.\n4.2 Company & Project History\nBidders must submit:\n\u2022 A company profile (max. 2 pages)\n\u2022 Summaries of at least 3 similar AI/Ed Tech projects delivered in the past 5 years,\nincluding:\no Client name and sector (public/private/education)\no Project duration and team size\no Technologies used (e.g., LLMs, frameworks, LMS integrations)\no Measurable outcomes (e.g., user satisfaction, completion rates)\nPreference will be given to vendors with public- sector or higher education experience.\n4.3 Client References\nProvide three (3) verifiable references for projects involving:\n\u2022 AI chatbots or virtual tutors\n\u2022 LMS or e- learning platform development\n\u2022 Public- sector or university clients (preferred)\nInclude: Name, Organisation, Email, Phone. References may be contacted.\n5. DELIVERABLES\nThe vendor must deliver:\n1. Fully functional AI Tutor Bot integrated into SDA (Joomla 5)\n2. Perpetual, modifiable, on- premises software licence\n3. Full source code, model weights, and training pipelines",
+          "section_title": "4. MANDATORY SUBMISSION REQUIREMENTS",
+          "language": "en",
+          "metadata": {
+            "drug_name": "Cput Document",
+            "section_name": "4. MANDATORY SUBMISSION REQUIREMENTS",
+            "rag_section_boundary": "page"
+          }
+        },
+        {
+          "document_id": "attach-v07-b3266c54-406-mp40zfn0:0:CPUT_Document.pdf",
+          "tenant_id": "default",
+          "domain": "general",
+          "title": "CPUT_Document.pdf",
+          "source_uri": "CPUT_Document.pdf",
+          "source_type": "pdf",
+          "page_number": 3,
+          "text": "4. Admin & user documentation\nProp\nosals should be submitted to Dillin Nel via email to < Neld@cput.ac.za> by no later than the\n16th February 2026.\nThank you for your interest in providing a solution to Cape Peninsula University of Technology.",
+          "section_title": "Prop",
+          "language": "en",
+          "metadata": {
+            "drug_name": "Cput Document",
+            "section_name": "Prop",
+            "rag_section_boundary": "page"
+          }
+        },
+        {
+          "document_id": "attach-v07-b3266c54-406-mp40zfn0:0:CPUT_Document.pdf",
+          "tenant_id": "default",
+          "domain": "general",
+          "title": "CPUT_Document.pdf",
+          "source_uri": "CPUT_Document.pdf",
+          "source_type": "pdf",
+          "page_number": 4,
+          "text": "IMPORTANT\nCom\nplete the Proposal Document\nPl\nease complete the attached proposal as part of your proposal.\nNB: NOT\nE: ONLY QUOTATIONS SUBMITTED WITH THE COMPLETED PROPOSAL\nDOCUMENT(S) WILL BE CONSIDERED FOR EVALUATION.\nCom\npliance Documents\nPl\nease submit your quote together with the following company documents:\n1. Tax PIN\n2. V\nalid BBB EE certificate / Affidavit\n3. Valid COIDA / Letter of Good Standing\n4. Completed SCM SBD Forms (SBD 4 and SBD 6.1)\n5. Completed Declaration.\nThe above- mentioned documents except the BBB EE certificate are mandatory, failure to submit\nmay render your quotation non- responsive.\nYou will not be granted points for BBBEE certificate if you fail to submit a BBBEEE certificate.\nDue date to submit quotation\nDue Date: 16th February 2026\nNB: LATE QUOTATIONS WILL NOT BE CONSIDERED.\nDate:\nTime:\nContact Person:\nVenue:\nN/A",
+          "section_title": "Com",
+          "language": "en",
+          "metadata": {
+            "drug_name": "Cput Document",
+            "section_name": "Com",
+            "rag_section_boundary": "page"
+          }
+        }
+      ],
+      "metadata": {}
+    }
+  ]
+}

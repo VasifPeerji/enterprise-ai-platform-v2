@@ -1,0 +1,23 @@
+{
+  "name": "v07",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "svelte": "^5.55.4",
+    "vite": "^8.0.10"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "highlight.js": "^11.11.1",
+    "leaflet": "^1.9.4",
+    "mammoth": "^1.12.0",
+    "marked": "^18.0.3"
+  }
+}

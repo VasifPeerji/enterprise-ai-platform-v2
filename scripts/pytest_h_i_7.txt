@@ -1,0 +1,8 @@
+.................................                                        [100%]
+============================== warnings summary ===============================
+D:\Software_Download_Files\anaconda3\envs\enterprise-ai-platform\Lib\site-packages\starlette\formparsers.py:12
+  D:\Software_Download_Files\anaconda3\envs\enterprise-ai-platform\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+33 passed, 1 warning in 7.68s

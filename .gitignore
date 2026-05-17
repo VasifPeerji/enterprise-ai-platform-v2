@@ -1,0 +1,327 @@
+# ==========================================
+# ENTERPRISE AI PLATFORM - GITIGNORE
+# ==========================================
+
+# ==========================================
+# Environment & Secrets
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.env
+secrets/
+*.key
+*.pem
+
+# ==========================================
+# Python
+# ==========================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock  # Uncomment if you want to track lock file
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ==========================================
+# IDEs & Editors
+# ==========================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# ==========================================
+# Operating System
+# ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ==========================================
+# Databases
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# PostgreSQL
+*.sql
+pg_data/
+
+# ==========================================
+# Logs
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ==========================================
+# Vector Database
+# ==========================================
+qdrant_storage/
+.qdrant/
+
+# ==========================================
+# Redis
+# ==========================================
+dump.rdb
+appendonly.aof
+
+# ==========================================
+# AI & ML
+# ==========================================
+# Model weights
+models/
+*.h5
+*.pkl
+*.joblib
+*.ckpt
+*.safetensors
+
+# Datasets
+datasets/
+data/raw/
+data/processed/
+*.csv
+*.parquet
+
+# Embeddings cache
+embeddings_cache/
+
+# ==========================================
+# Frontend (Node.js)
+# ==========================================
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Build outputs
+frontend/dist/
+frontend/build/
+*.tsbuildinfo
+
+# ==========================================
+# Docker
+# ==========================================
+*.env.docker
+
+# ==========================================
+# Temporary Files
+# ==========================================
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# ==========================================
+# Project Specific
+# ==========================================
+# Uploaded files
+uploads/
+user_data/
+
+# Generated artifacts
+artifacts/
+outputs/
+
+# Test outputs
+test_outputs/
+golden_datasets/
+
+# Evaluation results
+evaluation_results/
+
+# Observability data
+traces/
+metrics/
+
+# ==========================================
+# Documentation
+# ==========================================
+# Sphinx
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# ==========================================
+# CI/CD
+# ==========================================
+.github/workflows/*.local.yml
+
+# ==========================================
+# Miscellaneous
+# ==========================================
+.cache/
+*.pid

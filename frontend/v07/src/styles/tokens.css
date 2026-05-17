@@ -1,0 +1,110 @@
+/* ═══════════════════════════════════════════════════════════
+   V07 Design Tokens — CSS Custom Properties
+   Premium dark theme inspired by ChatGPT + glassmorphism
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Color Palette ─────────────────────────────────────── */
+  --bg-primary:      #0d0d0d;
+  --bg-secondary:    #171717;
+  --bg-tertiary:     #212121;
+  --bg-elevated:     #2a2a2a;
+  --bg-hover:        #333333;
+  --bg-active:       #3a3a3a;
+
+  --surface-chat:    #212121;
+  --surface-sidebar: #171717;
+  --surface-input:   #2f2f2f;
+  --surface-card:    rgba(255, 255, 255, 0.04);
+  --surface-glass:   rgba(255, 255, 255, 0.06);
+
+  --text-primary:    #ececec;
+  --text-secondary:  #b4b4b4;
+  --text-tertiary:   #8e8e8e;
+  --text-muted:      #666666;
+  --text-inverse:    #0d0d0d;
+
+  --accent-primary:   #10a37f;
+  --accent-hover:     #1a7f64;
+  --accent-gradient:  linear-gradient(135deg, #10a37f 0%, #0ea5e9 100%);
+  --accent-gradient-2: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+  --accent-glow:     rgba(16, 163, 127, 0.25);
+
+  --border-subtle:   rgba(255, 255, 255, 0.08);
+  --border-default:  rgba(255, 255, 255, 0.12);
+  --border-strong:   rgba(255, 255, 255, 0.18);
+
+  --error:           #ef4444;
+  --warning:         #f59e0b;
+  --success:         #10b981;
+  --info:            #3b82f6;
+
+  /* Tier colors */
+  --tier-premium:    #ef4444;
+  --tier-moderate:   #f59e0b;
+  --tier-cheap:      #22c55e;
+
+  /* ── Typography ────────────────────────────────────────── */
+  --font-sans:       'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:       'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  --text-xs:         0.6875rem;   /* 11px */
+  --text-sm:         0.8125rem;   /* 13px */
+  --text-base:       0.9375rem;   /* 15px */
+  --text-md:         1rem;        /* 16px */
+  --text-lg:         1.125rem;    /* 18px */
+  --text-xl:         1.375rem;    /* 22px */
+  --text-2xl:        1.75rem;     /* 28px */
+  --text-3xl:        2.25rem;     /* 36px */
+
+  --weight-light:    300;
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  --leading-tight:   1.25;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.7;
+
+  /* ── Spacing ───────────────────────────────────────────── */
+  --space-1:   4px;
+  --space-2:   8px;
+  --space-3:   12px;
+  --space-4:   16px;
+  --space-5:   20px;
+  --space-6:   24px;
+  --space-8:   32px;
+  --space-10:  40px;
+  --space-12:  48px;
+  --space-16:  64px;
+
+  /* ── Radii ─────────────────────────────────────────────── */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ───────────────────────────────────────────── */
+  --shadow-sm:   0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md:   0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg:   0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 24px var(--accent-glow);
+
+  /* ── Transitions ───────────────────────────────────────── */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --duration-fast:   120ms;
+  --duration-normal: 200ms;
+  --duration-slow:   350ms;
+
+  /* ── Layout ────────────────────────────────────────────── */
+  --sidebar-width:      260px;
+  --sidebar-collapsed:  0px;
+  --input-max-width:    768px;
+  --chat-max-width:     768px;
+  --header-height:      52px;
+}

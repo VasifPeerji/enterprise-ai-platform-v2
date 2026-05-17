@@ -1,0 +1,59 @@
+{
+  "collection_id": "test-docs2",
+  "tenant_id": "default",
+  "domain": "general",
+  "generation_mode": "heuristic",
+  "documents": [
+    {
+      "document_id": "test-docs2:0:JD_Patient Counsellor.pdf",
+      "tenant_id": "default",
+      "domain": "general",
+      "title": "JD_Patient Counsellor.pdf",
+      "source_uri": "JD_Patient Counsellor.pdf",
+      "source_type": "pdf",
+      "language": "en",
+      "pages": [
+        {
+          "document_id": "test-docs2:0:JD_Patient Counsellor.pdf",
+          "tenant_id": "default",
+          "domain": "general",
+          "title": "JD_Patient Counsellor.pdf",
+          "source_uri": "JD_Patient Counsellor.pdf",
+          "source_type": "pdf",
+          "page_number": 1,
+          "text": "Lupin Digital Health is a wholly owned subsidiary of Lupin Limited.\nLupin Digital Health brings together the best and the brightest from the\nhealthcare, technology, and operations domains. With our expertise, we\ncomplement cardiologists in ensuring the best possible care for patients.\nLupin Digital Health was founded in 2021 to make cardiac rehabilitation\nmore accessible and to drive better outcomes for patients using technology.",
+          "section_title": null,
+          "language": "en",
+          "metadata": {}
+        },
+        {
+          "document_id": "test-docs2:0:JD_Patient Counsellor.pdf",
+          "tenant_id": "default",
+          "domain": "general",
+          "title": "JD_Patient Counsellor.pdf",
+          "source_uri": "JD_Patient Counsellor.pdf",
+          "source_type": "pdf",
+          "page_number": 2,
+          "text": "What we do\nOur mission is to harness the power of technology to predict and prevent heart attacks.\nWe\u2019ve built a digital clinic that combines human intervention by clinicians with\ntechnology, thereby enabling easy monitoring and improving adherence to treatment\u2014\nresulting in better patient outcomes.\nAbout the parent company\nLupin Digital Health is a fully owned subsidiary of Lupin. Lupin was founded in 1968 by\nvisionary Dr. Desh Bandhu Gupta. Lupin is a global pharmaceutical company committed\nto innovation, accessibility, and impact.\nLupin develops and commercializes a wide range of branded and generic formulations,\nbiotechnology products, and APIs in over 100 markets\u2014including the U.S., India, South\nAfrica, and across the Asia-Paci\ufb01c, Latin America, Europe, and Middle East regions. It is\nthe third-largest pharmaceutical company in the U.S. by prescriptions.\nLeading the way in digital cardiac rehabilitation\nOur digital cardiac rehabilitation program has been built in collaboration with top\ncardiologists from India.\nClick here to know about our \ufb02agship product LYFE",
+          "section_title": null,
+          "language": "en",
+          "metadata": {}
+        },
+        {
+          "document_id": "test-docs2:0:JD_Patient Counsellor.pdf",
+          "tenant_id": "default",
+          "domain": "general",
+          "title": "JD_Patient Counsellor.pdf",
+          "source_uri": "JD_Patient Counsellor.pdf",
+          "source_type": "pdf",
+          "page_number": 3,
+          "text": "JOB DESCRIPTION\nFunction: Sales\nRole: Patient Counsellor Experience: 1 -3 Years\nReporting To: Area Sales Manager/\n Regional Sales Manager\nPatient facing or health care product exposure\nAbility to counsel, convince and sell\nWell versed with basic English and local language\nWillingness to travel by bike or local conveyance\nEducational background of BSc Nursing, Food Science &\nNutrition, Social Work, Psychology is preferred\nStationed at a set of pre-de\ufb01ned doctors' clinics or centers/hospitals\nBridging patient concerns and counselling them with LDH\u2019s LYFE program solution\nSelling the program to patients in OPD/Wards/IPD and onboarding them to the\nLYFE program\nBooking slots for demonstration and visiting patients as per slots\nProviding timely updates to doctors about their patients\u2019 information after\ndemonstrations\nCoordinating with doctors regarding patient camps and sessions\nKey Responsibilities:\nWhat we\u2019re looking for:\nSomeone who can challenge conventional thinking. Someone who\u2019s willing to roll-up\ntheir sleeves and drive results.",
+          "section_title": null,
+          "language": "en",
+          "metadata": {}
+        }
+      ],
+      "metadata": {}
+    }
+  ]
+}

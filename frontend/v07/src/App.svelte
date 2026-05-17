@@ -1,0 +1,914 @@
+<script>
+  import { onMount } from 'svelte';
+  import Sidebar from './components/Sidebar.svelte';
+  import ChatArea from './components/ChatArea.svelte';
+  import InputBar from './components/InputBar.svelte';
+  import ModelSelector from './components/ModelSelector.svelte';
+  import PageViewer from './components/PageViewer.svelte';
+  import {
+    sidebarOpen,
+    currentRoute,
+    modelSelectorOpen,
+    activeConversationId,
+    createConversation,
+    addMessage,
+    addMessageAndGetId,
+    updateMessage,
+    isLoading,
+    isTyping,
+    isStreaming,
+    streamingMessageId,
+    streamController,
+    loadingMode,
+    loadingStage,
+    loadingMeta,
+    selectedModel,
+    walletBalance,
+    lastCostCharged,
+    pageViewerProof,
+    attachedFiles,
+    webSearchEnabled,
+    sessionId,
+    walletPopupOpen,
+    walletTransactions,
+    recordTransaction,
+    conversations,
+    setMessageReaction,
+    truncateConversationAfter,
+    editingMessageId,
+    speakingMessageId,
+  } from './lib/stores.js';
+  import {
+    sendMessage,
+    ragQuery,
+    getWalletBalance,
+    uploadFilesToCollection,
+    searchWeb,
+    formatSearchContext,
+  } from './lib/api.js';
+  import WalletPopup from './components/WalletPopup.svelte';
+
+  let route = $state({ mode: 'chat', collection: null });
+
+  // Hash-based routing
+  function parseHash() {
+    const hash = window.location.hash.slice(1) || '/';
+    if (hash.startsWith('/rag/')) {
+      const collection = decodeURIComponent(hash.slice(5));
+      route = { mode: 'rag', collection };
+    } else {
+      route = { mode: 'chat', collection: null };
+    }
+    currentRoute.set(route);
+  }
+
+  onMount(async () => {
+    parseHash();
+    window.addEventListener('hashchange', parseHash);
+
+    // Pull the latest wallet balance from the backend for this browser's
+    // persistent session. The persisted local value is kept as a fallback
+    // so a brief network blip doesn't blank the UI.
+    try {
+      const balance = await getWalletBalance($sessionId);
+      walletBalance.set(balance);
+    } catch { /* backend not running yet */ }
+
+    return () => window.removeEventListener('hashchange', parseHash);
+  });
+
+  // Handle sending messages with streaming typewriter effect + stop support.
+  // The `opts` arg lets refine / regenerate / edit flows reuse the same
+  // pipeline without double-recording the user prompt as a bubble.
+  async function handleSend(event, opts = {}) {
+    const message = event.detail.message;
+    if (!message.trim()) return;
+    const skipUserBubble = opts.skipUserBubble === true;
+
+    // Snapshot the attachments / search state for this send. Cleared from
+    // the input bar immediately so the user can start composing the next
+    // message while this one is in flight.
+    let filesForSend = [];
+    let useWebSearch = false;
+    const unsubFiles = attachedFiles.subscribe((v) => (filesForSend = v));
+    unsubFiles();
+    const unsubWeb = webSearchEnabled.subscribe((v) => (useWebSearch = v));
+    unsubWeb();
+    attachedFiles.set([]);
+
+    // Create conversation if needed
+    let convId;
+    const unsub = activeConversationId.subscribe((v) => (convId = v));
+    unsub();
+
+    if (!convId) {
+      convId = createConversation(message);
+    }
+
+    // Build the user-visible content for the bubble: text + file/search chips
+    // (purely visual indicators; the actual file content rides via the
+    // grounded collection, and search results ride inside the enriched prompt).
+    const userContent = [{ type: 'text', text: message }];
+    if (filesForSend.length) {
+      userContent.push({
+        type: 'attachments',
+        files: filesForSend.map((f) => ({ name: f.name, size: f.size, type: f.type })),
+      });
+    }
+    if (useWebSearch) {
+      userContent.push({ type: 'web_search_indicator' });
+    }
+
+    if (!skipUserBubble) {
+      addMessage(convId, {
+        role: 'user',
+        content: userContent,
+      });
+    }
+
+    // Pick the loading-indicator mode based on what this send actually does.
+    // File-RAG takes priority over web search since it's the heavier path.
+    const mode = filesForSend.length
+      ? 'file_rag'
+      : useWebSearch
+      ? 'web_search'
+      : 'normal';
+    loadingMode.set(mode);
+    loadingMeta.set(
+      mode === 'web_search'
+        ? { query: message }
+        : mode === 'file_rag'
+        ? {
+            files: filesForSend.map((f) => f.name),
+            totalBytes: filesForSend.reduce((s, f) => s + (f.size || 0), 0),
+          }
+        : {},
+    );
+    loadingStage.set(
+      mode === 'web_search' ? 'searching' : mode === 'file_rag' ? 'uploading' : 'thinking',
+    );
+
+    // Show loading state — themed indicator until the response arrives
+    isLoading.set(true);
+    isTyping.set(true);
+
+    // Set up abort for the in-flight request
+    const controller = new AbortController();
+    // The typewriter's cancel flag — flipped by the stop button mid-stream
+    let stopRequested = false;
+    streamController.set({
+      abort: () => {
+        stopRequested = true;
+        controller.abort();
+      },
+    });
+
+    let asstId = null;
+
+    try {
+      let response;
+      let modelState;
+      const unsubModel = selectedModel.subscribe((v) => (modelState = v));
+      unsubModel();
+
+      // 1) Web search enrichment — fetch top web results and inline them
+      //    into the prompt as numbered context. Failures here are non-fatal:
+      //    we still send the original message so a flaky network doesn't
+      //    break the chat. The raw results are stashed so we can rewrite
+      //    [N] citations in the response into clickable links afterwards.
+      let promptForBackend = message;
+      let searchResultsUsed = null;
+      if (useWebSearch) {
+        try {
+          const results = await searchWeb(message, { signal: controller.signal });
+          if (results.length) {
+            promptForBackend = formatSearchContext(results, message);
+            searchResultsUsed = results;
+            // Surface the sources as chips and tick the pipeline forward.
+            loadingMeta.update((m) => ({
+              ...m,
+              sources: results.slice(0, 4).map((r) => ({ url: r.url, title: r.title })),
+              sourcesFound: results.length,
+            }));
+            loadingStage.set('reading');
+            await sleep(450);
+            loadingStage.set('synthesizing');
+          }
+        } catch (e) {
+          if (e.name === 'AbortError') throw e;
+          console.warn('[V07] Web search failed, sending without context:', e);
+        }
+      }
+
+      // 2) File upload — push the attachments into a fresh grounded
+      //    collection. The chat call then runs in RAG mode against it so
+      //    citations come back automatically.
+      //
+      // Stage timing — the backend does the bulk of the slow work *inside*
+      // this single fetch (parse the file → chunk → embed every chunk →
+      // store in the vector DB). That takes 10-60s for a real document.
+      // If we left the stage at "uploading" until the await returns, the UI
+      // would look frozen even though the backend is working hard. So we
+      // schedule a timed advance to "parsing" while we're still waiting.
+      let collectionIdOverride = null;
+      if (filesForSend.length) {
+        let uploadDone = false;
+        const parsingTimer = setTimeout(() => {
+          if (!uploadDone) loadingStage.set('parsing');
+        }, 2500);
+
+        try {
+          const { collectionId, summary } = await uploadFilesToCollection(filesForSend, {
+            sessionId: $sessionId,
+            signal: controller.signal,
+          });
+          collectionIdOverride = collectionId;
+          loadingMeta.update((m) => ({ ...m, summary }));
+        } finally {
+          uploadDone = true;
+          clearTimeout(parsingTimer);
+        }
+        // Upload + indexing complete on the backend. The chat call (RAG)
+        // will now do vector retrieval + generation — show retrieval first.
+        loadingStage.set('retrieving');
+      }
+
+      // For the normal path, flip from "thinking" to "composing" right
+      // before the chat call so the second stage actually lights up.
+      if (mode === 'normal') {
+        loadingStage.set('composing');
+      } else if (mode === 'file_rag') {
+        // We're already at "retrieving" from the post-upload block above.
+        // The chat call does both retrieval + generation; advance to
+        // "composing" partway through so the user sees the final stage.
+        setTimeout(() => loadingStage.set('composing'), 1500);
+      } else if (mode === 'web_search' && !searchResultsUsed) {
+        // Search failed silently — collapse to composing.
+        loadingStage.set('composing');
+      }
+
+      if (route.mode === 'rag' && route.collection) {
+        response = await ragQuery(route.collection, promptForBackend, {
+          sessionId: $sessionId,
+          signal: controller.signal,
+        });
+      } else if (collectionIdOverride) {
+        response = await ragQuery(collectionIdOverride, promptForBackend, {
+          sessionId: $sessionId,
+          signal: controller.signal,
+        });
+      } else {
+        response = await sendMessage(promptForBackend, {
+          modelId: modelState.id || 'smart_routing',
+          sessionId: $sessionId,
+          signal: controller.signal,
+        });
+      }
+
+      // Update wallet balance from simulation. The backend is the source
+      // of truth for cost calculation; the local store mirrors it.
+      if (response.cost?.balanceUsd !== null && response.cost?.balanceUsd !== undefined) {
+        walletBalance.set(response.cost.balanceUsd);
+      }
+      if (response.cost?.chargedUsd) {
+        lastCostCharged.set(response.cost.chargedUsd);
+        // Drop a row into the wallet's recent-activity feed so the user can
+        // see what each message cost and which model billed for it.
+        recordTransaction({
+          amount: response.cost.chargedUsd,
+          modelName: response.model?.name || 'AI',
+          mode,
+        });
+        setTimeout(() => lastCostCharged.set(0), 3000);
+      }
+
+      // Post-process when web search was used: turn the model's "[1]" / "[2]"
+      // markers into clickable inline links, strip any trailing URL-dump the
+      // model produced anyway, and append a clean sources block at the end.
+      let finalContent = response.content;
+      if (searchResultsUsed?.length) {
+        finalContent = enhanceWithWebSources(response.content, searchResultsUsed);
+      }
+
+      // Response arrived — switch from "typing dots" to streaming the message.
+      // Append an empty assistant message we'll progressively fill in.
+      isTyping.set(false);
+      asstId = addMessageAndGetId(convId, {
+        role: 'assistant',
+        content: [],
+        model: response.model,
+        routing: response.routing,
+        cost: response.cost,
+      });
+      streamingMessageId.set(asstId);
+      isStreaming.set(true);
+
+      await typewriterStream(convId, asstId, finalContent, () => stopRequested);
+    } catch (error) {
+      // AbortError before response arrived → user clicked stop early. Drop a
+      // brief note so they see the action took effect.
+      if (error.name === 'AbortError') {
+        addMessage(convId, {
+          role: 'assistant',
+          content: [{ type: 'text', text: '_Response generation stopped._' }],
+          model: { name: 'System', tier: 'moderate' },
+        });
+      } else {
+        addMessage(convId, {
+          role: 'assistant',
+          content: [{ type: 'text', text: humanizeError(error.message) }],
+          model: { name: 'System', tier: 'error' },
+        });
+      }
+    } finally {
+      isLoading.set(false);
+      isTyping.set(false);
+      isStreaming.set(false);
+      streamingMessageId.set(null);
+      streamController.set(null);
+    }
+  }
+
+  // Progressively reveal the assistant content into the live message. Text
+  // blocks are typed out word-by-word; non-text blocks (charts, tables,
+  // citations, etc.) snap in once the preceding text is fully revealed.
+  async function typewriterStream(convId, messageId, blocks, isStopped) {
+    const revealed = [];
+    // Words-per-tick controls speed: small batch keeps the effect smooth but
+    // doesn't take forever on long answers.
+    const WORDS_PER_TICK = 3;
+    const TICK_MS = 18;
+
+    for (const block of blocks) {
+      if (isStopped()) break;
+
+      if (block.type === 'text' && typeof block.text === 'string') {
+        // Stream this text block word-by-word
+        const words = block.text.split(/(\s+)/); // keep whitespace tokens
+        let buf = '';
+        revealed.push({ type: 'text', text: '' });
+        const idx = revealed.length - 1;
+
+        for (let i = 0; i < words.length; i += WORDS_PER_TICK) {
+          if (isStopped()) break;
+          buf += words.slice(i, i + WORDS_PER_TICK).join('');
+          revealed[idx] = { type: 'text', text: buf };
+          updateMessage(convId, messageId, { content: [...revealed] });
+          await sleep(TICK_MS);
+        }
+        // Ensure full text if we exited the loop cleanly
+        if (!isStopped()) {
+          revealed[idx] = { type: 'text', text: block.text };
+          updateMessage(convId, messageId, { content: [...revealed] });
+        }
+      } else {
+        // Non-text block — show it whole
+        revealed.push(block);
+        updateMessage(convId, messageId, { content: [...revealed] });
+        await sleep(TICK_MS);
+      }
+    }
+  }
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // Escape HTML special chars so titles can safely sit inside a title="…"
+  // attribute on the inline citation link.
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Turn `[1]` markers in the response into clickable superscript links and
+  // strip any trailing URL list the model produced (despite being asked not
+  // to). Appends a structured `web_sources` content block with the actual
+  // result list so the chat shows a clean Sources section at the bottom.
+  function enhanceWithWebSources(content, results) {
+    const enhanced = content.map((block) => {
+      if (block.type !== 'text') return block;
+      let text = block.text || '';
+
+      // ── 1) Linkify [N] → <sup><a class="cite-link" href="…">[N]</a></sup>
+      text = text.replace(/\[(\d+)\]/g, (m, n) => {
+        const idx = parseInt(n, 10) - 1;
+        const src = results[idx];
+        if (!src) return m;
+        const title = escapeHtml(src.title || src.url);
+        return `<sup class="cite-sup"><a class="cite-link" href="${src.url}" target="_blank" rel="noopener noreferrer" title="${title}">${n}</a></sup>`;
+      });
+
+      // ── 2) Strip the model's trailing "Sources:" / "For more info…" dump.
+      //      Find the first line that starts a URL list and chop everything
+      //      from there to the end of the message — but only if at least one
+      //      URL is present in that tail, so we don't accidentally truncate
+      //      legitimate prose.
+      const lines = text.split('\n');
+      let cutoff = -1;
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!/^(Sources?:|References?:|For (?:more )?(?:detailed |further )?info|For more details?|You can refer to|Citations?:)/i.test(line))
+          continue;
+        const tail = lines.slice(i).join('\n');
+        if (/https?:\/\//i.test(tail)) {
+          cutoff = i;
+          break;
+        }
+      }
+      if (cutoff > 0) text = lines.slice(0, cutoff).join('\n').trimEnd();
+
+      return { ...block, text };
+    });
+
+    // ── 3) Append a clean sources block.
+    enhanced.push({
+      type: 'web_sources',
+      sources: results.map((r, i) => ({
+        n: i + 1,
+        title: r.title,
+        url: r.url,
+        snippet: (r.snippet || '').slice(0, 220),
+      })),
+    });
+
+    return enhanced;
+  }
+
+  // Translate cryptic backend error messages into something a user can act
+  // on. Falls back to the raw message for anything we don't recognise so we
+  // never hide an unknown failure mode from view.
+  function humanizeError(raw) {
+    const msg = String(raw || '');
+
+    if (/no relevant knowledge found/i.test(msg)) {
+      return (
+        "⚠️ I couldn't find anything relevant in your uploaded documents for that question. " +
+        'A few things to try:\n\n' +
+        '- Rephrase the question to match wording the document might use\n' +
+        '- Ask about a specific section or topic you know is in the file\n' +
+        "- If you just uploaded the file, make sure indexing finished — re-attach and retry if it didn't"
+      );
+    }
+
+    if (/codec can't decode|invalid start byte|Parser detail|Failed to parse document/i.test(msg)) {
+      const fileMatch = msg.match(/document ['"]([^'"]+)['"]/i);
+      const fname = fileMatch ? `"${fileMatch[1]}"` : 'one of your files';
+      return (
+        `⚠️ I couldn't read ${fname} on the backend. The file is likely in a binary ` +
+        'format I can\'t parse server-side (e.g. legacy .doc, .xls, or a corrupted upload). ' +
+        'Try uploading the same content as **.pdf** or **.txt** — or, for Word, re-save as ' +
+        '**.docx** (which gets converted to text automatically before upload).'
+      );
+    }
+
+    if (/grounded collection.*not found|collection_id.*not found/i.test(msg)) {
+      return (
+        '⚠️ The uploaded collection couldn\'t be found on the backend. Try re-attaching ' +
+        'your file(s) and sending again — the previous upload may not have finished.'
+      );
+    }
+
+    if (/429|Too Many Requests|rate limit/i.test(msg)) {
+      return '⚠️ Rate-limited by the upstream service. Wait a moment and try again.';
+    }
+
+    if (/network|fetch|ECONNREFUSED/i.test(msg)) {
+      return '⚠️ Couldn\'t reach the backend. Make sure the FastAPI server is running on port 8000.';
+    }
+
+    return `⚠️ Error: ${msg}`;
+  }
+
+  function handleStop() {
+    let ctrl;
+    const unsub = streamController.subscribe((v) => (ctrl = v));
+    unsub();
+    if (ctrl?.abort) ctrl.abort();
+  }
+
+  // ── Read the active conversation snapshot synchronously ──
+  function getActiveConv() {
+    let convId, list;
+    const u1 = activeConversationId.subscribe((v) => (convId = v));
+    u1();
+    const u2 = conversations.subscribe((v) => (list = v));
+    u2();
+    return list?.find((c) => c.id === convId) || null;
+  }
+
+  // Extract a flat text prompt from a message's content array — used to
+  // re-send the original user prompt during regenerate.
+  function extractPrompt(content) {
+    if (!Array.isArray(content)) return '';
+    return content
+      .filter((b) => b?.type === 'text')
+      .map((b) => b.text)
+      .join('\n\n')
+      .trim();
+  }
+
+  // ── Regenerate an assistant message ───────────────────────
+  // Drops the assistant bubble (and anything after it), then re-runs the
+  // immediately-preceding user prompt through the full pipeline.
+  async function handleRegenerate(assistantMessageId) {
+    const conv = getActiveConv();
+    if (!conv) return;
+    const asstIdx = conv.messages.findIndex((m) => m.id === assistantMessageId);
+    if (asstIdx < 1) return;
+    // Walk back to the nearest user message before this assistant turn.
+    let userIdx = asstIdx - 1;
+    while (userIdx >= 0 && conv.messages[userIdx].role !== 'user') userIdx--;
+    if (userIdx < 0) return;
+    const userMsg = conv.messages[userIdx];
+    const prompt = extractPrompt(userMsg.content);
+    if (!prompt) return;
+
+    truncateConversationAfter(conv.id, userMsg.id);
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    speakingMessageId.set(null);
+    await handleSend({ detail: { message: prompt } }, { skipUserBubble: true });
+  }
+
+  // ── Edit a user message and regenerate downstream ──────────
+  async function handleEditCommit(userMessageId, newText) {
+    const trimmed = (newText || '').trim();
+    if (!trimmed) return;
+    const conv = getActiveConv();
+    if (!conv) return;
+    const idx = conv.messages.findIndex((m) => m.id === userMessageId);
+    if (idx < 0) return;
+
+    // Rewrite the user bubble in-place, preserving any attachment indicators.
+    const existing = conv.messages[idx];
+    const passthrough = (existing.content || []).filter(
+      (b) => b?.type === 'attachments' || b?.type === 'web_search_indicator',
+    );
+    updateMessage(conv.id, userMessageId, {
+      content: [{ type: 'text', text: trimmed }, ...passthrough],
+    });
+    truncateConversationAfter(conv.id, userMessageId);
+    editingMessageId.set(null);
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    speakingMessageId.set(null);
+
+    await handleSend({ detail: { message: trimmed } }, { skipUserBubble: true });
+  }
+
+  // ── Quick refine (Shorter / Simpler / etc.) ────────────────
+  // QuickRefine builds a self-contained prompt that already includes the
+  // original assistant text inline, so we just fire it through handleSend
+  // like any other user message. It appears as a new turn in the chat.
+  async function handleQuickRefine(event) {
+    const { prompt } = event.detail || {};
+    if (!prompt) return;
+    await handleSend({ detail: { message: prompt } });
+  }
+
+  // ── Follow-up suggestion picked ────────────────────────────
+  async function handleFollowUpPick(event) {
+    const { message } = event.detail || {};
+    if (!message) return;
+    await handleSend({ detail: { message } });
+  }
+
+  // ── Like / dislike on assistant messages ──────────────────
+  function handleReaction(messageId, reaction) {
+    const conv = getActiveConv();
+    if (!conv) return;
+    setMessageReaction(conv.id, messageId, reaction);
+  }
+
+  // ── Inline-edit start / cancel ────────────────────────────
+  function handleStartEdit(messageId) {
+    editingMessageId.set(messageId);
+  }
+  function handleCancelEdit() {
+    editingMessageId.set(null);
+  }
+
+  // Handle page proof viewing
+  function handleViewProof(event) {
+    pageViewerProof.set(event.detail.proof);
+  }
+
+  function closePageViewer() {
+    pageViewerProof.set(null);
+  }
+
+  // Toggle the wallet popup (which contains balance, activity, refill).
+  // Click on the header chip no longer resets — refill lives inside the popup.
+  function handleToggleWallet() {
+    walletPopupOpen.update((v) => !v);
+  }
+
+  // Keyboard shortcuts
+  function handleKeydown(e) {
+    if (e.ctrlKey && e.key === 'n') {
+      e.preventDefault();
+      createConversation();
+    }
+    if (e.key === 'Escape' && $pageViewerProof) {
+      closePageViewer();
+    }
+  }
+
+  // Format wallet
+  function formatWallet(val) {
+    return `$${Number(val).toFixed(2)}`;
+  }
+</script>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<div class="app-shell" class:sidebar-collapsed={!$sidebarOpen}>
+  <Sidebar />
+
+  <main class="main-area">
+    <header class="chat-header">
+      {#if !$sidebarOpen}
+        <!-- Sidebar is collapsed — show the "open" variant of the panel-left
+             icon (rectangle + right-pointing arrow inside, hinting that the
+             panel will expand outward). When the sidebar is open the close
+             variant lives inside the sidebar header itself. -->
+        <button
+          class="sidebar-open-btn"
+          onclick={() => sidebarOpen.set(true)}
+          aria-label="Open sidebar"
+          title="Open sidebar"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="9" y1="3" x2="9" y2="21"/>
+            <polyline points="13 9 16 12 13 15"/>
+          </svg>
+        </button>
+      {/if}
+
+      <div class="header-center">
+        {#if route.mode === 'rag' && route.collection}
+          <span class="rag-badge">RAG</span>
+          <span class="header-title">{route.collection}</span>
+        {:else}
+          <span class="header-title">V07</span>
+        {/if}
+      </div>
+
+      <div class="header-right">
+        <!-- Wallet chip — opens the wallet popup with balance + activity + refill -->
+        <div class="wallet-display" title="Open wallet">
+          <button
+            class="wallet-btn"
+            class:popup-open={$walletPopupOpen}
+            onclick={handleToggleWallet}
+            aria-expanded={$walletPopupOpen}
+            aria-haspopup="dialog"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+              <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+              <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
+            </svg>
+            <span class="wallet-amount" class:low={$walletBalance < 10}>{formatWallet($walletBalance)}</span>
+          </button>
+          {#if $lastCostCharged > 0}
+            {#key $lastCostCharged}
+              <span class="wallet-charged">−${$lastCostCharged.toFixed(4)}</span>
+            {/key}
+          {/if}
+          {#if $walletPopupOpen}
+            <WalletPopup />
+          {/if}
+        </div>
+
+        <!-- Model selector chip -->
+        <button class="model-chip" onclick={() => modelSelectorOpen.update((v) => !v)}>
+          <span class="model-dot" class:smart={$selectedModel.mode === 'smart'}></span>
+          <span class="model-chip-label">{$selectedModel.name}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <ChatArea
+      {route}
+      on:send={handleSend}
+      on:viewProof={handleViewProof}
+      on:regenerate={(e) => handleRegenerate(e.detail.messageId)}
+      on:editCommit={(e) => handleEditCommit(e.detail.messageId, e.detail.text)}
+      on:editStart={(e) => handleStartEdit(e.detail.messageId)}
+      on:editCancel={handleCancelEdit}
+      on:reaction={(e) => handleReaction(e.detail.messageId, e.detail.reaction)}
+      on:refine={handleQuickRefine}
+      on:followUp={handleFollowUpPick}
+    />
+    <InputBar on:send={handleSend} on:stop={handleStop} {route} />
+  </main>
+
+  {#if $modelSelectorOpen}
+    <ModelSelector />
+  {/if}
+
+  <!-- Page Viewer overlay for RAG citations -->
+  <PageViewer 
+    proof={$pageViewerProof} 
+    visible={$pageViewerProof !== null} 
+    on:close={closePageViewer} 
+  />
+</div>
+
+<style>
+  .app-shell {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background: var(--bg-primary);
+  }
+
+  .main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--surface-chat);
+    position: relative;
+  }
+
+  /* ── Header ──────────────────────── */
+  .chat-header {
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--surface-chat);
+    gap: var(--space-3);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .sidebar-open-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    transition: background var(--duration-fast), color var(--duration-fast);
+    /* Wait for the sidebar to mostly finish collapsing before this button
+       fades in, so the two animations don't fight each other. */
+    animation: openBtnEnter 0.25s var(--ease-out) 0.2s both;
+  }
+  .sidebar-open-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  @keyframes openBtnEnter {
+    from { opacity: 0; transform: translateX(-6px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .header-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    justify-content: center;
+  }
+
+  .header-title {
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+  }
+
+  .rag-badge {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    background: var(--accent-gradient);
+    color: white;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Header right ───────────────── */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  /* ── Wallet ─────────────────────── */
+  .wallet-display {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    position: relative;
+  }
+
+  .wallet-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    transition: all var(--duration-fast);
+    font-family: var(--font-mono);
+  }
+  .wallet-btn:hover {
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+    background: var(--surface-glass);
+  }
+  .wallet-btn.popup-open {
+    border-color: var(--accent-primary);
+    background: rgba(16, 163, 127, 0.08);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.12);
+  }
+
+  .wallet-amount {
+    font-weight: var(--weight-semibold);
+    color: var(--success);
+  }
+  .wallet-amount.low {
+    color: var(--warning);
+  }
+
+  .wallet-charged {
+    position: absolute;
+    top: -8px;
+    right: -4px;
+    font-size: 10px;
+    color: var(--error);
+    font-family: var(--font-mono);
+    font-weight: var(--weight-semibold);
+    background: var(--bg-secondary);
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+    animation: fadeInUp 0.3s var(--ease-out);
+    pointer-events: none;
+  }
+
+  /* ── Model chip ──────────────────── */
+  .model-chip {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    transition: all var(--duration-fast);
+    white-space: nowrap;
+  }
+  .model-chip:hover {
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+    background: var(--surface-glass);
+  }
+
+  .model-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--tier-moderate);
+  }
+  .model-dot.smart {
+    background: var(--accent-primary);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+
+  .model-chip-label {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ── Responsive ──────────────────── */
+  @media (max-width: 768px) {
+    .app-shell.sidebar-collapsed :global(.sidebar) {
+      transform: translateX(-100%);
+    }
+    .model-chip-label {
+      display: none;
+    }
+    .wallet-charged {
+      display: none;
+    }
+  }
+</style>

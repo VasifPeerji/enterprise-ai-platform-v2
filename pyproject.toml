@@ -1,0 +1,195 @@
+[tool.poetry]
+name = "enterprise-ai-platform"
+version = "0.1.0"
+description = "Composable Enterprise AI Assistant Platform - Production-grade, multi-tenant, domain-agnostic AI system"
+authors = ["Your Team <team@enterprise.ai>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"
+
+# Core Backend Framework
+fastapi = "^0.109.0"
+uvicorn = {extras = ["standard"], version = "^0.27.0"}
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+
+# Orchestration & Agent Framework
+langgraph = "^0.0.20"
+langchain = "^0.1.0"
+langchain-core = "^0.1.0"
+
+# Model Gateway (Layer 0)
+litellm = "^1.17.0"
+
+# Database & ORM
+sqlmodel = "^0.0.14"
+alembic = "^1.13.0"
+psycopg2-binary = "^2.9.9"
+asyncpg = "^0.29.0"
+
+# Vector Database
+qdrant-client = "^1.7.0"
+
+# Cache & Memory
+redis = {extras = ["hiredis"], version = "^5.0.1"}
+hiredis = "^2.3.2"
+
+# Observability & Tracing
+arize-phoenix = "^2.0.0"
+opentelemetry-api = "^1.22.0"
+opentelemetry-sdk = "^1.22.0"
+
+# Utilities
+python-dotenv = "^1.0.0"
+python-multipart = "^0.0.6"
+httpx = "^0.26.0"
+tenacity = "^8.2.3"
+structlog = "^24.1.0"
+python-json-logger = "^2.0.7"
+pypdf = "^6.0.0"
+pdfplumber = "^0.11.0"
+PyMuPDF = "^1.24.0"
+
+# Security
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+bcrypt = "^4.1.2"
+
+# ML & Routing (Layer 0 — Benchmark Router)
+numpy = ">=1.24.0"
+scikit-learn = ">=1.3.0"
+joblib = ">=1.3.0"
+torch = ">=2.0.0"
+sentence-transformers = ">=2.2.0"
+
+[tool.poetry.group.dev.dependencies]
+# Testing
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.12.0"
+httpx = "^0.26.0"  # For FastAPI testing
+
+# Code Quality
+black = "^24.1.0"
+ruff = "^0.1.0"
+mypy = "^1.8.0"
+pre-commit = "^3.6.0"
+
+# Development Tools
+ipython = "^8.20.0"
+ipdb = "^0.13.13"
+
+[tool.poetry.group.frontend.dependencies]
+# Frontend dependencies managed separately via npm/pnpm
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+# ==========================================
+# TOOL CONFIGURATIONS
+# ==========================================
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "C",   # flake8-comprehensions
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "e2e: End-to-end tests",
+    "slow: Slow running tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

@@ -1,0 +1,21 @@
+== query weight extraction ==
+query weight kg: 45.0
+
+== chunk-level relevance (45 kg query) ==
+over chunk: -1   expect -1
+under chunk: 1   expect +1
+combined chunk: 1   expect +1 (one range includes 45)
+
+== chunk-level relevance (70 kg query) ==
+over chunk: 1   expect +1
+under chunk: -1   expect -1
+
+== sentence scoring with context propagation (45 kg query, COMBINED chunk) ==
+  [  5.88] *** Adults and adolescents weighing 50 kg and over: 1000 mg every 6 hours OR 650 mg every 4 hours.
+  [  6.23] *** Maximum single dose: 1000 mg.
+  [ -4.47]  Minimum dosing interval: 4 hours.
+  [ 15.52] *** Maximum daily dose: 4000 mg per day (all routes + all acetaminophen-containing products).
+  [ 17.94] *** Adults and adolescents weighing under 50 kg: 15 mg/kg every 6 hours OR 12.5 mg/kg every 4 hours.
+  [ 22.28] *** Maximum single dose: 15 mg/kg.
+  [  7.53] *** Minimum dosing interval: 4 hours.
+  [ 31.57] *** Maximum daily dose: 75 mg/kg per day (all routes + all acetaminophen-containing products).

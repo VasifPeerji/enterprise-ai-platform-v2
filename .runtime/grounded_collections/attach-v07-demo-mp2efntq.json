@@ -1,0 +1,37 @@
+{
+  "collection_id": "attach-v07-demo-mp2efntq",
+  "tenant_id": "default",
+  "domain": "general",
+  "generation_mode": "gateway",
+  "documents": [
+    {
+      "document_id": "attach-v07-demo-mp2efntq:0:Solomon_sales_2026-05-11.pdf",
+      "tenant_id": "default",
+      "domain": "general",
+      "title": "Solomon_sales_2026-05-11.pdf",
+      "source_uri": "Solomon_sales_2026-05-11.pdf",
+      "source_type": "pdf",
+      "language": "en",
+      "pages": [
+        {
+          "document_id": "attach-v07-demo-mp2efntq:0:Solomon_sales_2026-05-11.pdf",
+          "tenant_id": "default",
+          "domain": "general",
+          "title": "Solomon_sales_2026-05-11.pdf",
+          "source_uri": "Solomon_sales_2026-05-11.pdf",
+          "source_type": "pdf",
+          "page_number": 1,
+          "text": "SOLOMON\nEnterprise Intelligence Platform\nVeridian Systems \u00b7 Sales AI \u00b7 Monday, May 11, 2026\nSales & Revenue Report\nExecutive Summary\nAryan Mehta generated the most leads this month with 24 new units, followed by Divya Nair with 20 leads and Marcus Lee with\n19. These top performers are showing strong sales momentum.\nKey Metrics\nARYAN MEHTA LEAD\n24\nup\nDIVYA NAIR LEADS\n20\nup\nMARCUS LEE LEADS\n19\nup\nLeads by Employee\nEmployee Leads Generate Status\nAryan Mehta 24 good\nDivya Nair 20 good\nMarcus Lee 19 good\nPriya Joshi 17 good\nTyler Moss 16 warning\nJordan Walsh 15 good\nKeisha Grant 14 warning\nSean O'Brien 14 good\nVictor Flores 10 warning\nBrittany Cole 7 critical\nRaj Patel 6 critical\nVikram Singh 3 critical\nKey Insights\n1. Top 5 employees account for 96 total leads, out of 94 new units overall, indicating strong concentration of new leads in top performers.\n2. Performance gaps are visible as some employees are generating significantly fewer leads.\nSolomon AI \u2014 Veridian Systems \u00b7 Confidential \u00b7 Monday, May 11, 2026 Page 1 of 1",
+          "section_title": "Enterprise Intelligence Platform",
+          "language": "en",
+          "metadata": {
+            "drug_name": "Solomon Sales 2026 05 11",
+            "section_name": "Enterprise Intelligence Platform",
+            "rag_section_boundary": "page"
+          }
+        }
+      ],
+      "metadata": {}
+    }
+  ]
+}

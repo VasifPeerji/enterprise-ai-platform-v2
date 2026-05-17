@@ -1,0 +1,77 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-8.3.4, pluggy-1.5.0 -- D:\Software_Download_Files\anaconda3\python.exe
+cachedir: .pytest_cache
+rootdir: d:\College\enterprise-ai-platform
+configfile: pyproject.toml
+plugins: anyio-4.9.0
+collecting ... collected 58 items
+
+tests/layer0_model_infra/test_fast_triage.py::TestIntentClassification::test_intent_detection[What is Python?-qa] PASSED [  1%]
+tests/layer0_model_infra/test_fast_triage.py::TestIntentClassification::test_intent_detection[Explain machine learning-qa] PASSED [  3%]
+tests/layer0_model_infra/test_fast_triage.py::TestIntentClassification::test_intent_detection[Write a function to reverse a string-coding] PASSED [  5%]
+tests/layer0_model_infra/test_fast_triage.py::TestIntentClassification::test_intent_detection[def foo(): pass\nFix this bug-coding] PASSED [  6%]
+tests/layer0_model_infra/test_fast_triage.py::TestIntentClassification::test_intent_detection[How should I approach this problem?-planning] PASSED [  8%]
+tests/layer0_model_infra/test_fast_triage.py::TestIntentClassification::test_intent_detection[Help me plan my vacation-planning] PASSED [ 10%]
+tests/layer0_model_infra/test_fast_triage.py::TestIntentClassification::test_intent_detection[Hello! How are you?-casual] PASSED [ 12%]
+tests/layer0_model_infra/test_fast_triage.py::TestIntentClassification::test_intent_detection[Thanks for your help-casual] PASSED [ 13%]
+tests/layer0_model_infra/test_fast_triage.py::TestDomainClassification::test_domain_detection[How do I fix a broken bone?-medical] PASSED [ 15%]
+tests/layer0_model_infra/test_fast_triage.py::TestDomainClassification::test_domain_detection[What are my legal rights?-legal] PASSED [ 17%]
+tests/layer0_model_infra/test_fast_triage.py::TestDomainClassification::test_domain_detection[How do I invest in stocks?-business] PASSED [ 18%]
+tests/layer0_model_infra/test_fast_triage.py::TestDomainClassification::test_domain_detection[Write a Python function-tech] PASSED [ 20%]
+tests/layer0_model_infra/test_fast_triage.py::TestDomainClassification::test_domain_detection[How's the weather?-casual] PASSED [ 22%]
+tests/layer0_model_infra/test_fast_triage.py::TestDomainClassification::test_domain_detection[Explain quarterly reports-business] PASSED [ 24%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_estimation[What is 2+2?-trivial] PASSED [ 25%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_estimation[Hello-trivial] PASSED [ 27%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_estimation[What is Python?-simple] PASSED [ 29%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_estimation[Explain how neural networks work-moderate] PASSED [ 31%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_estimation[Design a distributed system for X-complex] PASSED [ 32%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_estimation[Prove the Riemann hypothesis-expert] PASSED [ 34%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_regressions[Write a Python function to parse CSV, validate each row, and return JSON.-complex] PASSED [ 36%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_regressions[Summarize this article in 3 bullets.-moderate] PASSED [ 37%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_regressions[What are my legal rights after a car accident?-complex] PASSED [ 39%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_regressions[Should I take ibuprofen with metformin?-complex] PASSED [ 41%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_regressions[Explain photosynthesis-simple] PASSED [ 43%]
+tests/layer0_model_infra/test_fast_triage.py::TestComplexityBands::test_complexity_regressions[Compare Django vs FastAPI for a multi-tenant SaaS with RBAC and audit logs.-complex] PASSED [ 44%]
+tests/layer0_model_infra/test_fast_triage.py::TestConfidenceCalibration::test_high_confidence_clear_cases[def hello(): print('hi')] PASSED [ 46%]
+tests/layer0_model_infra/test_fast_triage.py::TestConfidenceCalibration::test_high_confidence_clear_cases[What is the capital of France?] PASSED [ 48%]
+tests/layer0_model_infra/test_fast_triage.py::TestConfidenceCalibration::test_high_confidence_clear_cases[Hello there!] PASSED [ 50%]
+tests/layer0_model_infra/test_fast_triage.py::TestConfidenceCalibration::test_low_confidence_ambiguous_cases[Can you help me with something?] PASSED [ 51%]
+tests/layer0_model_infra/test_fast_triage.py::TestConfidenceCalibration::test_low_confidence_ambiguous_cases[I need assistance] PASSED [ 53%]
+tests/layer0_model_infra/test_fast_triage.py::TestConfidenceCalibration::test_low_confidence_ambiguous_cases[Tell me more] PASSED [ 55%]
+tests/layer0_model_infra/test_fast_triage.py::TestAmbiguityDetection::test_multi_intent_detection PASSED [ 56%]
+tests/layer0_model_infra/test_fast_triage.py::TestEdgeCases::test_empty_query PASSED [ 58%]
+tests/layer0_model_infra/test_fast_triage.py::TestEdgeCases::test_very_long_query PASSED [ 60%]
+tests/layer0_model_infra/test_fast_triage.py::TestEdgeCases::test_special_characters PASSED [ 62%]
+tests/layer0_model_infra/test_fast_triage.py::TestMetrics::test_overall_accuracy PASSED [ 63%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestLLMClassification::test_valid_bands_parsed[trivial] PASSED [ 65%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestLLMClassification::test_valid_bands_parsed[simple] PASSED [ 67%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestLLMClassification::test_valid_bands_parsed[moderate] PASSED [ 68%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestLLMClassification::test_valid_bands_parsed[complex] PASSED [ 70%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestLLMClassification::test_valid_bands_parsed[expert] PASSED [ 72%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestLLMClassification::test_confidence_clamped PASSED [ 74%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestLLMClassification::test_reasoning_preserved PASSED [ 75%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestFallbackBehavior::test_llm_exception_falls_back PASSED [ 77%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestFallbackBehavior::test_malformed_json_falls_back PASSED [ 79%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestFallbackBehavior::test_invalid_band_falls_back PASSED [ 81%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestFallbackBehavior::test_no_litellm_falls_back PASSED [ 82%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestHeuristicFallback::test_trivial_greeting PASSED [ 84%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestHeuristicFallback::test_trivial_arithmetic PASSED [ 86%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestHeuristicFallback::test_expert_proof PASSED [ 87%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestHeuristicFallback::test_expert_formal_proof PASSED [ 89%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestHeuristicFallback::test_high_stakes_medical PASSED [ 91%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestHeuristicFallback::test_simple_factual PASSED [ 93%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestJSONParsing::test_json_in_code_fence PASSED [ 94%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestJSONParsing::test_json_embedded_in_text PASSED [ 96%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestJSONParsing::test_completely_invalid PASSED [ 98%]
+tests/layer0_model_infra/test_complexity_classifier.py::TestJSONParsing::test_empty_response PASSED [100%]
+
+============================== warnings summary ===============================
+..\..\Software_Download_Files\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1441
+  D:\Software_Download_Files\anaconda3\Lib\site-packages\_pytest\config\__init__.py:1441: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 58 passed, 1 warning in 201.27s (0:03:21) ==================
+
+---STDERR---
