@@ -1,0 +1,181 @@
+{
+  "_meta": {
+    "produced_by": "scripts/benchmark_layer_0.py",
+    "produced_at_iso": "2026-05-17T23:58:48",
+    "golden_set": "artifacts/layer_0/golden_set.json",
+    "layer": "layer_0_fast_path",
+    "accuracy_floor": 0.92,
+    "latency_p99_budget_ms": 5.0,
+    "latency_p50_budget_ms": 0.5
+  },
+  "summary": {
+    "total_cases": 77,
+    "bypass_accuracy": 1.0,
+    "category_accuracy": 1.0,
+    "bypass_correct": 77,
+    "category_correct": 77
+  },
+  "latency_us": {
+    "count": 77,
+    "min_us": 20.6,
+    "max_us": 930.1,
+    "mean_us": 187.95714285714286,
+    "median_us": 39.5,
+    "p50_us": 39.5,
+    "p95_us": 686.2,
+    "p99_us": 930.1,
+    "stdev_us": 253.51935986350819
+  },
+  "per_category": {
+    "trivial_greeting": {
+      "total": 19,
+      "bypass_correct": 19,
+      "category_correct": 19
+    },
+    "trivial_acknowledgment": {
+      "total": 17,
+      "bypass_correct": 17,
+      "category_correct": 17
+    },
+    "trivial_farewell": {
+      "total": 8,
+      "bypass_correct": 8,
+      "category_correct": 8
+    },
+    "pure_arithmetic": {
+      "total": 5,
+      "bypass_correct": 5,
+      "category_correct": 5
+    },
+    "simple_factual": {
+      "total": 2,
+      "bypass_correct": 2,
+      "category_correct": 2
+    },
+    "simple_definition": {
+      "total": 2,
+      "bypass_correct": 2,
+      "category_correct": 2
+    },
+    "malformed": {
+      "total": 4,
+      "bypass_correct": 4,
+      "category_correct": 4
+    },
+    "none": {
+      "total": 20,
+      "bypass_correct": 20,
+      "category_correct": 20
+    }
+  },
+  "per_source": {
+    "curated": {
+      "total": 58,
+      "bypass_correct": 58
+    },
+    "audit": {
+      "total": 6,
+      "bypass_correct": 6
+    },
+    "reviewer_feedback": {
+      "total": 5,
+      "bypass_correct": 5
+    },
+    "adversarial": {
+      "total": 8,
+      "bypass_correct": 8
+    }
+  },
+  "language_coverage": {
+    "en": {
+      "total": 36,
+      "bypassed": 18,
+      "language_correct": 36,
+      "category_correct": 36
+    },
+    "es": {
+      "total": 6,
+      "bypassed": 5,
+      "language_correct": 6,
+      "category_correct": 6
+    },
+    "fr": {
+      "total": 3,
+      "bypassed": 3,
+      "language_correct": 3,
+      "category_correct": 3
+    },
+    "de": {
+      "total": 4,
+      "bypassed": 4,
+      "language_correct": 3,
+      "category_correct": 4
+    },
+    "it": {
+      "total": 2,
+      "bypassed": 2,
+      "language_correct": 2,
+      "category_correct": 2
+    },
+    "pt": {
+      "total": 2,
+      "bypassed": 2,
+      "language_correct": 2,
+      "category_correct": 2
+    },
+    "zh": {
+      "total": 3,
+      "bypassed": 3,
+      "language_correct": 3,
+      "category_correct": 3
+    },
+    "ja": {
+      "total": 3,
+      "bypassed": 3,
+      "language_correct": 3,
+      "category_correct": 3
+    },
+    "ko": {
+      "total": 2,
+      "bypassed": 2,
+      "language_correct": 2,
+      "category_correct": 2
+    },
+    "ar": {
+      "total": 1,
+      "bypassed": 1,
+      "language_correct": 1,
+      "category_correct": 1
+    },
+    "hi": {
+      "total": 3,
+      "bypassed": 3,
+      "language_correct": 3,
+      "category_correct": 3
+    },
+    "ru": {
+      "total": 1,
+      "bypassed": 1,
+      "language_correct": 1,
+      "category_correct": 1
+    },
+    "tr": {
+      "total": 1,
+      "bypassed": 1,
+      "language_correct": 1,
+      "category_correct": 1
+    },
+    "?": {
+      "total": 10,
+      "bypassed": 9,
+      "language_correct": 10,
+      "category_correct": 10
+    }
+  },
+  "misclassifications": [],
+  "passed_thresholds": {
+    "accuracy_floor": true,
+    "latency_p99_budget": true,
+    "latency_p50_budget": true
+  }
+}

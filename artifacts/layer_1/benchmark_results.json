@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "produced_by": "scripts/benchmark_layer_1.py",
+    "produced_at_iso": "2026-05-18T17:06:32",
+    "layer": "layer_1_modality_gate",
+    "modality_accuracy_floor": 0.92,
+    "language_accuracy_floor": 0.85,
+    "latency_p99_budget_ms": 50.0,
+    "latency_p50_budget_ms": 5.0
+  },
+  "summary": {
+    "total_cases": 29,
+    "modality_accuracy": 1.0,
+    "language_accuracy": 1.0,
+    "code_language_accuracy": 1.0,
+    "structured_format_accuracy": 1.0,
+    "vision_relevance_accuracy": 1.0,
+    "validation_accuracy": 1.0
+  },
+  "latency_us": {
+    "count": 29,
+    "min_us": 535.1,
+    "max_us": 48054.1,
+    "mean_us": 22208.451724137933,
+    "p50_us": 26730.9,
+    "p95_us": 40680.7,
+    "p99_us": 48054.1
+  },
+  "per_language": {
+    "en": {
+      "total": 21,
+      "correct": 21
+    },
+    "es": {
+      "total": 1,
+      "correct": 1
+    },
+    "fr": {
+      "total": 1,
+      "correct": 1
+    },
+    "de": {
+      "total": 1,
+      "correct": 1
+    },
+    "zh": {
+      "total": 1,
+      "correct": 1
+    },
+    "ja": {
+      "total": 1,
+      "correct": 1
+    },
+    "hi": {
+      "total": 1,
+      "correct": 1
+    },
+    "hi-Latn": {
+      "total": 2,
+      "correct": 2
+    }
+  },
+  "per_language_detector": {
+    "default": 20,
+    "lingua": 3,
+    "script": 4,
+    "hinglish_markers": 2
+  },
+  "misclassifications": [],
+  "passed_thresholds": {
+    "modality_floor": true,
+    "language_floor": true,
+    "latency_p99": true,
+    "latency_p50": false
+  }
+}

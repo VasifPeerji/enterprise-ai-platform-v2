@@ -1,0 +1,23 @@
+{
+  "_meta": {
+    "name": "Code Language Detection — Multi-language Corpus",
+    "purpose": "Code snippets in languages beyond the original heuristic's 5 (Python/JS/Java/C++/SQL). Tests whether Pygments + signature patterns expand coverage.",
+    "version": "1.0.0"
+  },
+  "queries": [
+    {"query": "def foo():\n    self.bar = 42\nfrom os import path", "expected_code_language": "python"},
+    {"query": "function greet(name) { console.log('hello ' + name); }", "expected_code_language": "javascript"},
+    {"query": "interface User { id: number; name: string; } const x: User = {id: 1, name: 'a'};", "expected_code_language": "typescript"},
+    {"query": "fn main() { let mut x = 1; impl Foo for Bar {} match x { _ => {} } }", "expected_code_language": "rust"},
+    {"query": "func main() { package main; defer cleanup(); fmt.Println(\"hi\") }", "expected_code_language": "go"},
+    {"query": "public class Foo { private int x; public static void main(String[] args) { System.out.println(\"hi\"); } }", "expected_code_language": "java"},
+    {"query": "SELECT id, name FROM users WHERE active = 1 GROUP BY id ORDER BY created_at DESC", "expected_code_language": "sql"},
+    {"query": "FROM python:3.11-slim\nRUN pip install requirements.txt\nCOPY . /app\nWORKDIR /app\nCMD [\"python\", \"main.py\"]", "expected_code_language": "dockerfile"},
+    {"query": "#!/bin/bash\nset -euo pipefail\nfunction deploy() {\n  echo 'Deploying' | grep -v 'test'\n  for f in *.sh; do echo $f; done\n}", "expected_code_language": "bash"},
+    {"query": "def hello():\n    return 42", "expected_code_language": "python"},
+    {"query": "```rust\nfn main() {\n    println!(\"hello\");\n}\n```", "expected_code_language": "rust"},
+    {"query": "```go\npackage main\nfunc main() {}\n```", "expected_code_language": "go"},
+    {"query": "```typescript\ninterface Foo { x: number }\n```", "expected_code_language": "typescript"},
+    {"query": "Help me debug this: def parse(line): return line.strip().split(',')", "expected_code_language": "python"}
+  ]
+}

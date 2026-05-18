@@ -226,6 +226,10 @@ class ModelRouter:
 
         # =======================================================
         # LAYER 1: MODALITY GATE
+        # The gate also runs input validation (size, MIME, injection patterns).
+        # If validation fails, the gate returns validation_passed=False and we
+        # MUST surface that as an error — silently proceeding routes potentially
+        # hostile or oversized inputs through the full pipeline.
         # =======================================================
         modality_analysis = self.modality_gate.analyze(
             text=query,
@@ -236,6 +240,22 @@ class ModelRouter:
             file_types=file_types,
             attachment_sizes_mb=attachment_sizes_mb,
         )
+        if not modality_analysis.validation_passed:
+            logger.error(
+                "layer1_validation_blocked",
+                reason=modality_analysis.reasoning,
+                injection_risk=modality_analysis.contains_injection_risk,
+                request_id=request_id,
+            )
+            # We don't have a clean "rejected" return type yet (would need a
+            # broader API change). For now: raise so the route handler can map
+            # to HTTP 400 / structured rejection. This is intentionally LOUD —
+            # silently degrading was the old bug.
+            from src.shared.errors import ValidationError
+            raise ValidationError(
+                f"Input validation failed at modality gate: {modality_analysis.reasoning}"
+            )
+
         attachments_count = image_count + int(has_audio) + int(has_video)
         logger.info(
             "layer1_input_analysis",

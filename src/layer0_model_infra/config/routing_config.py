@@ -119,6 +119,77 @@ class ModalityGateConfig(BaseModel):
     vision_model: str = Field(..., description="Vision model for multimodal analysis")
     vram_gb: float = Field(..., description="VRAM footprint in GB")
 
+    # ── Modality threshold knobs (Layer 1 — all empirically calibrated) ────
+    # Lower values bias toward classifying as that modality.
+    vision_threshold: float = Field(default=0.6, ge=0.0, le=1.0,
+        description="Vision weight required for primary_modality=IMAGE")
+    audio_threshold: float = Field(default=0.6, ge=0.0, le=1.0,
+        description="Audio weight required for primary_modality=AUDIO")
+    code_threshold: float = Field(default=0.4, ge=0.0, le=1.0,
+        description="Code density required for primary_modality=CODE_HEAVY")
+    code_required_threshold: float = Field(default=0.3, ge=0.0, le=1.0,
+        description="Code density required for requires_code_model=True")
+    structured_threshold: float = Field(default=0.5, ge=0.0, le=1.0,
+        description="Structured density required for primary_modality=STRUCTURED")
+    multimodal_min_high_signals: int = Field(default=2, ge=2, le=5,
+        description="How many signals must be 'high' to classify MULTIMODAL")
+
+    # ── Tier 2 — semantic language detection (lingua-py) ───────────────────
+    # The script-based detector (built-in) catches CJK/Arabic/Devanagari/Cyrillic.
+    # For Latin-script non-English (Spanish, French, German, …) we need lingua.
+    # Hinglish markers run before lingua because lingua can't detect Latin-script
+    # Hindi at all. Validated by experiments/layer_1_language_detection/.
+    enable_semantic_language_detection: bool = Field(
+        default=True,
+        description="Use lingua-py for Latin-script language detection fallback",
+    )
+    language_confidence_threshold: float = Field(
+        default=0.55,
+        ge=0.0,
+        le=1.0,
+        description="Min lingua confidence to trust a non-English prediction. "
+                    "Below this we default to 'en' (avoids 'login broken' → 'nl' style errors).",
+    )
+
+    # ── Tier 2 — code language detection (Pygments) ────────────────────────
+    enable_semantic_code_detection: bool = Field(
+        default=True,
+        description="Use Pygments guess_lexer when fence + keyword detection misses",
+    )
+    code_detection_max_chars: int = Field(
+        default=8000,
+        ge=100,
+        le=100_000,
+        description="Cap snippet length sent to Pygments for latency hygiene",
+    )
+
+    # ── Tier 2 — structured-data detection (try-parse cascade) ─────────────
+    enable_structured_parse_cascade: bool = Field(
+        default=True,
+        description="Use json/tomllib/xml stdlib parsers to verify structured data",
+    )
+    structured_parse_max_chars: int = Field(
+        default=16_000,
+        ge=100,
+        le=200_000,
+        description="Cap snippet length for try-parse",
+    )
+
+    # ── Vision-relevance heuristic ─────────────────────────────────────────
+    # If has_images=True but text doesn't reference the image, vision capability
+    # isn't actually needed. This catches "I attached a screenshot for context,
+    # now please refactor this code" — text-only routing is fine.
+    require_vision_reference: bool = Field(
+        default=True,
+        description="If True, requires_vision=True only when text references the image",
+    )
+    short_query_implies_vision: int = Field(
+        default=15,
+        ge=0,
+        le=100,
+        description="If has_images and word_count <= this, assume image is the subject",
+    )
+
 
 class SemanticMemoryConfig(BaseModel):
     """Configuration for semantic memory."""

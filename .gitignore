@@ -292,8 +292,11 @@ temp/
 uploads/
 user_data/
 
-# Generated artifacts
-artifacts/
+# Generated artifacts (most are local/temp; per-layer evidence is committed
+# explicitly — see committed `artifacts/layer_*/` directories)
+artifacts/*.log
+artifacts/*_snapshots/
+artifacts/temp/
 outputs/
 
 # Test outputs

@@ -1,0 +1,277 @@
+{
+  "_meta": {
+    "experiment": "layer_1_language_detection",
+    "produced_at_iso": "2026-05-18T16:42:59",
+    "decision": "ADOPT"
+  },
+  "results": {
+    "golden_set": {
+      "script_only": {
+        "name": "script_only",
+        "n": 29,
+        "correct": 24,
+        "accuracy": 0.8275862068965517,
+        "latency_p50_us": 178.1,
+        "latency_p99_us": 228.3,
+        "misclassifications": [
+          {
+            "query": "Hola amigo, como funciona machine learning hoy en dia",
+            "expected": "es",
+            "predicted": "en"
+          },
+          {
+            "query": "Bonjour mon ami, comment allez-vous aujourd'hui",
+            "expected": "fr",
+            "predicted": "en"
+          },
+          {
+            "query": "Guten Tag, wie geht es Ihnen heute morgen",
+            "expected": "de",
+            "predicted": "en"
+          },
+          {
+            "query": "kya tum mujhe batayega ki yeh kaise kaam karta hai",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "namaste bhai kaise ho yaar",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          }
+        ]
+      },
+      "hybrid": {
+        "name": "hybrid",
+        "n": 29,
+        "correct": 29,
+        "accuracy": 1.0,
+        "latency_p50_us": 24839.4,
+        "latency_p99_us": 32407.6,
+        "misclassifications": []
+      },
+      "lingua_only": {
+        "name": "lingua_only",
+        "n": 29,
+        "correct": 24,
+        "accuracy": 0.8275862068965517,
+        "latency_p50_us": 282.4,
+        "latency_p99_us": 1711.2,
+        "misclassifications": [
+          {
+            "query": "你好世界这是一个中文测试句子",
+            "expected": "zh",
+            "predicted": "nl"
+          },
+          {
+            "query": "こんにちは私は日本語を勉強しています",
+            "expected": "ja",
+            "predicted": "nl"
+          },
+          {
+            "query": "नमस्ते आज मौसम बहुत अच्छा है",
+            "expected": "hi",
+            "predicted": "nl"
+          },
+          {
+            "query": "kya tum mujhe batayega ki yeh kaise kaam karta hai",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "namaste bhai kaise ho yaar",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          }
+        ]
+      }
+    },
+    "paraphrase_corpus": {
+      "script_only": {
+        "name": "script_only",
+        "n": 32,
+        "correct": 14,
+        "accuracy": 0.4375,
+        "latency_p50_us": 186.25,
+        "latency_p99_us": 295.1,
+        "misclassifications": [
+          {
+            "query": "Hola amigo, ¿como estas hoy mi querido amigo?",
+            "expected": "es",
+            "predicted": "en"
+          },
+          {
+            "query": "Buenos dias, gracias por toda tu ayuda con el proyecto",
+            "expected": "es",
+            "predicted": "en"
+          },
+          {
+            "query": "Como funciona machine learning en aplicaciones modernas",
+            "expected": "es",
+            "predicted": "en"
+          },
+          {
+            "query": "Bonjour mes amis, comment allez-vous aujourd'hui dans cette ",
+            "expected": "fr",
+            "predicted": "en"
+          },
+          {
+            "query": "Merci beaucoup pour ton aide avec le code Python",
+            "expected": "fr",
+            "predicted": "en"
+          },
+          {
+            "query": "Comment puis-je centrer une div en CSS pour mon site web",
+            "expected": "fr",
+            "predicted": "en"
+          },
+          {
+            "query": "Guten Tag, wie geht es Ihnen heute morgen mein Freund",
+            "expected": "de",
+            "predicted": "en"
+          },
+          {
+            "query": "Vielen Dank fur deine Hilfe mit dem Programmierprojekt",
+            "expected": "de",
+            "predicted": "en"
+          },
+          {
+            "query": "Wie kann ich einen div in CSS zentrieren",
+            "expected": "de",
+            "predicted": "en"
+          },
+          {
+            "query": "Buongiorno come stai oggi mio caro amico",
+            "expected": "it",
+            "predicted": "en"
+          },
+          {
+            "query": "Grazie mille per il tuo aiuto con questo problema",
+            "expected": "it",
+            "predicted": "en"
+          },
+          {
+            "query": "Ola, como você está hoje meu querido amigo",
+            "expected": "pt",
+            "predicted": "en"
+          },
+          {
+            "query": "Muito obrigado pela ajuda com este projeto",
+            "expected": "pt",
+            "predicted": "en"
+          },
+          {
+            "query": "kya tum mujhe batayega ki yeh kaise kaam karta hai",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "namaste bhai kaise ho aaj yaar",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "yaar mujhe samjha do kya yeh sahi hai",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "mera dost mujhe bata raha tha ki tumne accha kaam kiya",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "abhi thoda kaam baki hai phir hum ghar jayenge",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          }
+        ]
+      },
+      "hybrid": {
+        "name": "hybrid",
+        "n": 32,
+        "correct": 32,
+        "accuracy": 1.0,
+        "latency_p50_us": 27541.4,
+        "latency_p99_us": 47065.7,
+        "misclassifications": []
+      },
+      "lingua_only": {
+        "name": "lingua_only",
+        "n": 32,
+        "correct": 21,
+        "accuracy": 0.65625,
+        "latency_p50_us": 302.1,
+        "latency_p99_us": 926.9,
+        "misclassifications": [
+          {
+            "query": "kya tum mujhe batayega ki yeh kaise kaam karta hai",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "namaste bhai kaise ho aaj yaar",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "yaar mujhe samjha do kya yeh sahi hai",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "mera dost mujhe bata raha tha ki tumne accha kaam kiya",
+            "expected": "hi-Latn",
+            "predicted": "en"
+          },
+          {
+            "query": "abhi thoda kaam baki hai phir hum ghar jayenge",
+            "expected": "hi-Latn",
+            "predicted": "fr"
+          },
+          {
+            "query": "你好世界这是一个简单的中文测试",
+            "expected": "zh",
+            "predicted": "nl"
+          },
+          {
+            "query": "こんにちは私は日本語を勉強しています元気ですか",
+            "expected": "ja",
+            "predicted": "nl"
+          },
+          {
+            "query": "안녕하세요 오늘 한국어 공부를 하고 있어요",
+            "expected": "ko",
+            "predicted": "nl"
+          },
+          {
+            "query": "مرحبا كيف حالك اليوم يا صديقي العزيز",
+            "expected": "ar",
+            "predicted": "nl"
+          },
+          {
+            "query": "Привет как дела сегодня мой друг",
+            "expected": "ru",
+            "predicted": "nl"
+          },
+          {
+            "query": "नमस्ते आज मौसम बहुत अच्छा है मेरे दोस्त",
+            "expected": "hi",
+            "predicted": "nl"
+          }
+        ]
+      }
+    }
+  },
+  "summary": {
+    "golden_set": {
+      "script_only": 0.8275862068965517,
+      "hybrid": 1.0
+    },
+    "paraphrase_corpus": {
+      "script_only": 0.4375,
+      "hybrid": 1.0
+    },
+    "hybrid_lift_pp": 56.25
+  }
+}

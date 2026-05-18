@@ -1,0 +1,60 @@
+{
+  "_meta": {
+    "experiment": "layer_1_code_detection",
+    "produced_at_iso": "2026-05-18T16:50:20",
+    "decision": "ADOPT"
+  },
+  "heuristic": {
+    "n": 14,
+    "correct": 7,
+    "accuracy": 0.5,
+    "p50_us": 2.7,
+    "max_us": 9.8,
+    "misclassifications": [
+      {
+        "query": "interface User { id: number; name: string; } const",
+        "expected": "typescript",
+        "predicted": "javascript"
+      },
+      {
+        "query": "fn main() { let mut x = 1; impl Foo for Bar {} mat",
+        "expected": "rust",
+        "predicted": "javascript"
+      },
+      {
+        "query": "func main() { package main; defer cleanup(); fmt.P",
+        "expected": "go",
+        "predicted": ""
+      },
+      {
+        "query": "FROM python:3.11-slim\nRUN pip install requirements",
+        "expected": "dockerfile",
+        "predicted": ""
+      },
+      {
+        "query": "#!/bin/bash\nset -euo pipefail\nfunction deploy() {\n",
+        "expected": "bash",
+        "predicted": "javascript"
+      },
+      {
+        "query": "def hello():\n    return 42",
+        "expected": "python",
+        "predicted": ""
+      },
+      {
+        "query": "Help me debug this: def parse(line): return line.s",
+        "expected": "python",
+        "predicted": ""
+      }
+    ]
+  },
+  "hybrid": {
+    "n": 14,
+    "correct": 14,
+    "accuracy": 1.0,
+    "p50_us": 12.95,
+    "max_us": 59.0,
+    "misclassifications": []
+  },
+  "lift_pp": 50.0
+}

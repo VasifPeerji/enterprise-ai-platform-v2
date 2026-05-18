@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "name": "Language Detection — Out-of-Distribution Paraphrase Corpus",
+    "purpose": "Queries the original script-only heuristic misses: Hinglish, Latin-script non-English, mixed-script, adversarial English shorts.",
+    "version": "1.0.0",
+    "selection": "Curated to expose script-detector failure modes; ground truth assigned by hand"
+  },
+  "queries": [
+    {"query": "Hola amigo, ¿como estas hoy mi querido amigo?", "expected_language": "es"},
+    {"query": "Buenos dias, gracias por toda tu ayuda con el proyecto", "expected_language": "es"},
+    {"query": "Como funciona machine learning en aplicaciones modernas", "expected_language": "es"},
+    {"query": "Bonjour mes amis, comment allez-vous aujourd'hui dans cette belle journee", "expected_language": "fr"},
+    {"query": "Merci beaucoup pour ton aide avec le code Python", "expected_language": "fr"},
+    {"query": "Comment puis-je centrer une div en CSS pour mon site web", "expected_language": "fr"},
+    {"query": "Guten Tag, wie geht es Ihnen heute morgen mein Freund", "expected_language": "de"},
+    {"query": "Vielen Dank fur deine Hilfe mit dem Programmierprojekt", "expected_language": "de"},
+    {"query": "Wie kann ich einen div in CSS zentrieren", "expected_language": "de"},
+    {"query": "Buongiorno come stai oggi mio caro amico", "expected_language": "it"},
+    {"query": "Grazie mille per il tuo aiuto con questo problema", "expected_language": "it"},
+    {"query": "Ola, como você está hoje meu querido amigo", "expected_language": "pt"},
+    {"query": "Muito obrigado pela ajuda com este projeto", "expected_language": "pt"},
+
+    {"query": "kya tum mujhe batayega ki yeh kaise kaam karta hai", "expected_language": "hi-Latn"},
+    {"query": "namaste bhai kaise ho aaj yaar", "expected_language": "hi-Latn"},
+    {"query": "yaar mujhe samjha do kya yeh sahi hai", "expected_language": "hi-Latn"},
+    {"query": "mera dost mujhe bata raha tha ki tumne accha kaam kiya", "expected_language": "hi-Latn"},
+    {"query": "abhi thoda kaam baki hai phir hum ghar jayenge", "expected_language": "hi-Latn"},
+
+    {"query": "你好世界这是一个简单的中文测试", "expected_language": "zh"},
+    {"query": "こんにちは私は日本語を勉強しています元気ですか", "expected_language": "ja"},
+    {"query": "안녕하세요 오늘 한국어 공부를 하고 있어요", "expected_language": "ko"},
+    {"query": "مرحبا كيف حالك اليوم يا صديقي العزيز", "expected_language": "ar"},
+    {"query": "Привет как дела сегодня мой друг", "expected_language": "ru"},
+    {"query": "नमस्ते आज मौसम बहुत अच्छा है मेरे दोस्त", "expected_language": "hi"},
+
+    {"query": "How do I center a div in CSS for my website project", "expected_language": "en"},
+    {"query": "login broken please help me debug this issue", "expected_language": "en"},
+    {"query": "What is photosynthesis and how does it work", "expected_language": "en"},
+    {"query": "Tell me a joke about programmers and their habits", "expected_language": "en"},
+    {"query": "Explain how transformers work in machine learning", "expected_language": "en"},
+    {"query": "wassup my friend whats new with you today", "expected_language": "en"},
+    {"query": "build broken in CI need help fixing the pipeline", "expected_language": "en"},
+    {"query": "docker container won't start what should I check first", "expected_language": "en"}
+  ]
+}

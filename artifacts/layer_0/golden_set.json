@@ -1,0 +1,116 @@
+{
+  "_meta": {
+    "name": "Layer 0 Fast Path — Golden Evaluation Set",
+    "purpose": "Hand-curated multilingual + adversarial queries with ground-truth labels for Layer 0 bypass decisions. Used by scripts/benchmark_layer_0.py to compute precision, recall, latency, and per-category metrics.",
+    "version": "1.0.0",
+    "last_updated": "2026-05-17",
+    "label_schema": {
+      "query": "string — the raw query as a user would type it",
+      "expected_bypass": "bool — whether Layer 0 SHOULD bypass this query",
+      "expected_category": "string|null — one of: trivial_greeting, trivial_acknowledgment, trivial_farewell, pure_arithmetic, simple_definition, simple_factual, malformed, none",
+      "expected_language": "string|null — ISO-639-1 language code if known",
+      "rationale": "string — why this is the correct label (one short sentence)",
+      "source": "string — where this query came from: 'curated', 'audit', 'reviewer_feedback', 'real_log', 'adversarial'"
+    },
+    "summary_by_category": {
+      "trivial_greeting": "expected_bypass=true; greetings/hello variants in multiple languages",
+      "trivial_acknowledgment": "expected_bypass=true; thanks/ok/got-it in multiple languages",
+      "trivial_farewell": "expected_bypass=true; bye/goodbye in multiple languages",
+      "pure_arithmetic": "expected_bypass=true; pure math expressions with operators",
+      "simple_factual": "expected_bypass=true; capital-of-X / define-X / president-of-Y",
+      "malformed": "expected_bypass=true; pure punctuation, repeated noise — bypass to cheap chat",
+      "none_real_question": "expected_bypass=false; real questions (technical, multi-domain, complex)",
+      "none_trap": "expected_bypass=false; queries that LOOK trivial but aren't (e.g., short technical jargon)"
+    }
+  },
+  "queries": [
+    {"query": "hi", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "en", "rationale": "Bare English greeting, no follow-up.", "source": "curated"},
+    {"query": "Hello", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "en", "rationale": "Capitalised English greeting.", "source": "curated"},
+    {"query": "Hello there!", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "en", "rationale": "Greeting + filler 'there'.", "source": "curated"},
+    {"query": "Good morning", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "en", "rationale": "Multi-word time-of-day greeting.", "source": "curated"},
+    {"query": "How are you?", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "en", "rationale": "Conversational phrase pattern.", "source": "curated"},
+    {"query": "hola", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "es", "rationale": "Spanish greeting.", "source": "curated"},
+    {"query": "buenos días", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "es", "rationale": "Spanish multi-word greeting.", "source": "curated"},
+    {"query": "bonjour", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "fr", "rationale": "French greeting.", "source": "curated"},
+    {"query": "guten morgen", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "de", "rationale": "German time-of-day greeting.", "source": "curated"},
+    {"query": "ciao", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "it", "rationale": "Italian greeting.", "source": "curated"},
+    {"query": "olá", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "pt", "rationale": "Portuguese greeting.", "source": "curated"},
+    {"query": "你好", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "zh", "rationale": "Chinese greeting.", "source": "curated"},
+    {"query": "こんにちは", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "ja", "rationale": "Japanese greeting.", "source": "curated"},
+    {"query": "안녕", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "ko", "rationale": "Korean greeting.", "source": "curated"},
+    {"query": "مرحبا", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "ar", "rationale": "Arabic greeting.", "source": "curated"},
+    {"query": "नमस्ते", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "hi", "rationale": "Hindi (Devanagari) greeting.", "source": "curated"},
+    {"query": "namaste", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "hi", "rationale": "Romanised Hindi greeting.", "source": "curated"},
+    {"query": "привет", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "ru", "rationale": "Russian greeting.", "source": "curated"},
+    {"query": "merhaba", "expected_bypass": true, "expected_category": "trivial_greeting", "expected_language": "tr", "rationale": "Turkish greeting.", "source": "curated"},
+
+    {"query": "thanks", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "en", "rationale": "Bare thanks.", "source": "curated"},
+    {"query": "Thanks for your help", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "en", "rationale": "Ack + polite filler.", "source": "curated"},
+    {"query": "Thank you so much", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "en", "rationale": "Conversational ack phrase.", "source": "curated"},
+    {"query": "ok", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "en", "rationale": "Bare ack.", "source": "curated"},
+    {"query": "got it", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "en", "rationale": "Multi-word ack phrase.", "source": "curated"},
+    {"query": "understood", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "en", "rationale": "Conversational ack.", "source": "curated"},
+    {"query": "gracias", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "es", "rationale": "Spanish thanks.", "source": "curated"},
+    {"query": "muchas gracias", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "es", "rationale": "Spanish thanks + filler.", "source": "curated"},
+    {"query": "merci beaucoup", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "fr", "rationale": "French thanks + filler.", "source": "curated"},
+    {"query": "danke", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "de", "rationale": "German thanks.", "source": "curated"},
+    {"query": "vielen dank", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "de", "rationale": "German thanks variant.", "source": "curated"},
+    {"query": "grazie", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "it", "rationale": "Italian thanks.", "source": "curated"},
+    {"query": "obrigado", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "pt", "rationale": "Portuguese thanks.", "source": "curated"},
+    {"query": "谢谢", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "zh", "rationale": "Chinese thanks.", "source": "curated"},
+    {"query": "ありがとう", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "ja", "rationale": "Japanese thanks.", "source": "curated"},
+    {"query": "감사합니다", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "ko", "rationale": "Korean thanks.", "source": "curated"},
+    {"query": "धन्यवाद", "expected_bypass": true, "expected_category": "trivial_acknowledgment", "expected_language": "hi", "rationale": "Hindi thanks.", "source": "curated"},
+
+    {"query": "bye", "expected_bypass": true, "expected_category": "trivial_farewell", "expected_language": "en", "rationale": "English farewell.", "source": "curated"},
+    {"query": "goodbye", "expected_bypass": true, "expected_category": "trivial_farewell", "expected_language": "en", "rationale": "English farewell.", "source": "curated"},
+    {"query": "see you later", "expected_bypass": true, "expected_category": "trivial_farewell", "expected_language": "en", "rationale": "Conversational farewell phrase.", "source": "curated"},
+    {"query": "adios", "expected_bypass": true, "expected_category": "trivial_farewell", "expected_language": "es", "rationale": "Spanish farewell.", "source": "curated"},
+    {"query": "au revoir", "expected_bypass": true, "expected_category": "trivial_farewell", "expected_language": "fr", "rationale": "French farewell phrase.", "source": "curated"},
+    {"query": "auf wiedersehen", "expected_bypass": true, "expected_category": "trivial_farewell", "expected_language": "de", "rationale": "German farewell phrase.", "source": "curated"},
+    {"query": "再见", "expected_bypass": true, "expected_category": "trivial_farewell", "expected_language": "zh", "rationale": "Chinese farewell.", "source": "curated"},
+    {"query": "さようなら", "expected_bypass": true, "expected_category": "trivial_farewell", "expected_language": "ja", "rationale": "Japanese farewell.", "source": "curated"},
+
+    {"query": "2+2", "expected_bypass": true, "expected_category": "pure_arithmetic", "expected_language": null, "rationale": "Pure arithmetic.", "source": "curated"},
+    {"query": "(5 + 3) * 2", "expected_bypass": true, "expected_category": "pure_arithmetic", "expected_language": null, "rationale": "Compound arithmetic with parens.", "source": "curated"},
+    {"query": "what is 7+3", "expected_bypass": true, "expected_category": "pure_arithmetic", "expected_language": null, "rationale": "Arithmetic with English prefix.", "source": "curated"},
+    {"query": "calculate 100/4", "expected_bypass": true, "expected_category": "pure_arithmetic", "expected_language": null, "rationale": "Arithmetic with verb prefix.", "source": "curated"},
+    {"query": "2.5 * 4.1", "expected_bypass": true, "expected_category": "pure_arithmetic", "expected_language": null, "rationale": "Decimal arithmetic.", "source": "curated"},
+
+    {"query": "What is the capital of France", "expected_bypass": true, "expected_category": "simple_factual", "expected_language": "en", "rationale": "Classic factual lookup.", "source": "curated"},
+    {"query": "Who is the president of Brazil", "expected_bypass": true, "expected_category": "simple_factual", "expected_language": "en", "rationale": "Factual leader-of lookup.", "source": "curated"},
+    {"query": "define photosynthesis", "expected_bypass": true, "expected_category": "simple_definition", "expected_language": "en", "rationale": "Definition lookup.", "source": "curated"},
+    {"query": "What does encryption mean?", "expected_bypass": true, "expected_category": "simple_definition", "expected_language": "en", "rationale": "Meaning-of lookup.", "source": "curated"},
+
+    {"query": "?", "expected_bypass": true, "expected_category": "malformed", "expected_language": null, "rationale": "Pure punctuation, no model can answer meaningfully.", "source": "audit"},
+    {"query": "!!!", "expected_bypass": true, "expected_category": "malformed", "expected_language": null, "rationale": "Pure punctuation.", "source": "audit"},
+    {"query": "...", "expected_bypass": true, "expected_category": "malformed", "expected_language": null, "rationale": "Pure punctuation.", "source": "audit"},
+    {"query": "aaaa", "expected_bypass": true, "expected_category": "malformed", "expected_language": null, "rationale": "Repeated single char noise.", "source": "audit"},
+
+    {"query": "Explain the trade-offs between microservices and monoliths", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Real architectural question — needs full pipeline.", "source": "curated"},
+    {"query": "How do I center a div in CSS?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Real technical question — must not bypass.", "source": "audit"},
+    {"query": "What is photosynthesis?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Looks factual but needs explanation — not a one-line answer.", "source": "audit"},
+    {"query": "Compare Django vs FastAPI for a multi-tenant SaaS", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Complex comparison.", "source": "curated"},
+    {"query": "Design a distributed cache with eventual consistency", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Complex system-design.", "source": "curated"},
+
+    {"query": "login broken", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Real support question — old length-based heuristic falsely bypassed.", "source": "reviewer_feedback"},
+    {"query": "docker oom", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Technical jargon — full pipeline.", "source": "reviewer_feedback"},
+    {"query": "deploy failed", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Support question.", "source": "reviewer_feedback"},
+    {"query": "k8s pod oom", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "K8s technical question.", "source": "reviewer_feedback"},
+    {"query": "memory leak", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Diagnostic question.", "source": "reviewer_feedback"},
+
+    {"query": "Hi, can you help me debug this 200-line Python script?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Greeting prefix on a real question.", "source": "adversarial"},
+    {"query": "Hello, I need to refactor my authentication module", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Greeting prefix on a real task.", "source": "adversarial"},
+    {"query": "hey what is the time complexity of quicksort", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Greeting prefix on a CS question.", "source": "adversarial"},
+
+    {"query": "What does 'how are you' mean in French?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Real translation question that quotes a greeting.", "source": "adversarial"},
+    {"query": "Translate 'good morning' to Japanese", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Real translation request.", "source": "adversarial"},
+    {"query": "Why do English speakers say 'thanks a lot' sarcastically?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Linguistic explanation question.", "source": "adversarial"},
+
+    {"query": "kya hai photosynthesis?", "expected_bypass": false, "expected_category": null, "expected_language": null, "rationale": "Hinglish technical question.", "source": "adversarial"},
+    {"query": "como funciona machine learning", "expected_bypass": false, "expected_category": null, "expected_language": "es", "rationale": "Spanish ML question.", "source": "adversarial"},
+
+    {"query": "If Alice has 5 apples and Bob has 3, how many do they have?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Math word problem — not pure arithmetic.", "source": "curated"},
+    {"query": "Calculate the derivative of x^2 + 3x", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Has letters — not pure arithmetic.", "source": "curated"}
+  ]
+}
