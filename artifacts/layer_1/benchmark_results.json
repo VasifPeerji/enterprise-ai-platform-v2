@@ -1,7 +1,7 @@
 {
   "_meta": {
     "produced_by": "scripts/benchmark_layer_1.py",
-    "produced_at_iso": "2026-05-18T17:06:32",
+    "produced_at_iso": "2026-05-19T12:25:55",
     "layer": "layer_1_modality_gate",
     "modality_accuracy_floor": 0.92,
     "language_accuracy_floor": 0.85,
@@ -19,12 +19,12 @@
   },
   "latency_us": {
     "count": 29,
-    "min_us": 535.1,
-    "max_us": 48054.1,
-    "mean_us": 22208.451724137933,
-    "p50_us": 26730.9,
-    "p95_us": 40680.7,
-    "p99_us": 48054.1
+    "min_us": 491.2,
+    "max_us": 28812.3,
+    "mean_us": 17959.14827586207,
+    "p50_us": 23682.3,
+    "p95_us": 25570.1,
+    "p99_us": 28812.3
   },
   "per_language": {
     "en": {

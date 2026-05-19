@@ -61,6 +61,39 @@ Outputs:
 - `artifacts/layer_N/golden_set.json` — labeled eval queries
 - `artifacts/layer_N/benchmark_results.json` — produced by the script
 
+### 4b. **Wild corpus robustness test (MANDATORY)**
+
+Per-layer hand-curated golden sets suffer from selection bias — the engineer
+writes the tests knowing the implementation. The wild corpus is the counter:
+a diverse set of queries simulating REAL user behavior, **not** specifically
+optimized for during development.
+
+Wild corpus must cover (at minimum):
+- Voice-to-text style (no punctuation, lowercase)
+- Customer support style
+- Code with stack traces / error logs
+- Mixed-language / code-switching
+- Markdown / HTML / URL-only / emoji-heavy queries
+- RTL languages (Arabic, Hebrew, Urdu)
+- Sarcasm / dialect / regional variants
+- Math word problems / date questions / recipes
+- Single-character / extremely long
+- Personal PII-bearing queries
+- Real bug reports with full tracebacks
+- Direct injection attempts (must block)
+- Edge cases: empty, whitespace-only, format chars
+
+Outputs:
+- `artifacts/layer_N/wild_corpus.json` — labeled with `acceptable_modalities[]`
+  (multiple labels OK when genuinely ambiguous)
+- `scripts/robustness_test_layer_N.py` — reproducible runner
+- `artifacts/layer_N/robustness_results.json` — per-query verdict
+- `tests/layer0_model_infra/test_*_robustness.py` — regression tests for any
+  bugs the wild corpus surfaced
+
+**Failures in the wild corpus are real bugs.** They become regression tests
+named after the failure mode they prevent.
+
 ### 5. Observability hooks
 
 Every decision the layer makes gets logged with enough metadata to audit later:
