@@ -676,22 +676,61 @@ class ModelRouter:
         memory_result,
         modality_analysis=None,
     ) -> RoutingDecision:
-        """Create routing decision for semantic memory cache hit."""
+        """Build a RoutingDecision for a Layer 2 cache hit WITHOUT invoking
+        triage / uncertainty / bandit.
+
+        Previously this method called `triage_classifier.classify()` (which
+        makes an LLM call) and `uncertainty_estimator.estimate()` on every
+        cache hit — defeating the whole point of having a cache. The
+        `layers_skipped` field even lied that they were skipped.
+
+        Now: synthesize neutral metadata from the cached MemoryEntry's
+        stored intent / domain / complexity_band, exactly the same pattern
+        Layer 0 uses for fast-path bypasses.
+        """
+        # Best-effort modality (cheap — deterministic regex, no LLM)
         if modality_analysis is None:
             modality_analysis = self.modality_gate.analyze(query, False, False, 0)
 
-        input_signals = self.input_extractor.extract(query)
-        triage_result = self.triage_classifier.classify(query, input_signals=input_signals)
-        uncertainty_score = self.uncertainty_estimator.estimate(query)
+        # Pull cached classification fields straight from the MemoryEntry.
+        # If they're absent (legacy entries pre-refactor), fall back to neutral.
+        cached_intent = memory_result.cached_intent or "qa"
+        cached_domain = memory_result.cached_domain or "general"
+        cached_complexity = memory_result.cached_complexity_band or "moderate"
+
+        neutral_triage = {
+            "intent": cached_intent,
+            "domain": cached_domain,
+            "complexity_band": cached_complexity,
+            "confidence": memory_result.similarity,  # use cache similarity as proxy
+            "ambiguity": {"is_multi_intent": False, "is_vague": False, "is_underspecified": False},
+            "task_type": "qa",
+            "instruction_count": 1,
+            "prompt_length": len(query),
+            "reasoning": f"Layer 2 cache hit — reusing prior classification ({memory_result.reasoning})",
+            "complexity_raw_score": 0.5,
+            "complexity_rubric": {
+                "raw_score": 0.5, "task_count": 0.5, "domain_depth": 0.5,
+                "reasoning_hops": 0.5, "output_structure": 0.5, "knowledge_breadth": 0.5,
+            },
+            "synthesized": True,
+            "synthesis_reason": "semantic_memory_cache_hit",
+        }
+        neutral_uncertainty = {
+            "total_uncertainty": max(0.0, 1.0 - memory_result.similarity),
+            "confidence_level": "HIGH",
+            "synthesized": True,
+            "synthesis_reason": "semantic_memory_cache_hit",
+        }
 
         return RoutingDecision(
             selected_model=model,
             fallback_models=[],
             modality_analysis=modality_analysis.model_dump(),
-            triage_result=triage_result.model_dump(),
-            uncertainty_score=uncertainty_score.model_dump(),
-            routing_reasoning=f"Semantic Memory Hit: {memory_result.reasoning}",
-            estimated_cost_usd=self._estimate_cost(model, "simple"),
+            triage_result=neutral_triage,
+            uncertainty_score=neutral_uncertainty,
+            routing_reasoning=f"Layer 2 cache hit — {memory_result.reasoning}",
+            estimated_cost_usd=self._estimate_cost(model, cached_complexity),
             confidence_level="HIGH",
             escalation_path_available=False,
             escalation_levels=0,
@@ -699,7 +738,15 @@ class ModelRouter:
                 "semantic_memory_hit": True,
                 "similarity_score": memory_result.similarity,
                 "novelty_score": memory_result.novelty_score,
-                "layers_skipped": ["triage", "uncertainty", "bandit"],
+                "detector_used": memory_result.detector_used,
+                "cached_intent": memory_result.cached_intent,
+                "cached_domain": memory_result.cached_domain,
+                "cached_complexity_band": memory_result.cached_complexity_band,
+                "embedding_id": memory_result.embedding_id,
+                "layers_skipped": [
+                    "input_signals", "fast_triage", "uncertainty_estimator",
+                    "bandit_router",
+                ],
             },
         )
 

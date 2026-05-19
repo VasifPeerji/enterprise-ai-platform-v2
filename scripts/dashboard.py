@@ -59,6 +59,19 @@ def get_modality_gate():
     return gate
 
 
+@st.cache_resource
+def get_semantic_memory():
+    from src.layer0_model_infra.routing.semantic_memory import SemanticMemory
+    # Use a fresh in-memory instance for the dashboard so users can experiment
+    # without contaminating the production SQLite cache.
+    mem = SemanticMemory(
+        similarity_threshold=0.75,
+        enable_local_embedding=True,
+        enable_persistence=False,
+    )
+    return mem
+
+
 # ============================================================================
 # Helpers
 # ============================================================================
@@ -315,6 +328,141 @@ def render_layer_1_manual(gate):
                     })
                     save_json(path, payload)
                     st.success(f"Saved as {next_id}. Corpus now has {len(payload['queries'])} entries.")
+
+
+# ============================================================================
+# Layer 2 — Semantic Memory
+# ============================================================================
+
+def render_layer_2_manual(mem):
+    st.subheader("Layer 2 — Semantic Memory (manual)")
+    st.caption(
+        "Outcome-aware cache. Use the **record** tab to populate, then **lookup** "
+        "to test what hits and what doesn't. Provenance shows which guard fired (if any)."
+    )
+
+    cache_tab, lookup_tab, stats_tab = st.tabs(["📝 Record", "🔎 Lookup", "📊 Stats"])
+
+    with cache_tab:
+        col_q, col_btn = st.columns([5, 1])
+        with col_q:
+            record_q = st.text_area(
+                "Query to cache",
+                value=st.session_state.get("l2_record_q", "How do I sort a list in Python?"),
+                height=80, key="l2_record_q_in",
+            )
+
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            model_id = st.text_input("model_id", value="ollama-llama3.1-8b", key="l2_model")
+            tenant_id = st.text_input("tenant_id (optional)", value="", key="l2_tenant")
+        with col_b:
+            quality = st.slider("quality_score", 0.0, 1.0, 0.9, step=0.05, key="l2_qual")
+            escalated = st.checkbox("escalated", value=False, key="l2_esc")
+        with col_c:
+            intent = st.text_input("intent", value="coding", key="l2_intent")
+            domain = st.text_input("domain", value="tech", key="l2_domain")
+
+        if col_btn.button("Record", type="primary", key="l2_record_btn", use_container_width=True):
+            mem.record(
+                query=record_q, model_id=model_id, quality_score=quality,
+                escalated=escalated, intent=intent, domain=domain,
+                tenant_id=tenant_id,
+            )
+            st.success(f"Recorded. Cache now has {mem.stats()['total_entries']} entries.")
+            st.session_state["l2_record_q"] = record_q
+
+    with lookup_tab:
+        col_q, col_btn = st.columns([5, 1])
+        with col_q:
+            lookup_q = st.text_area(
+                "Lookup query",
+                value=st.session_state.get("l2_lookup_q", "What's the python way to sort a list?"),
+                height=80, key="l2_lookup_q_in",
+            )
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            lookup_intent = st.text_input("query_intent (optional)", value="", key="l2_lookup_intent")
+        with col_b:
+            lookup_tenant = st.text_input("tenant_id (optional)", value="", key="l2_lookup_tenant")
+
+        if col_btn.button("Lookup ▶", type="primary", key="l2_lookup_btn", use_container_width=True):
+            import time as _time
+            t0 = _time.perf_counter_ns()
+            result = mem.lookup(lookup_q, query_intent=lookup_intent, tenant_id=lookup_tenant)
+            t1 = _time.perf_counter_ns()
+            latency_us = (t1 - t0) / 1000
+            st.session_state["l2_lookup_q"] = lookup_q
+
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.markdown(color_badge(
+                    "verdict", "HIT" if result.hit else "MISS", ok=result.hit,
+                ), unsafe_allow_html=True)
+            with c2:
+                st.markdown(color_badge(
+                    "similarity", f"{result.similarity:.3f}"
+                ), unsafe_allow_html=True)
+            with c3:
+                st.markdown(color_badge("detector", result.detector_used),
+                           unsafe_allow_html=True)
+            with c4:
+                latency_metric("Latency", latency_us)
+
+            st.markdown("---")
+
+            col_l, col_r = st.columns(2)
+            with col_l:
+                st.markdown("**Lookup result**")
+                st.json({
+                    "hit": result.hit,
+                    "matched_model_id": result.matched_model_id,
+                    "similarity": round(result.similarity, 4),
+                    "novelty_score": round(result.novelty_score, 4),
+                    "detector_used": result.detector_used,
+                    "guard_rejected": result.guard_rejected,
+                    "embedding_id": result.embedding_id,
+                    "cached_intent": result.cached_intent,
+                    "cached_domain": result.cached_domain,
+                    "cached_complexity_band": result.cached_complexity_band,
+                })
+            with col_r:
+                st.markdown("**Reasoning**")
+                st.code(result.reasoning, language="text")
+                if result.guard_rejected:
+                    st.warning(f"⚠️ Guard fired: `{result.guard_rejected}`")
+                elif result.hit:
+                    st.success(f"✓ Cache hit → reuses model `{result.matched_model_id}`")
+                else:
+                    st.info("Not in cache. Full pipeline would run.")
+
+    with stats_tab:
+        s = mem.stats()
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total entries", s["total_entries"])
+        c2.metric("Reusable entries", s["reusable_entries"])
+        c3.metric("Lookups", s["lookup_count"])
+        c4.metric("Hit rate (actual)", f"{s['hit_rate_actual']:.1%}",
+                   f"{s['hit_count']} hits")
+
+        cc1, cc2, cc3 = st.columns(3)
+        cc1.metric("Latency saved", f"{s['latency_saved_us']/1000:.1f} ms")
+        cc2.metric("Embedder available", "✓" if s["embedder_available"] else "✗")
+        cc3.metric("Persistence enabled", "✓" if s["persistence_enabled"] else "✗")
+
+        if s["guard_rejections"]:
+            st.markdown("##### Guard rejection breakdown")
+            st.json(s["guard_rejections"])
+
+        if st.button("🗑️  Clear in-memory cache"):
+            mem._store.clear()
+            mem._embeddings.clear()
+            mem._lookup_count = 0
+            mem._hit_count = 0
+            mem._latency_saved_us = 0.0
+            mem._guard_rejection_counts.clear()
+            st.success("Cache cleared.")
 
 
 # ============================================================================
@@ -675,6 +823,7 @@ def main():
             "About",
             "Layer 0 — manual",
             "Layer 1 — manual",
+            "Layer 2 — manual",
             "Pipeline (L0 → L1)",
             "Corpus runner — Layer 0",
             "Corpus runner — Layer 1",
@@ -693,6 +842,7 @@ def main():
 
     fp = get_fast_path()
     gate = get_modality_gate()
+    mem = get_semantic_memory()
 
     if page == "About":
         render_about()
@@ -700,6 +850,8 @@ def main():
         render_layer_0_manual(fp)
     elif page == "Layer 1 — manual":
         render_layer_1_manual(gate)
+    elif page == "Layer 2 — manual":
+        render_layer_2_manual(mem)
     elif page == "Pipeline (L0 → L1)":
         render_pipeline(fp, gate)
     elif page == "Corpus runner — Layer 0":

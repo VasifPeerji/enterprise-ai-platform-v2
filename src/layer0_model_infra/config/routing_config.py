@@ -192,14 +192,62 @@ class ModalityGateConfig(BaseModel):
 
 
 class SemanticMemoryConfig(BaseModel):
-    """Configuration for semantic memory."""
-    
+    """Configuration for semantic memory (Layer 2)."""
+
     embedding_model: str = Field(..., description="Embedding model")
     vector_db: str = Field(..., description="Vector database (qdrant/milvus)")
     similarity_threshold: float = Field(
         default=0.85, ge=0.0, le=1.0, description="Min similarity for cache hit"
     )
     max_cache_age_days: int = Field(default=30, description="Max age for cached routes")
+
+    # ── Tier 2 — local embedding (Model2Vec direct, no gateway) ────────────
+    # The original code routed embeddings through the LLM gateway, which adds
+    # 50-200ms per call. Model2Vec runs locally in ~200μs and is already in
+    # the environment from Layer 0.
+    enable_local_embedding: bool = Field(
+        default=True,
+        description="Use Model2Vec for direct in-process embeddings (no gateway)",
+    )
+    local_embedding_model_name: str = Field(
+        default="minishlab/potion-base-8M",
+        description="HuggingFace model_id for Model2Vec encoder",
+    )
+
+    # ── Persistence (SQLite, stdlib) ───────────────────────────────────────
+    # The original cache was in-memory only — restart wiped it. SQLite gives
+    # us crash-safe persistence without new dependencies.
+    enable_persistence: bool = Field(default=True, description="Persist cache to SQLite")
+    persistence_path: str = Field(
+        default="artifacts/semantic_memory.db",
+        description="SQLite file path (relative to repo root)",
+    )
+
+    # ── Validation guards ──────────────────────────────────────────────────
+    enable_negation_guard: bool = Field(
+        default=True,
+        description="Reject cache hits where negation polarity differs (install vs uninstall)",
+    )
+    enable_pii_scrubbing: bool = Field(
+        default=True,
+        description="Mask emails / phone numbers / SSN / cards before storage",
+    )
+
+    # ── Quality + TTL tiers ────────────────────────────────────────────────
+    # Replaces the flat is_reusable threshold and flat decay with tiered
+    # policies (GPTCache pattern).
+    high_quality_threshold: float = Field(default=0.85, description="Above this, full 14-day TTL")
+    medium_quality_threshold: float = Field(default=0.70, description="Above this, 3-day TTL")
+    escalated_ttl_seconds: float = Field(default=86_400.0, description="Escalated entries: 1 day")
+    high_quality_ttl_seconds: float = Field(default=1_209_600.0, description="14 days")
+    medium_quality_ttl_seconds: float = Field(default=259_200.0, description="3 days")
+
+    # ── Storage knobs ──────────────────────────────────────────────────────
+    max_entries: int = Field(default=10_000, ge=100, description="Cap on cached entries")
+    decay_half_life_seconds: float = Field(
+        default=604_800.0,  # 7 days
+        description="Exponential decay half-life for similarity scoring",
+    )
 
 
 class FastTriageConfig(BaseModel):

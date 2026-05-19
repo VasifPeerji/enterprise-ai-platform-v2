@@ -1,0 +1,167 @@
+{
+  "_meta": {
+    "name": "Layer 2 Semantic Memory — Golden Evaluation Set",
+    "purpose": "Hand-curated cache lookup scenarios with ground-truth labels. Each case is a (record, lookup) pair plus the expected verdict (hit/miss + reasoning).",
+    "version": "1.0.0",
+    "last_updated": "2026-05-19",
+    "label_schema": {
+      "id": "string",
+      "category": "paraphrase | negation | unrelated | escalated | low_quality | stale | pii_bearing | tenant_isolation | entity_novelty | model_version",
+      "record": "dict with query / model_id / quality_score / escalated / intent / domain / complexity_band",
+      "lookup": "string — the query to look up",
+      "expected_hit": "bool",
+      "expected_guard_rejected": "string | null — substring expected in reasoning if missing",
+      "rationale": "one-sentence explanation"
+    }
+  },
+  "cases": [
+    {
+      "id": "paraphrase_001",
+      "category": "paraphrase",
+      "record": {"query": "What is Python?", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false, "intent": "question_answering", "domain": "tech", "complexity_band": "simple"},
+      "lookup": "What is the Python programming language?",
+      "expected_hit": true,
+      "rationale": "Near-identical intent, just slightly more verbose phrasing"
+    },
+    {
+      "id": "paraphrase_002",
+      "category": "paraphrase",
+      "record": {"query": "How do I sort a list in Python?", "model_id": "ollama-phi3-mini", "quality_score": 0.85, "escalated": false, "intent": "coding", "domain": "tech", "complexity_band": "simple"},
+      "lookup": "What's the python way to sort a list?",
+      "expected_hit": true,
+      "rationale": "Semantically equivalent sort-a-list query"
+    },
+    {
+      "id": "paraphrase_003",
+      "category": "paraphrase",
+      "record": {"query": "Explain machine learning", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "question_answering", "domain": "tech", "complexity_band": "moderate"},
+      "lookup": "What is machine learning?",
+      "expected_hit": true,
+      "rationale": "Same factual lookup, different verbs"
+    },
+
+    {
+      "id": "negation_001",
+      "category": "negation",
+      "record": {"query": "How do I install Docker?", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false, "intent": "coding", "domain": "tech", "complexity_band": "simple"},
+      "lookup": "How do I uninstall Docker?",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "Install/uninstall flip the action — must not cache-hit"
+    },
+    {
+      "id": "negation_002",
+      "category": "negation",
+      "record": {"query": "Enable telemetry for the app", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false, "intent": "coding", "domain": "tech"},
+      "lookup": "Disable telemetry for the app",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "Enable vs disable — opposite intents"
+    },
+    {
+      "id": "negation_003",
+      "category": "negation",
+      "record": {"query": "How do I run tests with coverage?", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false},
+      "lookup": "How do I run tests without coverage?",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "with vs without — guard should catch"
+    },
+
+    {
+      "id": "unrelated_001",
+      "category": "unrelated",
+      "record": {"query": "What is Python?", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false},
+      "lookup": "What is Java?",
+      "expected_hit": false,
+      "rationale": "Different programming languages — semantic similarity below threshold"
+    },
+    {
+      "id": "unrelated_002",
+      "category": "unrelated",
+      "record": {"query": "Capital of France", "model_id": "ollama-phi3-mini", "quality_score": 0.85, "escalated": false},
+      "lookup": "Population of Germany",
+      "expected_hit": false,
+      "rationale": "Different country, different question type"
+    },
+
+    {
+      "id": "escalated_001",
+      "category": "escalated",
+      "record": {"query": "Implement a distributed consensus algorithm in Go", "model_id": "ollama-phi3-mini", "quality_score": 0.85, "escalated": true},
+      "lookup": "Implement a distributed consensus algorithm in Go",
+      "expected_hit": false,
+      "rationale": "Even on exact match, escalated entries must never be served from cache"
+    },
+
+    {
+      "id": "low_quality_001",
+      "category": "low_quality",
+      "record": {"query": "Explain quantum entanglement", "model_id": "ollama-phi3-mini", "quality_score": 0.5, "escalated": false},
+      "lookup": "Explain quantum entanglement",
+      "expected_hit": false,
+      "rationale": "quality_score below medium tier threshold"
+    },
+
+    {
+      "id": "entity_novelty_001",
+      "category": "entity_novelty",
+      "record": {"query": "How do I use Kubernetes for orchestration?", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false},
+      "lookup": "How do I use Nomad and Consul and Vault for orchestration?",
+      "expected_hit": false,
+      "expected_guard_rejected": "new_entities",
+      "rationale": "Different proper nouns — entity novelty guard should reject"
+    },
+
+    {
+      "id": "pii_001",
+      "category": "pii_bearing",
+      "record": {"query": "Send an email to alice@example.com about the meeting", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false},
+      "lookup": "Send an email to bob@other.com about the meeting",
+      "expected_hit": true,
+      "rationale": "After PII scrubbing both queries normalize to '<EMAIL>' → cache should hit"
+    },
+
+    {
+      "id": "tenant_isolation_001",
+      "category": "tenant_isolation",
+      "record": {"query": "Show users from the database", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false, "tenant_id": "tenant_A"},
+      "lookup": "Show users from the database",
+      "lookup_tenant_id": "tenant_B",
+      "expected_hit": false,
+      "rationale": "Tenant scoping — tenant_A entry must not be visible to tenant_B"
+    },
+
+    {
+      "id": "context_length_001",
+      "category": "context_length",
+      "record": {"query": "Hi", "model_id": "ollama-phi3-mini", "quality_score": 0.9, "escalated": false},
+      "lookup": "Hi, can you help me debug this 200-line Python script that uses recursion to solve the n-queens problem and has some really weird off-by-one error in the backtracking step?",
+      "expected_hit": false,
+      "expected_guard_rejected": "context_length_ratio",
+      "rationale": "30× length difference — context-length guard must reject"
+    },
+
+    {
+      "id": "model_version_001",
+      "category": "model_version",
+      "record": {"query": "Summarize this article", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false, "model_version": "v1.0"},
+      "lookup": "Summarize this article",
+      "lookup_model_version": "v2.0",
+      "expected_hit": false,
+      "expected_guard_rejected": "model_version",
+      "rationale": "Model rev changed — stale routing decision"
+    },
+
+    {
+      "id": "intent_mismatch_001",
+      "category": "intent_mismatch",
+      "record": {"query": "Write a function to reverse a string", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false, "intent": "coding"},
+      "lookup": "Write a function to reverse a string",
+      "lookup_intent": "creative",
+      "expected_hit": false,
+      "expected_guard_rejected": "intent_mismatch",
+      "rationale": "Same lexical query but classifier says different intent now"
+    }
+  ]
+}

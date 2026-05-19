@@ -1,0 +1,332 @@
+{
+  "_meta": {
+    "produced_by": "scripts/benchmark_layer_2.py",
+    "produced_at_iso": "2026-05-19T19:50:00",
+    "layer": "layer_2_semantic_memory",
+    "accuracy_floor": 0.85,
+    "latency_p99_budget_ms": 10.0,
+    "latency_p50_budget_ms": 5.0
+  },
+  "summary": {
+    "total_cases": 16,
+    "accuracy": 1.0,
+    "hit_decision_accuracy": 1.0,
+    "guard_accuracy": 1.0
+  },
+  "latency_us": {
+    "p50_us": 441.0,
+    "p95_us": 767.7,
+    "p99_us": 767.7,
+    "max_us": 767.7,
+    "mean_us": 422.65625
+  },
+  "per_category": {
+    "paraphrase": {
+      "total": 3,
+      "correct": 3
+    },
+    "negation": {
+      "total": 3,
+      "correct": 3
+    },
+    "unrelated": {
+      "total": 2,
+      "correct": 2
+    },
+    "escalated": {
+      "total": 1,
+      "correct": 1
+    },
+    "low_quality": {
+      "total": 1,
+      "correct": 1
+    },
+    "entity_novelty": {
+      "total": 1,
+      "correct": 1
+    },
+    "pii_bearing": {
+      "total": 1,
+      "correct": 1
+    },
+    "tenant_isolation": {
+      "total": 1,
+      "correct": 1
+    },
+    "context_length": {
+      "total": 1,
+      "correct": 1
+    },
+    "model_version": {
+      "total": 1,
+      "correct": 1
+    },
+    "intent_mismatch": {
+      "total": 1,
+      "correct": 1
+    }
+  },
+  "rows": [
+    {
+      "id": "paraphrase_001",
+      "category": "paraphrase",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.832,
+      "novelty": 0.168,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 767.7,
+      "rationale": "Near-identical intent, just slightly more verbose phrasing"
+    },
+    {
+      "id": "paraphrase_002",
+      "category": "paraphrase",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.954,
+      "novelty": 0.046,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 475.1,
+      "rationale": "Semantically equivalent sort-a-list query"
+    },
+    {
+      "id": "paraphrase_003",
+      "category": "paraphrase",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.852,
+      "novelty": 0.148,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 441.0,
+      "rationale": "Same factual lookup, different verbs"
+    },
+    {
+      "id": "negation_001",
+      "category": "negation",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "negation_polarity",
+      "actual_guard": null,
+      "similarity": 0.683,
+      "novelty": 0.317,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 280.3,
+      "rationale": "Install/uninstall flip the action — must not cache-hit"
+    },
+    {
+      "id": "negation_002",
+      "category": "negation",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "negation_polarity",
+      "actual_guard": "negation_polarity:0→2",
+      "similarity": 0.0,
+      "novelty": 0.107,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 508.8,
+      "rationale": "Enable vs disable — opposite intents"
+    },
+    {
+      "id": "negation_003",
+      "category": "negation",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "negation_polarity",
+      "actual_guard": "negation_polarity:0→1",
+      "similarity": 0.0,
+      "novelty": 0.047,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 553.7,
+      "rationale": "with vs without — guard should catch"
+    },
+    {
+      "id": "unrelated_001",
+      "category": "unrelated",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.288,
+      "novelty": 0.712,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 633.7,
+      "rationale": "Different programming languages — semantic similarity below threshold"
+    },
+    {
+      "id": "unrelated_002",
+      "category": "unrelated",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.313,
+      "novelty": 0.687,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 255.0,
+      "rationale": "Different country, different question type"
+    },
+    {
+      "id": "escalated_001",
+      "category": "escalated",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 1.0,
+      "novelty": 0.0,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 548.9,
+      "rationale": "Even on exact match, escalated entries must never be served from cache"
+    },
+    {
+      "id": "low_quality_001",
+      "category": "low_quality",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 1.0,
+      "novelty": 0.0,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 241.9,
+      "rationale": "quality_score below medium tier threshold"
+    },
+    {
+      "id": "entity_novelty_001",
+      "category": "entity_novelty",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "new_entities",
+      "actual_guard": null,
+      "similarity": 0.361,
+      "novelty": 0.639,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 317.0,
+      "rationale": "Different proper nouns — entity novelty guard should reject"
+    },
+    {
+      "id": "pii_001",
+      "category": "pii_bearing",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 1.0,
+      "novelty": 0.0,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 426.9,
+      "rationale": "After PII scrubbing both queries normalize to '<EMAIL>' → cache should hit"
+    },
+    {
+      "id": "tenant_isolation_001",
+      "category": "tenant_isolation",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.0,
+      "novelty": 1.0,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 203.5,
+      "rationale": "Tenant scoping — tenant_A entry must not be visible to tenant_B"
+    },
+    {
+      "id": "context_length_001",
+      "category": "context_length",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "context_length_ratio",
+      "actual_guard": null,
+      "similarity": 0.237,
+      "novelty": 0.763,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 483.3,
+      "rationale": "30× length difference — context-length guard must reject"
+    },
+    {
+      "id": "model_version_001",
+      "category": "model_version",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "model_version",
+      "actual_guard": "model_version:v1.0→v2.0",
+      "similarity": 0.0,
+      "novelty": 0.0,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 303.2,
+      "rationale": "Model rev changed — stale routing decision"
+    },
+    {
+      "id": "intent_mismatch_001",
+      "category": "intent_mismatch",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "intent_mismatch",
+      "actual_guard": "intent_mismatch:coding→creative",
+      "similarity": 0.0,
+      "novelty": 0.0,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 322.5,
+      "rationale": "Same lexical query but classifier says different intent now"
+    }
+  ],
+  "passed_thresholds": {
+    "accuracy_floor": true,
+    "latency_p99": true,
+    "latency_p50": true
+  }
+}

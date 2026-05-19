@@ -1,0 +1,1098 @@
+{
+  "_meta": {
+    "experiment": "layer_2_embeddings_vs_jaccard",
+    "produced_at_iso": "2026-05-19T19:50:59",
+    "decision": "ADOPT"
+  },
+  "summary": {
+    "golden": {
+      "heuristic": {
+        "accuracy": 0.6875,
+        "precision": 0.3333333333333333,
+        "recall": 0.25,
+        "f1": 0.28571428571428575,
+        "p50_us": 142.85,
+        "p99_us": 570.5
+      },
+      "library_only": {
+        "accuracy": 0.875,
+        "precision": 0.75,
+        "recall": 0.75,
+        "f1": 0.75,
+        "p50_us": 316.95,
+        "p99_us": 675.3
+      },
+      "hybrid": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "p50_us": 417.45,
+        "p99_us": 692.4
+      }
+    },
+    "wild": {
+      "heuristic": {
+        "accuracy": 0.6111111111111112,
+        "precision": 0.625,
+        "recall": 0.5555555555555556,
+        "f1": 0.5882352941176471,
+        "p50_us": 147.0,
+        "p99_us": 223.2
+      },
+      "library_only": {
+        "accuracy": 0.8888888888888888,
+        "precision": 1.0,
+        "recall": 0.7777777777777778,
+        "f1": 0.8750000000000001,
+        "p50_us": 327.3,
+        "p99_us": 695.4
+      },
+      "hybrid": {
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "p50_us": 413.54999999999995,
+        "p99_us": 1533.0
+      }
+    },
+    "hybrid_lift_pp_wild": 41.17647058823529
+  },
+  "rows_golden": {
+    "heuristic": [
+      {
+        "case_id": "paraphrase_001",
+        "category": "paraphrase",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.275,
+        "correct": false,
+        "latency_us": 104.3
+      },
+      {
+        "case_id": "paraphrase_002",
+        "category": "paraphrase",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.306,
+        "correct": false,
+        "latency_us": 73.6
+      },
+      {
+        "case_id": "paraphrase_003",
+        "category": "paraphrase",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.5,
+        "correct": true,
+        "latency_us": 144.7
+      },
+      {
+        "case_id": "negation_001",
+        "category": "negation",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": true,
+        "similarity": 0.76,
+        "correct": false,
+        "latency_us": 147.5
+      },
+      {
+        "case_id": "negation_002",
+        "category": "negation",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 162.0
+      },
+      {
+        "case_id": "negation_003",
+        "category": "negation",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": true,
+        "similarity": 0.806,
+        "correct": false,
+        "latency_us": 141.2
+      },
+      {
+        "case_id": "unrelated_001",
+        "category": "unrelated",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.333,
+        "correct": true,
+        "latency_us": 44.6
+      },
+      {
+        "case_id": "unrelated_002",
+        "category": "unrelated",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.062,
+        "correct": true,
+        "latency_us": 59.1
+      },
+      {
+        "case_id": "escalated_001",
+        "category": "escalated",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 76.2
+      },
+      {
+        "case_id": "low_quality_001",
+        "category": "low_quality",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 52.4
+      },
+      {
+        "case_id": "entity_novelty_001",
+        "category": "entity_novelty",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 570.5
+      },
+      {
+        "case_id": "pii_001",
+        "category": "pii_bearing",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": false,
+        "latency_us": 173.0
+      },
+      {
+        "case_id": "tenant_isolation_001",
+        "category": "tenant_isolation",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 50.4
+      },
+      {
+        "case_id": "context_length_001",
+        "category": "context_length",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 144.5
+      },
+      {
+        "case_id": "model_version_001",
+        "category": "model_version",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 159.5
+      },
+      {
+        "case_id": "intent_mismatch_001",
+        "category": "intent_mismatch",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 151.9
+      }
+    ],
+    "library_only": [
+      {
+        "case_id": "paraphrase_001",
+        "category": "paraphrase",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.832,
+        "correct": true,
+        "latency_us": 534.2
+      },
+      {
+        "case_id": "paraphrase_002",
+        "category": "paraphrase",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.954,
+        "correct": true,
+        "latency_us": 571.9
+      },
+      {
+        "case_id": "paraphrase_003",
+        "category": "paraphrase",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.852,
+        "correct": true,
+        "latency_us": 675.3
+      },
+      {
+        "case_id": "negation_001",
+        "category": "negation",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.683,
+        "correct": true,
+        "latency_us": 300.7
+      },
+      {
+        "case_id": "negation_002",
+        "category": "negation",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 350.8
+      },
+      {
+        "case_id": "negation_003",
+        "category": "negation",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": true,
+        "similarity": 0.953,
+        "correct": false,
+        "latency_us": 563.2
+      },
+      {
+        "case_id": "unrelated_001",
+        "category": "unrelated",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.288,
+        "correct": true,
+        "latency_us": 293.2
+      },
+      {
+        "case_id": "unrelated_002",
+        "category": "unrelated",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.313,
+        "correct": true,
+        "latency_us": 348.8
+      },
+      {
+        "case_id": "escalated_001",
+        "category": "escalated",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 292.7
+      },
+      {
+        "case_id": "low_quality_001",
+        "category": "low_quality",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 219.7
+      },
+      {
+        "case_id": "entity_novelty_001",
+        "category": "entity_novelty",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.361,
+        "correct": true,
+        "latency_us": 301.4
+      },
+      {
+        "case_id": "pii_001",
+        "category": "pii_bearing",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": false,
+        "latency_us": 332.5
+      },
+      {
+        "case_id": "tenant_isolation_001",
+        "category": "tenant_isolation",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 197.2
+      },
+      {
+        "case_id": "context_length_001",
+        "category": "context_length",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.237,
+        "correct": true,
+        "latency_us": 539.6
+      },
+      {
+        "case_id": "model_version_001",
+        "category": "model_version",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 259.3
+      },
+      {
+        "case_id": "intent_mismatch_001",
+        "category": "intent_mismatch",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 286.6
+      }
+    ],
+    "hybrid": [
+      {
+        "case_id": "paraphrase_001",
+        "category": "paraphrase",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.832,
+        "correct": true,
+        "latency_us": 523.0
+      },
+      {
+        "case_id": "paraphrase_002",
+        "category": "paraphrase",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.954,
+        "correct": true,
+        "latency_us": 562.3
+      },
+      {
+        "case_id": "paraphrase_003",
+        "category": "paraphrase",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.852,
+        "correct": true,
+        "latency_us": 347.3
+      },
+      {
+        "case_id": "negation_001",
+        "category": "negation",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.683,
+        "correct": true,
+        "latency_us": 328.5
+      },
+      {
+        "case_id": "negation_002",
+        "category": "negation",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 371.3
+      },
+      {
+        "case_id": "negation_003",
+        "category": "negation",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 375.8
+      },
+      {
+        "case_id": "unrelated_001",
+        "category": "unrelated",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.288,
+        "correct": true,
+        "latency_us": 239.9
+      },
+      {
+        "case_id": "unrelated_002",
+        "category": "unrelated",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.313,
+        "correct": true,
+        "latency_us": 692.4
+      },
+      {
+        "case_id": "escalated_001",
+        "category": "escalated",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 442.7
+      },
+      {
+        "case_id": "low_quality_001",
+        "category": "low_quality",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 396.9
+      },
+      {
+        "case_id": "entity_novelty_001",
+        "category": "entity_novelty",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.361,
+        "correct": true,
+        "latency_us": 634.9
+      },
+      {
+        "case_id": "pii_001",
+        "category": "pii_bearing",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 438.0
+      },
+      {
+        "case_id": "tenant_isolation_001",
+        "category": "tenant_isolation",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 462.8
+      },
+      {
+        "case_id": "context_length_001",
+        "category": "context_length",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.237,
+        "correct": true,
+        "latency_us": 471.9
+      },
+      {
+        "case_id": "model_version_001",
+        "category": "model_version",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 343.0
+      },
+      {
+        "case_id": "intent_mismatch_001",
+        "category": "intent_mismatch",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 332.5
+      }
+    ]
+  },
+  "rows_wild": {
+    "heuristic": [
+      {
+        "case_id": "typo_001",
+        "category": "typos",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": true,
+        "similarity": 0.861,
+        "correct": false,
+        "latency_us": 156.6
+      },
+      {
+        "case_id": "casing_001",
+        "category": "casing",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.933,
+        "correct": true,
+        "latency_us": 110.3
+      },
+      {
+        "case_id": "voice_to_text_001",
+        "category": "voice_to_text",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.788,
+        "correct": true,
+        "latency_us": 153.2
+      },
+      {
+        "case_id": "language_mix_001",
+        "category": "code_switching",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.966,
+        "correct": true,
+        "latency_us": 223.2
+      },
+      {
+        "case_id": "language_mix_002",
+        "category": "code_switching",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": true,
+        "similarity": 0.366,
+        "correct": false,
+        "latency_us": 125.0
+      },
+      {
+        "case_id": "negation_slang_001",
+        "category": "negation_slang",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 140.8
+      },
+      {
+        "case_id": "sarcasm_001",
+        "category": "sarcasm",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.293,
+        "correct": false,
+        "latency_us": 54.9
+      },
+      {
+        "case_id": "longest_match_001",
+        "category": "verbose",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.149,
+        "correct": true,
+        "latency_us": 158.0
+      },
+      {
+        "case_id": "pii_email_001",
+        "category": "pii_scrub",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": false,
+        "latency_us": 155.1
+      },
+      {
+        "case_id": "pii_phone_001",
+        "category": "pii_scrub",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.509,
+        "correct": true,
+        "latency_us": 158.6
+      },
+      {
+        "case_id": "edge_emoji_001",
+        "category": "edge_cases",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.882,
+        "correct": true,
+        "latency_us": 134.6
+      },
+      {
+        "case_id": "url_in_query_001",
+        "category": "urls",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": false,
+        "latency_us": 163.7
+      },
+      {
+        "case_id": "stack_trace_001",
+        "category": "diagnostic",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 186.0
+      },
+      {
+        "case_id": "regional_001",
+        "category": "regional",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.233,
+        "correct": true,
+        "latency_us": 46.5
+      },
+      {
+        "case_id": "code_paste_001",
+        "category": "code",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": true,
+        "similarity": 0.787,
+        "correct": false,
+        "latency_us": 173.1
+      },
+      {
+        "case_id": "empty_001",
+        "category": "edge",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 16.8
+      },
+      {
+        "case_id": "very_long_001",
+        "category": "edge",
+        "arm": "heuristic",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": false,
+        "latency_us": 23.0
+      },
+      {
+        "case_id": "novelty_001",
+        "category": "novelty",
+        "arm": "heuristic",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 62.8
+      }
+    ],
+    "library_only": [
+      {
+        "case_id": "typo_001",
+        "category": "typos",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.625,
+        "correct": true,
+        "latency_us": 265.5
+      },
+      {
+        "case_id": "casing_001",
+        "category": "casing",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.996,
+        "correct": true,
+        "latency_us": 294.6
+      },
+      {
+        "case_id": "voice_to_text_001",
+        "category": "voice_to_text",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.935,
+        "correct": true,
+        "latency_us": 340.6
+      },
+      {
+        "case_id": "language_mix_001",
+        "category": "code_switching",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.998,
+        "correct": true,
+        "latency_us": 286.9
+      },
+      {
+        "case_id": "language_mix_002",
+        "category": "code_switching",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.471,
+        "correct": true,
+        "latency_us": 438.0
+      },
+      {
+        "case_id": "negation_slang_001",
+        "category": "negation_slang",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 625.8
+      },
+      {
+        "case_id": "sarcasm_001",
+        "category": "sarcasm",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.815,
+        "correct": true,
+        "latency_us": 656.4
+      },
+      {
+        "case_id": "longest_match_001",
+        "category": "verbose",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.603,
+        "correct": true,
+        "latency_us": 534.7
+      },
+      {
+        "case_id": "pii_email_001",
+        "category": "pii_scrub",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.62,
+        "correct": false,
+        "latency_us": 284.3
+      },
+      {
+        "case_id": "pii_phone_001",
+        "category": "pii_scrub",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.805,
+        "correct": true,
+        "latency_us": 695.4
+      },
+      {
+        "case_id": "edge_emoji_001",
+        "category": "edge_cases",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 494.9
+      },
+      {
+        "case_id": "url_in_query_001",
+        "category": "urls",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": false,
+        "latency_us": 458.7
+      },
+      {
+        "case_id": "stack_trace_001",
+        "category": "diagnostic",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 401.9
+      },
+      {
+        "case_id": "regional_001",
+        "category": "regional",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.441,
+        "correct": true,
+        "latency_us": 211.0
+      },
+      {
+        "case_id": "code_paste_001",
+        "category": "code",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.684,
+        "correct": true,
+        "latency_us": 314.0
+      },
+      {
+        "case_id": "empty_001",
+        "category": "edge",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 161.7
+      },
+      {
+        "case_id": "very_long_001",
+        "category": "edge",
+        "arm": "library_only",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 248.7
+      },
+      {
+        "case_id": "novelty_001",
+        "category": "novelty",
+        "arm": "library_only",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.204,
+        "correct": true,
+        "latency_us": 291.3
+      }
+    ],
+    "hybrid": [
+      {
+        "case_id": "typo_001",
+        "category": "typos",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.625,
+        "correct": true,
+        "latency_us": 334.2
+      },
+      {
+        "case_id": "casing_001",
+        "category": "casing",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.996,
+        "correct": true,
+        "latency_us": 318.8
+      },
+      {
+        "case_id": "voice_to_text_001",
+        "category": "voice_to_text",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.935,
+        "correct": true,
+        "latency_us": 457.8
+      },
+      {
+        "case_id": "language_mix_001",
+        "category": "code_switching",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.998,
+        "correct": true,
+        "latency_us": 769.7
+      },
+      {
+        "case_id": "language_mix_002",
+        "category": "code_switching",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.471,
+        "correct": true,
+        "latency_us": 486.0
+      },
+      {
+        "case_id": "negation_slang_001",
+        "category": "negation_slang",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 1533.0
+      },
+      {
+        "case_id": "sarcasm_001",
+        "category": "sarcasm",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.815,
+        "correct": true,
+        "latency_us": 1263.8
+      },
+      {
+        "case_id": "longest_match_001",
+        "category": "verbose",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.603,
+        "correct": true,
+        "latency_us": 670.0
+      },
+      {
+        "case_id": "pii_email_001",
+        "category": "pii_scrub",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 444.9
+      },
+      {
+        "case_id": "pii_phone_001",
+        "category": "pii_scrub",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 0.999,
+        "correct": true,
+        "latency_us": 483.5
+      },
+      {
+        "case_id": "edge_emoji_001",
+        "category": "edge_cases",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 365.7
+      },
+      {
+        "case_id": "url_in_query_001",
+        "category": "urls",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 382.2
+      },
+      {
+        "case_id": "stack_trace_001",
+        "category": "diagnostic",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 497.0
+      },
+      {
+        "case_id": "regional_001",
+        "category": "regional",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.441,
+        "correct": true,
+        "latency_us": 249.0
+      },
+      {
+        "case_id": "code_paste_001",
+        "category": "code",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.684,
+        "correct": true,
+        "latency_us": 296.2
+      },
+      {
+        "case_id": "empty_001",
+        "category": "edge",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.0,
+        "correct": true,
+        "latency_us": 144.1
+      },
+      {
+        "case_id": "very_long_001",
+        "category": "edge",
+        "arm": "hybrid",
+        "expected_hit": true,
+        "actual_hit": true,
+        "similarity": 1.0,
+        "correct": true,
+        "latency_us": 267.0
+      },
+      {
+        "case_id": "novelty_001",
+        "category": "novelty",
+        "arm": "hybrid",
+        "expected_hit": false,
+        "actual_hit": false,
+        "similarity": 0.204,
+        "correct": true,
+        "latency_us": 263.5
+      }
+    ]
+  }
+}

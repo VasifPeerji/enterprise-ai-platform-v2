@@ -13,10 +13,29 @@ from src.layer0_model_infra.routing.semantic_memory import SemanticMemory
 
 @pytest.fixture
 def semantic_memory():
-    """Get fresh semantic memory instance with test-friendly threshold."""
-    # Use a lower threshold because tests run without embedding gateway
-    # (falls back to character-ngram Jaccard similarity which scores lower)
-    memory = SemanticMemory(similarity_threshold=0.35)
+    """Fresh semantic-memory instance for tests.
+
+    Uses Model2Vec embeddings (the production path) with a threshold tuned
+    for them. Persistence disabled so each test gets a clean slate.
+    If model2vec isn't installed the fixture falls back to char-ngram
+    automatically (graceful degradation).
+    """
+    memory = SemanticMemory(
+        similarity_threshold=0.75,
+        enable_local_embedding=True,
+        enable_persistence=False,
+    )
+    return memory
+
+
+@pytest.fixture
+def semantic_memory_charngram():
+    """Char-ngram-only fixture for legacy similarity tests."""
+    memory = SemanticMemory(
+        similarity_threshold=0.35,
+        enable_local_embedding=False,
+        enable_persistence=False,
+    )
     return memory
 
 

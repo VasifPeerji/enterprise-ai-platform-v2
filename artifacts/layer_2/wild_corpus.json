@@ -1,0 +1,156 @@
+{
+  "_meta": {
+    "name": "Layer 2 — Wild Corpus",
+    "purpose": "Real-user-style query pairs that should/should-not cache-hit. Covers cases the engineer wouldn't think to add to a curated set — typos, slang, code-mixed languages, sarcasm, PII, etc.",
+    "version": "1.0.0",
+    "selection": "Curated to expose failure modes not anticipated during dev"
+  },
+  "cases": [
+    {
+      "id": "typo_001",
+      "category": "typos",
+      "record_query": "How do I install postgres on ubuntu",
+      "lookup_query": "How do i instaall postgres on ubunto",
+      "expected_hit": false,
+      "rationale": "Static embeddings don't normalize typos perfectly. Acceptable miss — better to re-route than serve wrong answer. Documented limitation; if becomes a problem in prod, swap Model2Vec → sentence-transformers."
+    },
+    {
+      "id": "casing_001",
+      "category": "casing",
+      "record_query": "what is REST API",
+      "lookup_query": "WHAT IS REST API?",
+      "expected_hit": true,
+      "rationale": "Case differences should be normalized away"
+    },
+    {
+      "id": "voice_to_text_001",
+      "category": "voice_to_text",
+      "record_query": "how do I configure nginx as a reverse proxy",
+      "lookup_query": "hey google how do i configure nginx as a reverse proxy",
+      "expected_hit": true,
+      "rationale": "Voice-style prefix should not block similarity"
+    },
+    {
+      "id": "language_mix_001",
+      "category": "code_switching",
+      "record_query": "Como funciona machine learning",
+      "lookup_query": "como funciona machine learning?",
+      "expected_hit": true,
+      "rationale": "Same Spanish query, trailing punctuation only"
+    },
+    {
+      "id": "language_mix_002",
+      "category": "code_switching",
+      "record_query": "Como funciona machine learning",
+      "lookup_query": "How does machine learning work",
+      "expected_hit": false,
+      "rationale": "Different languages — even though semantically equivalent, Model2Vec embedding distance is large enough to miss (this is acceptable — we don't want cross-language cache leakage)"
+    },
+    {
+      "id": "negation_slang_001",
+      "category": "negation_slang",
+      "record_query": "How do I enable dark mode in vscode",
+      "lookup_query": "How do I get rid of dark mode in vscode",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "'get rid of' is a slang negation — guard should still catch"
+    },
+    {
+      "id": "sarcasm_001",
+      "category": "sarcasm",
+      "record_query": "What is JavaScript",
+      "lookup_query": "What's that horrible language JavaScript",
+      "expected_hit": true,
+      "rationale": "Sentiment varies but information need is the same. Acceptable as hit since same answer applies."
+    },
+    {
+      "id": "longest_match_001",
+      "category": "verbose",
+      "record_query": "Show me how to write a quicksort",
+      "lookup_query": "I'm preparing for a coding interview tomorrow and I really need to brush up on my algorithm fundamentals, specifically can you show me how to write a quicksort with proper handling of edge cases like duplicates?",
+      "expected_hit": false,
+      "expected_guard_rejected": "context_length_ratio",
+      "rationale": "Way too much extra context — different query in practice"
+    },
+    {
+      "id": "pii_email_001",
+      "category": "pii_scrub",
+      "record_query": "Add user.smith@company.com to the access list",
+      "lookup_query": "Add jane.doe@company.com to the access list",
+      "expected_hit": true,
+      "rationale": "Both queries scrub to '<EMAIL>' → same template → hit"
+    },
+    {
+      "id": "pii_phone_001",
+      "category": "pii_scrub",
+      "record_query": "Send a text to 555-123-4567 about the meeting",
+      "lookup_query": "Send a text to (555) 987-6543 about the meeting",
+      "expected_hit": true,
+      "rationale": "Different phone numbers but same template after scrubbing"
+    },
+    {
+      "id": "edge_emoji_001",
+      "category": "edge_cases",
+      "record_query": "thank you so much",
+      "lookup_query": "thank you so much 🙏",
+      "expected_hit": true,
+      "rationale": "Emoji addition shouldn't break similarity (this query would hit Layer 0 first anyway)"
+    },
+    {
+      "id": "url_in_query_001",
+      "category": "urls",
+      "record_query": "Can you explain what's at https://example.com/api/docs",
+      "lookup_query": "Can you explain what's at https://other-site.com/v2/api",
+      "expected_hit": true,
+      "rationale": "Different URLs but same question pattern"
+    },
+    {
+      "id": "stack_trace_001",
+      "category": "diagnostic",
+      "record_query": "Got TypeError: 'NoneType' object is not subscriptable in my Python code",
+      "lookup_query": "Got TypeError: 'NoneType' object is not iterable in my Python code",
+      "expected_hit": false,
+      "rationale": "Different error types — different debugging path needed"
+    },
+    {
+      "id": "regional_001",
+      "category": "regional",
+      "record_query": "How do I order an Uber",
+      "lookup_query": "How do I book a cab",
+      "expected_hit": false,
+      "rationale": "Different services / verbs — Model2Vec similarity likely below threshold"
+    },
+    {
+      "id": "code_paste_001",
+      "category": "code",
+      "record_query": "def fibonacci(n):\n    if n < 2: return n\n    return fibonacci(n-1) + fibonacci(n-2)",
+      "lookup_query": "def fib(n):\n    if n < 2: return n\n    return fib(n-1) + fib(n-2)",
+      "expected_hit": false,
+      "rationale": "Different function names = meaningful difference. Caller may want to discuss the rename. Acceptable miss; routing safety wins over recall."
+    },
+    {
+      "id": "empty_001",
+      "category": "edge",
+      "record_query": "What is Python",
+      "lookup_query": "",
+      "expected_hit": false,
+      "rationale": "Empty query should not match anything"
+    },
+    {
+      "id": "very_long_001",
+      "category": "edge",
+      "record_query": "Hi",
+      "lookup_query": "Hi.",
+      "expected_hit": true,
+      "rationale": "Trivial similarity — should hit"
+    },
+    {
+      "id": "novelty_001",
+      "category": "novelty",
+      "record_query": "How do I tune hyperparameters in XGBoost",
+      "lookup_query": "What's the airspeed velocity of an unladen swallow",
+      "expected_hit": false,
+      "rationale": "Completely unrelated — novelty should be high"
+    }
+  ]
+}

@@ -268,7 +268,16 @@ class TestInputSignals:
 class TestSemanticMemory:
     def _get(self):
         from src.layer0_model_infra.routing.semantic_memory import SemanticMemory
-        return SemanticMemory(similarity_threshold=0.6, decay_half_life_seconds=3600)
+        # Disable persistence + local embedding so this fixture matches the
+        # legacy char-ngram-calibrated test semantics (sim_threshold=0.6,
+        # half_life=3600s). The persistence/embedding paths are exercised by
+        # the dedicated tests/layer0_model_infra/test_semantic_memory.py fixtures.
+        return SemanticMemory(
+            similarity_threshold=0.6,
+            decay_half_life_seconds=3600,
+            enable_local_embedding=False,
+            enable_persistence=False,
+        )
 
     def test_empty_cache_is_novel(self):
         mem = self._get()

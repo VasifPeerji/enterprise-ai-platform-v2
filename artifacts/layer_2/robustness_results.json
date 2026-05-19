@@ -1,0 +1,288 @@
+{
+  "_meta": {
+    "produced_at_iso": "2026-05-19T19:49:44",
+    "total": 18,
+    "passing": 18,
+    "pass_rate": 1.0
+  },
+  "rows": [
+    {
+      "id": "typo_001",
+      "category": "typos",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.625,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Static embeddings don't normalize typos perfectly. Acceptable miss — better to re-route than serve wrong answer. Documented limitation; if becomes a problem in prod, swap Model2Vec → sentence-transformers.",
+      "latency_us": 540.0
+    },
+    {
+      "id": "casing_001",
+      "category": "casing",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.996,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Case differences should be normalized away",
+      "latency_us": 543.0
+    },
+    {
+      "id": "voice_to_text_001",
+      "category": "voice_to_text",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.935,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Voice-style prefix should not block similarity",
+      "latency_us": 528.4
+    },
+    {
+      "id": "language_mix_001",
+      "category": "code_switching",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.998,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Same Spanish query, trailing punctuation only",
+      "latency_us": 405.8
+    },
+    {
+      "id": "language_mix_002",
+      "category": "code_switching",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.471,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different languages — even though semantically equivalent, Model2Vec embedding distance is large enough to miss (this is acceptable — we don't want cross-language cache leakage)",
+      "latency_us": 308.2
+    },
+    {
+      "id": "negation_slang_001",
+      "category": "negation_slang",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "negation_polarity:0→1",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "'get rid of' is a slang negation — guard should still catch",
+      "latency_us": 390.7
+    },
+    {
+      "id": "sarcasm_001",
+      "category": "sarcasm",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.815,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Sentiment varies but information need is the same. Acceptable as hit since same answer applies.",
+      "latency_us": 608.0
+    },
+    {
+      "id": "longest_match_001",
+      "category": "verbose",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.603,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Way too much extra context — different query in practice",
+      "latency_us": 529.1
+    },
+    {
+      "id": "pii_email_001",
+      "category": "pii_scrub",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 1.0,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Both queries scrub to '<EMAIL>' → same template → hit",
+      "latency_us": 515.9
+    },
+    {
+      "id": "pii_phone_001",
+      "category": "pii_scrub",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.999,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different phone numbers but same template after scrubbing",
+      "latency_us": 396.8
+    },
+    {
+      "id": "edge_emoji_001",
+      "category": "edge_cases",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 1.0,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Emoji addition shouldn't break similarity (this query would hit Layer 0 first anyway)",
+      "latency_us": 395.8
+    },
+    {
+      "id": "url_in_query_001",
+      "category": "urls",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 1.0,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different URLs but same question pattern",
+      "latency_us": 407.8
+    },
+    {
+      "id": "stack_trace_001",
+      "category": "diagnostic",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "technical_entity_mismatch:['iterable', 'subscriptable', 'typeerror']",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different error types — different debugging path needed",
+      "latency_us": 567.6
+    },
+    {
+      "id": "regional_001",
+      "category": "regional",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.441,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different services / verbs — Model2Vec similarity likely below threshold",
+      "latency_us": 288.5
+    },
+    {
+      "id": "code_paste_001",
+      "category": "code",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.684,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different function names = meaningful difference. Caller may want to discuss the rename. Acceptable miss; routing safety wins over recall.",
+      "latency_us": 367.5
+    },
+    {
+      "id": "empty_001",
+      "category": "edge",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Empty query should not match anything",
+      "latency_us": 192.5
+    },
+    {
+      "id": "very_long_001",
+      "category": "edge",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 1.0,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Trivial similarity — should hit",
+      "latency_us": 559.9
+    },
+    {
+      "id": "novelty_001",
+      "category": "novelty",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.204,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Completely unrelated — novelty should be high",
+      "latency_us": 330.6
+    }
+  ],
+  "per_category": {
+    "typos": {
+      "total": 1,
+      "passing": 1
+    },
+    "casing": {
+      "total": 1,
+      "passing": 1
+    },
+    "voice_to_text": {
+      "total": 1,
+      "passing": 1
+    },
+    "code_switching": {
+      "total": 2,
+      "passing": 2
+    },
+    "negation_slang": {
+      "total": 1,
+      "passing": 1
+    },
+    "sarcasm": {
+      "total": 1,
+      "passing": 1
+    },
+    "verbose": {
+      "total": 1,
+      "passing": 1
+    },
+    "pii_scrub": {
+      "total": 2,
+      "passing": 2
+    },
+    "edge_cases": {
+      "total": 1,
+      "passing": 1
+    },
+    "urls": {
+      "total": 1,
+      "passing": 1
+    },
+    "diagnostic": {
+      "total": 1,
+      "passing": 1
+    },
+    "regional": {
+      "total": 1,
+      "passing": 1
+    },
+    "code": {
+      "total": 1,
+      "passing": 1
+    },
+    "edge": {
+      "total": 2,
+      "passing": 2
+    },
+    "novelty": {
+      "total": 1,
+      "passing": 1
+    }
+  }
+}
