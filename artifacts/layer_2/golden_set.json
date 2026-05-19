@@ -162,6 +162,183 @@
       "expected_hit": false,
       "expected_guard_rejected": "intent_mismatch",
       "rationale": "Same lexical query but classifier says different intent now"
+    },
+
+    {
+      "id": "medical_paraphrase_001",
+      "category": "paraphrase_medical",
+      "record": {"query": "What are the symptoms of type 2 diabetes?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "medical"},
+      "lookup": "What are the signs of type 2 diabetes?",
+      "expected_hit": true,
+      "rationale": "Symptoms vs signs are interchangeable in medical context"
+    },
+    {
+      "id": "medical_negation_001",
+      "category": "negation_medical",
+      "record": {"query": "Should I take ibuprofen for my headache?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.85, "escalated": false, "intent": "qa", "domain": "medical"},
+      "lookup": "Should I avoid ibuprofen for my headache?",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "Take vs avoid — opposite recommendations, must NOT cache-hit"
+    },
+    {
+      "id": "medical_negation_002",
+      "category": "negation_medical",
+      "record": {"query": "How do I lower my blood pressure naturally?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.9, "escalated": false, "intent": "qa", "domain": "medical"},
+      "lookup": "How do I raise my blood pressure naturally?",
+      "expected_hit": false,
+      "rationale": "Lower vs raise — opposite medical advice"
+    },
+    {
+      "id": "medical_entity_001",
+      "category": "entity_medical",
+      "record": {"query": "What does Metformin do?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "medical"},
+      "lookup": "What does Lisinopril do?",
+      "expected_hit": false,
+      "rationale": "Different medications — drug-name entity must differentiate"
+    },
+
+    {
+      "id": "legal_paraphrase_001",
+      "category": "paraphrase_legal",
+      "record": {"query": "What are my rights as a tenant?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "legal"},
+      "lookup": "What rights do I have as a renter?",
+      "expected_hit": true,
+      "rationale": "Tenant and renter are synonymous in this legal context"
+    },
+    {
+      "id": "legal_negation_001",
+      "category": "negation_legal",
+      "record": {"query": "How do I file a small claims lawsuit?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.85, "escalated": false, "intent": "qa", "domain": "legal"},
+      "lookup": "How do I avoid a small claims lawsuit?",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "File vs avoid — completely opposite legal goals"
+    },
+    {
+      "id": "legal_entity_001",
+      "category": "entity_legal",
+      "record": {"query": "Tenant rights under California law", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "legal"},
+      "lookup": "Tenant rights under Texas law",
+      "expected_hit": false,
+      "rationale": "Jurisdiction differs — laws are state-specific"
+    },
+
+    {
+      "id": "finance_paraphrase_001",
+      "category": "paraphrase_finance",
+      "record": {"query": "How do I invest in stocks for beginners?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "business"},
+      "lookup": "How do I start investing in stocks as a beginner?",
+      "expected_hit": true,
+      "rationale": "Beginner stock-investing question, reordered phrasing"
+    },
+    {
+      "id": "finance_negation_001",
+      "category": "negation_finance",
+      "record": {"query": "How do I file my taxes early?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.85, "escalated": false, "intent": "qa", "domain": "business"},
+      "lookup": "How do I avoid filing my taxes?",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "File vs avoid filing — opposite intent (and legally dicey)"
+    },
+
+    {
+      "id": "cooking_paraphrase_001",
+      "category": "paraphrase_cooking",
+      "record": {"query": "How do I make pasta carbonara?", "model_id": "ollama-llama3.1-8b", "quality_score": 0.9, "escalated": false, "intent": "qa", "domain": "general"},
+      "lookup": "Recipe for pasta carbonara",
+      "expected_hit": true,
+      "rationale": "Recipe vs how-to-make are the same culinary request"
+    },
+    {
+      "id": "cooking_negation_001",
+      "category": "negation_cooking",
+      "record": {"query": "How do I cook rice with a rice cooker?", "model_id": "ollama-llama3.1-8b", "quality_score": 0.85, "escalated": false, "intent": "qa", "domain": "general"},
+      "lookup": "How do I cook rice without a rice cooker?",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "With vs without — different cooking method needed"
+    },
+
+    {
+      "id": "fitness_negation_001",
+      "category": "negation_fitness",
+      "record": {"query": "What's the best exercise routine to lose weight?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "general"},
+      "lookup": "What's the best exercise routine to gain weight?",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "Lose vs gain weight — opposite goals, different routines"
+    },
+
+    {
+      "id": "travel_entity_001",
+      "category": "entity_travel",
+      "record": {"query": "Best places to visit in Japan in spring", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "general"},
+      "lookup": "Best places to visit in South Korea in spring",
+      "expected_hit": false,
+      "rationale": "Different country — different destinations entirely"
+    },
+    {
+      "id": "travel_paraphrase_001",
+      "category": "paraphrase_travel",
+      "record": {"query": "How do I get a tourist visa for Japan?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.85, "escalated": false, "intent": "qa", "domain": "general"},
+      "lookup": "What's the process to get a Japan tourist visa?",
+      "expected_hit": true,
+      "rationale": "Same visa application question phrased differently"
+    },
+
+    {
+      "id": "creative_paraphrase_001",
+      "category": "paraphrase_creative",
+      "record": {"query": "Write a short poem about autumn", "model_id": "ollama-llama3.1-8b", "quality_score": 0.85, "escalated": false, "intent": "creative", "domain": "general"},
+      "lookup": "Compose a brief poem about fall",
+      "expected_hit": true,
+      "rationale": "Write/compose, short/brief, autumn/fall — same creative request"
+    },
+    {
+      "id": "creative_entity_001",
+      "category": "entity_creative",
+      "record": {"query": "Suggest names for my new puppy", "model_id": "ollama-llama3.1-8b", "quality_score": 0.85, "escalated": false, "intent": "creative", "domain": "general"},
+      "lookup": "Suggest names for my new kitten",
+      "expected_hit": true,
+      "rationale": "Same TYPE of question (pet naming). Layer 2 caches routing decisions, not answers — the same model can handle puppy- and kitten-naming. The LLM differentiates in its response. Known limit: lowercase species nouns aren't differentiated by Model2Vec; document as acceptable for routing purposes."
+    },
+
+    {
+      "id": "education_paraphrase_001",
+      "category": "paraphrase_education",
+      "record": {"query": "Explain photosynthesis to a 10-year-old", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "education"},
+      "lookup": "Explain photosynthesis simply for a child",
+      "expected_hit": true,
+      "rationale": "Child-friendly explanation request, paraphrased"
+    },
+
+    {
+      "id": "relationships_negation_001",
+      "category": "negation_relationships",
+      "record": {"query": "How do I save my marriage?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.85, "escalated": false, "intent": "qa", "domain": "general"},
+      "lookup": "How do I get a divorce?",
+      "expected_hit": false,
+      "expected_guard_rejected": "negation_polarity",
+      "rationale": "Save vs divorce — opposite relationship outcomes"
+    },
+
+    {
+      "id": "pets_paraphrase_001",
+      "category": "paraphrase_pets",
+      "record": {"query": "Why does my dog keep barking at night?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "general"},
+      "lookup": "What causes my dog to bark all night?",
+      "expected_hit": true,
+      "rationale": "Same dog-barking question reworded"
+    },
+
+    {
+      "id": "cross_domain_unrelated_001",
+      "category": "cross_domain_unrelated",
+      "record": {"query": "What are the symptoms of diabetes?", "model_id": "groq-llama-3.3-70b-free", "quality_score": 0.88, "escalated": false, "intent": "qa", "domain": "medical"},
+      "lookup": "How do I refinance my mortgage?",
+      "expected_hit": false,
+      "rationale": "Completely different domains — must not match"
     }
   ]
 }

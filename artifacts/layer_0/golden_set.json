@@ -111,6 +111,27 @@
     {"query": "como funciona machine learning", "expected_bypass": false, "expected_category": null, "expected_language": "es", "rationale": "Spanish ML question.", "source": "adversarial"},
 
     {"query": "If Alice has 5 apples and Bob has 3, how many do they have?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Math word problem — not pure arithmetic.", "source": "curated"},
-    {"query": "Calculate the derivative of x^2 + 3x", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Has letters — not pure arithmetic.", "source": "curated"}
+    {"query": "Calculate the derivative of x^2 + 3x", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Has letters — not pure arithmetic.", "source": "curated"},
+
+    {"query": "What are the symptoms of type 2 diabetes?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Medical question — needs full pipeline.", "source": "multidomain"},
+    {"query": "Should I take ibuprofen for my headache?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Medical advice question — must not bypass.", "source": "multidomain"},
+    {"query": "How do I lower my blood pressure naturally?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Health/medical — full pipeline.", "source": "multidomain"},
+    {"query": "What are my rights as a tenant?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Legal question — full pipeline.", "source": "multidomain"},
+    {"query": "How do I file a small claims lawsuit?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Legal procedural question.", "source": "multidomain"},
+    {"query": "How do I invest in stocks for beginners?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Financial advice.", "source": "multidomain"},
+    {"query": "How do I file my taxes early?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Tax/finance question.", "source": "multidomain"},
+    {"query": "How do I make pasta carbonara?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Cooking question.", "source": "multidomain"},
+    {"query": "Best vegan substitute for eggs in baking", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Dietary cooking question.", "source": "multidomain"},
+    {"query": "How do I start running as a complete beginner?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Fitness guidance.", "source": "multidomain"},
+    {"query": "Best places to visit in Japan in spring", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Travel planning.", "source": "multidomain"},
+    {"query": "Do I need a visa to travel to Brazil from the US?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Travel logistics.", "source": "multidomain"},
+    {"query": "Write a short poem about autumn", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Creative writing request.", "source": "multidomain"},
+    {"query": "Suggest names for my new puppy", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Pet naming.", "source": "multidomain"},
+    {"query": "Why does my dog keep barking at night?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Pet behavior question.", "source": "multidomain"},
+    {"query": "Explain photosynthesis to a 10-year-old", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Education/tutoring.", "source": "multidomain"},
+    {"query": "How do I save my marriage?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Relationships/personal.", "source": "multidomain"},
+    {"query": "How do I unclog a kitchen sink without chemicals?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "DIY home maintenance.", "source": "multidomain"},
+    {"query": "What's the best month to visit Iceland for the northern lights?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Travel planning.", "source": "multidomain"},
+    {"query": "How long should I marinate steak?", "expected_bypass": false, "expected_category": null, "expected_language": "en", "rationale": "Cooking technique.", "source": "multidomain"}
   ]
 }

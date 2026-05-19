@@ -22,8 +22,10 @@ from src.layer0_model_infra.routing.semantic_memory import SemanticMemory  # noq
 
 
 def make_memory() -> SemanticMemory:
+    """Threshold 0.70 matches the benchmark fixture — see benchmark_layer_2.py
+    for the rationale."""
     return SemanticMemory(
-        similarity_threshold=0.75,
+        similarity_threshold=0.70,
         decay_half_life_seconds=604_800.0,
         enable_local_embedding=True,
         enable_persistence=False,

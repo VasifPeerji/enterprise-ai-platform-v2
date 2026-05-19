@@ -1,7 +1,7 @@
 {
   "_meta": {
     "produced_by": "scripts/benchmark_layer_1.py",
-    "produced_at_iso": "2026-05-19T12:25:55",
+    "produced_at_iso": "2026-05-19T23:46:28",
     "layer": "layer_1_modality_gate",
     "modality_accuracy_floor": 0.92,
     "language_accuracy_floor": 0.85,
@@ -9,7 +9,7 @@
     "latency_p50_budget_ms": 5.0
   },
   "summary": {
-    "total_cases": 29,
+    "total_cases": 41,
     "modality_accuracy": 1.0,
     "language_accuracy": 1.0,
     "code_language_accuracy": 1.0,
@@ -18,18 +18,18 @@
     "validation_accuracy": 1.0
   },
   "latency_us": {
-    "count": 29,
-    "min_us": 491.2,
-    "max_us": 28812.3,
-    "mean_us": 17959.14827586207,
-    "p50_us": 23682.3,
-    "p95_us": 25570.1,
-    "p99_us": 28812.3
+    "count": 41,
+    "min_us": 879.6,
+    "max_us": 161057.9,
+    "mean_us": 46639.019512195126,
+    "p50_us": 49740.3,
+    "p95_us": 69421.3,
+    "p99_us": 161057.9
   },
   "per_language": {
     "en": {
-      "total": 21,
-      "correct": 21
+      "total": 33,
+      "correct": 33
     },
     "es": {
       "total": 1,
@@ -61,7 +61,7 @@
     }
   },
   "per_language_detector": {
-    "default": 20,
+    "default": 32,
     "lingua": 3,
     "script": 4,
     "hinglish_markers": 2
@@ -70,7 +70,7 @@
   "passed_thresholds": {
     "modality_floor": true,
     "language_floor": true,
-    "latency_p99": true,
+    "latency_p99": false,
     "latency_p50": false
   }
 }

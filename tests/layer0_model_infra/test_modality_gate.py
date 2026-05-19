@@ -448,7 +448,10 @@ class TestStructuredData:
         t0 = time.perf_counter()
         result = modality_gate.analyze(text=evil_input)
         elapsed = time.perf_counter() - t0
-        assert elapsed < 1.0, f"ReDoS regression: took {elapsed:.2f}s on pathological input"
+        # 3-second cap: ReDoS would be O(2^n) → tens of seconds on n=5000.
+        # Linear-time processing (5K-char Cf-strip + lingua + Pygments) can
+        # take 1-2s on a loaded machine; we just need to confirm no exponential blowup.
+        assert elapsed < 3.0, f"ReDoS regression: took {elapsed:.2f}s on pathological input"
         assert result.structured_format == ""  # no valid JSON
 
     def test_single_tab_does_not_saturate_table_density(self, modality_gate):

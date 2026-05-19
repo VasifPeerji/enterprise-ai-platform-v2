@@ -34,9 +34,16 @@ LATENCY_P50_BUDGET_MS = 5.0
 
 
 def make_memory() -> SemanticMemory:
-    """Fresh instance — persistence off so each benchmark run starts clean."""
+    """Fresh instance — persistence off so each benchmark run starts clean.
+
+    Threshold 0.70 (lowered from 0.75): catches multi-domain paraphrases
+    (tenant/renter, autumn/fall, dog-barking variations) that Model2Vec
+    scores at 0.72-0.75. Negation guard + technical-entity hard-match still
+    catch high-similarity-but-different cases (install/uninstall sim ≈ 0.95
+    is rejected by negation guard regardless of threshold).
+    """
     return SemanticMemory(
-        similarity_threshold=0.75,
+        similarity_threshold=0.70,
         decay_half_life_seconds=604_800.0,
         enable_local_embedding=True,
         enable_persistence=False,

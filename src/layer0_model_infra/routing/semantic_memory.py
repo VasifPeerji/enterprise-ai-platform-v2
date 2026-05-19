@@ -152,17 +152,36 @@ def _scrub_pii(text: str) -> str:
     return text
 
 
-# Negation marker set — tokens whose presence flips intent polarity.
-# Includes slang ("rid", "ditch") + formal ("uninstall", "revert") + colloquial
-# ("shut down" picked up via "shut") forms. Surfaced via wild-corpus testing
-# where "get rid of dark mode" was wrongly matched to "enable dark mode".
+# Negation / polarity-flipping marker set.
+#
+# Three kinds of tokens lumped together for the same purpose — if one
+# query has more of these than the other, intent has flipped:
+#   1. Formal negations: not, never, without, cannot, …
+#   2. Removal verbs:    uninstall, remove, delete, revert, disable, …
+#   3. Avoidance verbs:  avoid, prevent, skip, dodge, …
+#   4. Asymmetric antonym sides (the "less / regress" side of a pair):
+#        lose (vs gain), lower (vs raise), decrease (vs increase),
+#        shrink (vs grow), shorten (vs lengthen).
+#
+# We don't track pair membership — we just count flip-tokens. If query A has 1
+# and query B has 0, polarity has flipped. That's what the guard rejects.
+# Catches medical (take/avoid), fitness (lose/gain weight), legal (file/avoid),
+# relationships (save/divorce) — surfaced by multi-domain wild-corpus testing.
 _NEG_TOKENS: frozenset[str] = frozenset({
+    # Formal negations
     "no", "not", "never", "none", "without", "cannot", "cant",
     "wont", "shouldnt", "wouldnt", "couldnt", "isnt", "arent",
+    # Removal / undo verbs
     "disable", "uninstall", "remove", "delete", "undo", "revert",
     "stop", "prevent", "block", "reject", "deny", "exclude",
     "rid", "ditch", "kill", "shut", "abandon", "drop", "discard",
     "off", "halt", "abort", "quit", "exit", "leave",
+    # Avoidance
+    "avoid", "skip", "dodge", "refuse", "decline", "ignore",
+    # Asymmetric antonym sides (regress / decrease direction)
+    "lose", "lower", "decrease", "shrink", "shorten", "reduce",
+    "minimize", "weaken", "destroy", "demolish", "sell",
+    "divorce", "breakup", "break", "split", "separate",  # vs save / propose
 })
 
 # Prefixes that often flip polarity when attached to a word.
@@ -756,12 +775,31 @@ class SemanticMemory:
         """
         # General entities = Capitalized proper noun phrases
         entities = re.findall(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b", text)
+        # Stopword list: question words + imperative-mode verbs commonly
+        # appearing at the start of a query. Capitalised but not entities.
+        # Extended for multi-domain coverage (cooking, fitness, creative, etc.).
         common_starters = {
+            # Question words
             "The", "This", "That", "These", "Those", "What", "When",
             "Where", "Which", "How", "Why", "Who", "Can", "Could",
             "Would", "Should", "Will", "Do", "Does", "Did", "Is",
             "Are", "Was", "Were", "Has", "Have", "Had", "Let", "Please",
             "Hello", "Hi", "Yes", "No", "Sure", "Okay", "Got",
+            # Imperative verbs (tech)
+            "Write", "Create", "Build", "Make", "Add", "Send", "Update",
+            "Delete", "Remove", "Install", "Run", "Show", "Display",
+            "Find", "Get", "Set", "Help", "Tell", "Give", "Explain",
+            "Describe", "Translate", "Generate", "Suggest", "Recommend",
+            "Analyze", "Compare", "Implement", "Debug", "Fix",
+            # Imperative verbs (general / multi-domain)
+            "Compose", "Draft", "Edit", "Review", "Summarize",
+            "Cook", "Bake", "Make", "Prepare",
+            "Run", "Walk", "Lift", "Train", "Exercise",
+            "Visit", "Travel", "Fly", "Drive",
+            "Read", "Watch", "Listen", "Learn", "Study", "Teach",
+            "Buy", "Sell", "Invest", "Save", "Spend",
+            "Plan", "Schedule", "Book", "Reserve",
+            "Best", "Top", "First", "Last", "Next", "Most",
         }
         entities = [e for e in entities if e not in common_starters and len(e) > 2]
 
@@ -909,13 +947,17 @@ class SemanticMemory:
             diff = (q_tech ^ e_tech)
             return f"technical_entity_mismatch:{list(diff)[:3]}"
 
-        # Guard 5b: general-entity novelty (ratio-based, lenient)
+        # Guard 5b: general-entity novelty (ratio-based, lenient).
+        # Boundary changed from strict `>` to `>=` because exactly-50% changes
+        # (1 of 2 entities differs — e.g. California vs Texas, Japan vs Korea)
+        # were slipping through. With `>=`, jurisdiction / country differences
+        # in 2-entity queries correctly reject.
         if query_entities and entry.query_entities:
             cached_set = {e.lower() for e in entry.query_entities}
             new_entities = [e for e in query_entities if e.lower() not in cached_set]
             if new_entities:
                 new_ratio = len(new_entities) / max(len(query_entities), 1)
-                if new_ratio > self.MAX_NEW_ENTITY_RATIO:
+                if new_ratio >= self.MAX_NEW_ENTITY_RATIO:
                     return f"new_entities:{new_entities[:3]}"
 
         return None

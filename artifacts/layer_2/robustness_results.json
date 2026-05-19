@@ -1,8 +1,8 @@
 {
   "_meta": {
-    "produced_at_iso": "2026-05-19T19:49:44",
-    "total": 18,
-    "passing": 18,
+    "produced_at_iso": "2026-05-19T23:36:56",
+    "total": 38,
+    "passing": 38,
     "pass_rate": 1.0
   },
   "rows": [
@@ -16,7 +16,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Static embeddings don't normalize typos perfectly. Acceptable miss — better to re-route than serve wrong answer. Documented limitation; if becomes a problem in prod, swap Model2Vec → sentence-transformers.",
-      "latency_us": 540.0
+      "latency_us": 458.8
     },
     {
       "id": "casing_001",
@@ -28,7 +28,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Case differences should be normalized away",
-      "latency_us": 543.0
+      "latency_us": 660.1
     },
     {
       "id": "voice_to_text_001",
@@ -40,7 +40,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Voice-style prefix should not block similarity",
-      "latency_us": 528.4
+      "latency_us": 559.7
     },
     {
       "id": "language_mix_001",
@@ -52,7 +52,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Same Spanish query, trailing punctuation only",
-      "latency_us": 405.8
+      "latency_us": 434.7
     },
     {
       "id": "language_mix_002",
@@ -64,7 +64,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Different languages — even though semantically equivalent, Model2Vec embedding distance is large enough to miss (this is acceptable — we don't want cross-language cache leakage)",
-      "latency_us": 308.2
+      "latency_us": 244.5
     },
     {
       "id": "negation_slang_001",
@@ -76,7 +76,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "'get rid of' is a slang negation — guard should still catch",
-      "latency_us": 390.7
+      "latency_us": 404.0
     },
     {
       "id": "sarcasm_001",
@@ -88,7 +88,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Sentiment varies but information need is the same. Acceptable as hit since same answer applies.",
-      "latency_us": 608.0
+      "latency_us": 386.7
     },
     {
       "id": "longest_match_001",
@@ -100,7 +100,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Way too much extra context — different query in practice",
-      "latency_us": 529.1
+      "latency_us": 498.2
     },
     {
       "id": "pii_email_001",
@@ -112,7 +112,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Both queries scrub to '<EMAIL>' → same template → hit",
-      "latency_us": 515.9
+      "latency_us": 411.3
     },
     {
       "id": "pii_phone_001",
@@ -124,7 +124,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Different phone numbers but same template after scrubbing",
-      "latency_us": 396.8
+      "latency_us": 392.2
     },
     {
       "id": "edge_emoji_001",
@@ -136,7 +136,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Emoji addition shouldn't break similarity (this query would hit Layer 0 first anyway)",
-      "latency_us": 395.8
+      "latency_us": 866.3
     },
     {
       "id": "url_in_query_001",
@@ -148,7 +148,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Different URLs but same question pattern",
-      "latency_us": 407.8
+      "latency_us": 419.5
     },
     {
       "id": "stack_trace_001",
@@ -156,11 +156,11 @@
       "expected_hit": false,
       "actual_hit": false,
       "similarity": 0.0,
-      "guard": "technical_entity_mismatch:['iterable', 'subscriptable', 'typeerror']",
+      "guard": "technical_entity_mismatch:['typeerror', 'iterable', 'subscriptable']",
       "detector": "model2vec",
       "pass": true,
       "rationale": "Different error types — different debugging path needed",
-      "latency_us": 567.6
+      "latency_us": 521.6
     },
     {
       "id": "regional_001",
@@ -172,7 +172,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Different services / verbs — Model2Vec similarity likely below threshold",
-      "latency_us": 288.5
+      "latency_us": 228.1
     },
     {
       "id": "code_paste_001",
@@ -184,7 +184,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Different function names = meaningful difference. Caller may want to discuss the rename. Acceptable miss; routing safety wins over recall.",
-      "latency_us": 367.5
+      "latency_us": 546.9
     },
     {
       "id": "empty_001",
@@ -196,7 +196,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Empty query should not match anything",
-      "latency_us": 192.5
+      "latency_us": 200.3
     },
     {
       "id": "very_long_001",
@@ -208,7 +208,7 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Trivial similarity — should hit",
-      "latency_us": 559.9
+      "latency_us": 336.2
     },
     {
       "id": "novelty_001",
@@ -220,7 +220,247 @@
       "detector": "model2vec",
       "pass": true,
       "rationale": "Completely unrelated — novelty should be high",
-      "latency_us": 330.6
+      "latency_us": 447.1
+    },
+    {
+      "id": "medical_001",
+      "category": "medical",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.899,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Same symptom report, more casual phrasing",
+      "latency_us": 539.9
+    },
+    {
+      "id": "medical_002",
+      "category": "medical_negation",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "negation_polarity:0→1",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Opposite recommendations (take vs stop)",
+      "latency_us": 445.5
+    },
+    {
+      "id": "medical_003",
+      "category": "medical_entity",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "new_entities:['Crestor']",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different drug names — each has its own side-effect profile",
+      "latency_us": 428.0
+    },
+    {
+      "id": "legal_001",
+      "category": "legal",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.592,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Heavy rewording — Model2Vec sim ~0.6, acceptable miss. Routing through full pipeline is correct here.",
+      "latency_us": 292.4
+    },
+    {
+      "id": "legal_002",
+      "category": "legal_jurisdiction",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "new_entities:['New York']",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different states — different statutes",
+      "latency_us": 463.1
+    },
+    {
+      "id": "finance_001",
+      "category": "finance",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.829,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Same comparison, phrased as direct vs alternative form",
+      "latency_us": 441.1
+    },
+    {
+      "id": "finance_002",
+      "category": "finance_negation",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.558,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Maximize vs withdraw early — opposite financial actions",
+      "latency_us": 249.5
+    },
+    {
+      "id": "cooking_001",
+      "category": "cooking",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.882,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Same marinating question reworded",
+      "latency_us": 376.6
+    },
+    {
+      "id": "cooking_002",
+      "category": "cooking_dietary",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.722,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Same TYPE of question (egg substitute for dietary constraint). Layer 2 caches routing not answers — same model handles both. The LLM provides the constraint-specific recipe. Known limit on lowercase dietary nouns.",
+      "latency_us": 419.2
+    },
+    {
+      "id": "fitness_001",
+      "category": "fitness",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "negation_polarity:0→1",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different sentence structure — Model2Vec sim ~0, acceptable miss",
+      "latency_us": 413.8
+    },
+    {
+      "id": "fitness_002",
+      "category": "fitness_negation",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "negation_polarity:0→1",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Build vs lose muscle — opposite goals",
+      "latency_us": 320.4
+    },
+    {
+      "id": "travel_001",
+      "category": "travel",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.53,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Aurora/northern lights synonymy not captured by Model2Vec (sim ~0.53); acceptable miss — full pipeline gives same answer",
+      "latency_us": 384.9
+    },
+    {
+      "id": "travel_002",
+      "category": "travel_entity",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "new_entities:['Brazil']",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different destination — different visa rules",
+      "latency_us": 435.2
+    },
+    {
+      "id": "creative_001",
+      "category": "creative",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.842,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Sea/ocean are synonymous in poetic context",
+      "latency_us": 362.0
+    },
+    {
+      "id": "relationships_001",
+      "category": "relationships",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.572,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different relationship terms (partner/boyfriend) + different verbs; sim ~0.57; acceptable miss",
+      "latency_us": 241.6
+    },
+    {
+      "id": "relationships_002",
+      "category": "relationships_negation",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "negation_polarity:0→1",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Propose vs break up — opposite relationship trajectories",
+      "latency_us": 341.9
+    },
+    {
+      "id": "pets_001",
+      "category": "pets",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.645,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Heavy rephrasing (verbose to terse); sim ~0.64; acceptable miss",
+      "latency_us": 455.7
+    },
+    {
+      "id": "education_001",
+      "category": "education",
+      "expected_hit": true,
+      "actual_hit": true,
+      "similarity": 0.953,
+      "guard": null,
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Same child-friendly explanation request",
+      "latency_us": 614.6
+    },
+    {
+      "id": "diy_001",
+      "category": "diy",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "negation_polarity:2→1",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Different sentence structure (without chemicals / natural way); sim ~0.0; acceptable miss",
+      "latency_us": 684.6
+    },
+    {
+      "id": "diy_002",
+      "category": "diy_negation",
+      "expected_hit": false,
+      "actual_hit": false,
+      "similarity": 0.0,
+      "guard": "negation_polarity:0→1",
+      "detector": "model2vec",
+      "pass": true,
+      "rationale": "Install vs remove — opposite home-improvement tasks",
+      "latency_us": 525.2
     }
   ],
   "per_category": {
@@ -281,6 +521,86 @@
       "passing": 2
     },
     "novelty": {
+      "total": 1,
+      "passing": 1
+    },
+    "medical": {
+      "total": 1,
+      "passing": 1
+    },
+    "medical_negation": {
+      "total": 1,
+      "passing": 1
+    },
+    "medical_entity": {
+      "total": 1,
+      "passing": 1
+    },
+    "legal": {
+      "total": 1,
+      "passing": 1
+    },
+    "legal_jurisdiction": {
+      "total": 1,
+      "passing": 1
+    },
+    "finance": {
+      "total": 1,
+      "passing": 1
+    },
+    "finance_negation": {
+      "total": 1,
+      "passing": 1
+    },
+    "cooking": {
+      "total": 1,
+      "passing": 1
+    },
+    "cooking_dietary": {
+      "total": 1,
+      "passing": 1
+    },
+    "fitness": {
+      "total": 1,
+      "passing": 1
+    },
+    "fitness_negation": {
+      "total": 1,
+      "passing": 1
+    },
+    "travel": {
+      "total": 1,
+      "passing": 1
+    },
+    "travel_entity": {
+      "total": 1,
+      "passing": 1
+    },
+    "creative": {
+      "total": 1,
+      "passing": 1
+    },
+    "relationships": {
+      "total": 1,
+      "passing": 1
+    },
+    "relationships_negation": {
+      "total": 1,
+      "passing": 1
+    },
+    "pets": {
+      "total": 1,
+      "passing": 1
+    },
+    "education": {
+      "total": 1,
+      "passing": 1
+    },
+    "diy": {
+      "total": 1,
+      "passing": 1
+    },
+    "diy_negation": {
       "total": 1,
       "passing": 1
     }

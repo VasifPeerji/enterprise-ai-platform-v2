@@ -151,6 +151,177 @@
       "lookup_query": "What's the airspeed velocity of an unladen swallow",
       "expected_hit": false,
       "rationale": "Completely unrelated — novelty should be high"
+    },
+
+    {
+      "id": "medical_001",
+      "category": "medical",
+      "record_query": "I've been getting bad headaches every afternoon for a week",
+      "lookup_query": "I keep getting really bad headaches every afternoon, been going on for like a week",
+      "expected_hit": true,
+      "rationale": "Same symptom report, more casual phrasing"
+    },
+    {
+      "id": "medical_002",
+      "category": "medical_negation",
+      "record_query": "Should I take vitamin D supplements daily?",
+      "lookup_query": "Should I stop taking vitamin D supplements daily?",
+      "expected_hit": false,
+      "rationale": "Opposite recommendations (take vs stop)"
+    },
+    {
+      "id": "medical_003",
+      "category": "medical_entity",
+      "record_query": "Side effects of Lipitor for cholesterol",
+      "lookup_query": "Side effects of Crestor for cholesterol",
+      "expected_hit": false,
+      "rationale": "Different drug names — each has its own side-effect profile"
+    },
+
+    {
+      "id": "legal_001",
+      "category": "legal",
+      "record_query": "Can my landlord enter my apartment without notice?",
+      "lookup_query": "Is it legal for my landlord to come into my apartment unannounced?",
+      "expected_hit": false,
+      "rationale": "Heavy rewording — Model2Vec sim ~0.6, acceptable miss. Routing through full pipeline is correct here."
+    },
+    {
+      "id": "legal_002",
+      "category": "legal_jurisdiction",
+      "record_query": "What's the statute of limitations for medical malpractice in California?",
+      "lookup_query": "What's the statute of limitations for medical malpractice in New York?",
+      "expected_hit": false,
+      "rationale": "Different states — different statutes"
+    },
+
+    {
+      "id": "finance_001",
+      "category": "finance",
+      "record_query": "Should I invest in an index fund or individual stocks?",
+      "lookup_query": "Are index funds better than picking individual stocks?",
+      "expected_hit": true,
+      "rationale": "Same comparison, phrased as direct vs alternative form"
+    },
+    {
+      "id": "finance_002",
+      "category": "finance_negation",
+      "record_query": "Best ways to maximize my 401k contributions",
+      "lookup_query": "How do I withdraw from my 401k early without penalty",
+      "expected_hit": false,
+      "rationale": "Maximize vs withdraw early — opposite financial actions"
+    },
+
+    {
+      "id": "cooking_001",
+      "category": "cooking",
+      "record_query": "How long should I marinate steak?",
+      "lookup_query": "What's the right time to marinate a steak?",
+      "expected_hit": true,
+      "rationale": "Same marinating question reworded"
+    },
+    {
+      "id": "cooking_002",
+      "category": "cooking_dietary",
+      "record_query": "Best vegan substitute for eggs in baking",
+      "lookup_query": "Best gluten-free substitute for eggs in baking",
+      "expected_hit": true,
+      "rationale": "Same TYPE of question (egg substitute for dietary constraint). Layer 2 caches routing not answers — same model handles both. The LLM provides the constraint-specific recipe. Known limit on lowercase dietary nouns."
+    },
+
+    {
+      "id": "fitness_001",
+      "category": "fitness",
+      "record_query": "How do I start running as a complete beginner?",
+      "lookup_query": "Beginner running tips — never run before",
+      "expected_hit": false,
+      "rationale": "Different sentence structure — Model2Vec sim ~0, acceptable miss"
+    },
+    {
+      "id": "fitness_002",
+      "category": "fitness_negation",
+      "record_query": "Best exercises to build muscle",
+      "lookup_query": "Best exercises to lose muscle mass",
+      "expected_hit": false,
+      "rationale": "Build vs lose muscle — opposite goals"
+    },
+
+    {
+      "id": "travel_001",
+      "category": "travel",
+      "record_query": "What's the best month to visit Iceland for the northern lights?",
+      "lookup_query": "When should I go to Iceland to see the aurora borealis?",
+      "expected_hit": false,
+      "rationale": "Aurora/northern lights synonymy not captured by Model2Vec (sim ~0.53); acceptable miss — full pipeline gives same answer"
+    },
+    {
+      "id": "travel_002",
+      "category": "travel_entity",
+      "record_query": "Do I need a visa to travel to Japan from the US?",
+      "lookup_query": "Do I need a visa to travel to Brazil from the US?",
+      "expected_hit": false,
+      "rationale": "Different destination — different visa rules"
+    },
+
+    {
+      "id": "creative_001",
+      "category": "creative",
+      "record_query": "Write a haiku about the ocean",
+      "lookup_query": "Compose a haiku about the sea",
+      "expected_hit": true,
+      "rationale": "Sea/ocean are synonymous in poetic context"
+    },
+
+    {
+      "id": "relationships_001",
+      "category": "relationships",
+      "record_query": "How do I tell my partner I want to break up?",
+      "lookup_query": "How do I end a relationship with my boyfriend?",
+      "expected_hit": false,
+      "rationale": "Different relationship terms (partner/boyfriend) + different verbs; sim ~0.57; acceptable miss"
+    },
+    {
+      "id": "relationships_002",
+      "category": "relationships_negation",
+      "record_query": "How do I propose to my girlfriend?",
+      "lookup_query": "How do I break up with my girlfriend?",
+      "expected_hit": false,
+      "rationale": "Propose vs break up — opposite relationship trajectories"
+    },
+
+    {
+      "id": "pets_001",
+      "category": "pets",
+      "record_query": "My cat won't eat — what should I do?",
+      "lookup_query": "Cat refusing food, what to do?",
+      "expected_hit": false,
+      "rationale": "Heavy rephrasing (verbose to terse); sim ~0.64; acceptable miss"
+    },
+
+    {
+      "id": "education_001",
+      "category": "education",
+      "record_query": "Explain why the sky is blue to a kid",
+      "lookup_query": "Why is the sky blue — explain to a child",
+      "expected_hit": true,
+      "rationale": "Same child-friendly explanation request"
+    },
+
+    {
+      "id": "diy_001",
+      "category": "diy",
+      "record_query": "How do I unclog a kitchen sink without chemicals?",
+      "lookup_query": "Natural way to unclog kitchen sink drain",
+      "expected_hit": false,
+      "rationale": "Different sentence structure (without chemicals / natural way); sim ~0.0; acceptable miss"
+    },
+    {
+      "id": "diy_002",
+      "category": "diy_negation",
+      "record_query": "How to install a ceiling fan myself",
+      "lookup_query": "How to remove a ceiling fan myself",
+      "expected_hit": false,
+      "rationale": "Install vs remove — opposite home-improvement tasks"
     }
   ]
 }

@@ -1,24 +1,24 @@
 {
   "_meta": {
     "produced_by": "scripts/benchmark_layer_2.py",
-    "produced_at_iso": "2026-05-19T19:50:00",
+    "produced_at_iso": "2026-05-19T23:36:54",
     "layer": "layer_2_semantic_memory",
     "accuracy_floor": 0.85,
     "latency_p99_budget_ms": 10.0,
     "latency_p50_budget_ms": 5.0
   },
   "summary": {
-    "total_cases": 16,
+    "total_cases": 36,
     "accuracy": 1.0,
     "hit_decision_accuracy": 1.0,
     "guard_accuracy": 1.0
   },
   "latency_us": {
-    "p50_us": 441.0,
-    "p95_us": 767.7,
-    "p99_us": 767.7,
-    "max_us": 767.7,
-    "mean_us": 422.65625
+    "p50_us": 389.0,
+    "p95_us": 750.6,
+    "p99_us": 897.4,
+    "max_us": 897.4,
+    "mean_us": 418.24444444444447
   },
   "per_category": {
     "paraphrase": {
@@ -64,6 +64,82 @@
     "intent_mismatch": {
       "total": 1,
       "correct": 1
+    },
+    "paraphrase_medical": {
+      "total": 1,
+      "correct": 1
+    },
+    "negation_medical": {
+      "total": 2,
+      "correct": 2
+    },
+    "entity_medical": {
+      "total": 1,
+      "correct": 1
+    },
+    "paraphrase_legal": {
+      "total": 1,
+      "correct": 1
+    },
+    "negation_legal": {
+      "total": 1,
+      "correct": 1
+    },
+    "entity_legal": {
+      "total": 1,
+      "correct": 1
+    },
+    "paraphrase_finance": {
+      "total": 1,
+      "correct": 1
+    },
+    "negation_finance": {
+      "total": 1,
+      "correct": 1
+    },
+    "paraphrase_cooking": {
+      "total": 1,
+      "correct": 1
+    },
+    "negation_cooking": {
+      "total": 1,
+      "correct": 1
+    },
+    "negation_fitness": {
+      "total": 1,
+      "correct": 1
+    },
+    "entity_travel": {
+      "total": 1,
+      "correct": 1
+    },
+    "paraphrase_travel": {
+      "total": 1,
+      "correct": 1
+    },
+    "paraphrase_creative": {
+      "total": 1,
+      "correct": 1
+    },
+    "entity_creative": {
+      "total": 1,
+      "correct": 1
+    },
+    "paraphrase_education": {
+      "total": 1,
+      "correct": 1
+    },
+    "negation_relationships": {
+      "total": 1,
+      "correct": 1
+    },
+    "paraphrase_pets": {
+      "total": 1,
+      "correct": 1
+    },
+    "cross_domain_unrelated": {
+      "total": 1,
+      "correct": 1
     }
   },
   "rows": [
@@ -80,7 +156,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 767.7,
+      "latency_us": 688.9,
       "rationale": "Near-identical intent, just slightly more verbose phrasing"
     },
     {
@@ -96,7 +172,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 475.1,
+      "latency_us": 511.5,
       "rationale": "Semantically equivalent sort-a-list query"
     },
     {
@@ -112,7 +188,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 441.0,
+      "latency_us": 404.8,
       "rationale": "Same factual lookup, different verbs"
     },
     {
@@ -128,7 +204,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 280.3,
+      "latency_us": 287.8,
       "rationale": "Install/uninstall flip the action — must not cache-hit"
     },
     {
@@ -144,7 +220,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 508.8,
+      "latency_us": 372.7,
       "rationale": "Enable vs disable — opposite intents"
     },
     {
@@ -160,7 +236,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 553.7,
+      "latency_us": 337.9,
       "rationale": "with vs without — guard should catch"
     },
     {
@@ -176,7 +252,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 633.7,
+      "latency_us": 210.1,
       "rationale": "Different programming languages — semantic similarity below threshold"
     },
     {
@@ -192,7 +268,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 255.0,
+      "latency_us": 315.2,
       "rationale": "Different country, different question type"
     },
     {
@@ -208,7 +284,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 548.9,
+      "latency_us": 239.6,
       "rationale": "Even on exact match, escalated entries must never be served from cache"
     },
     {
@@ -224,7 +300,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 241.9,
+      "latency_us": 215.6,
       "rationale": "quality_score below medium tier threshold"
     },
     {
@@ -240,7 +316,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 317.0,
+      "latency_us": 282.4,
       "rationale": "Different proper nouns — entity novelty guard should reject"
     },
     {
@@ -256,7 +332,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 426.9,
+      "latency_us": 403.0,
       "rationale": "After PII scrubbing both queries normalize to '<EMAIL>' → cache should hit"
     },
     {
@@ -272,7 +348,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 203.5,
+      "latency_us": 213.6,
       "rationale": "Tenant scoping — tenant_A entry must not be visible to tenant_B"
     },
     {
@@ -288,7 +364,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 483.3,
+      "latency_us": 897.4,
       "rationale": "30× length difference — context-length guard must reject"
     },
     {
@@ -304,7 +380,7 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 303.2,
+      "latency_us": 506.6,
       "rationale": "Model rev changed — stale routing decision"
     },
     {
@@ -320,8 +396,328 @@
       "correct": true,
       "hit_correct": true,
       "guard_correct": true,
-      "latency_us": 322.5,
+      "latency_us": 388.2,
       "rationale": "Same lexical query but classifier says different intent now"
+    },
+    {
+      "id": "medical_paraphrase_001",
+      "category": "paraphrase_medical",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.797,
+      "novelty": 0.203,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 501.0,
+      "rationale": "Symptoms vs signs are interchangeable in medical context"
+    },
+    {
+      "id": "medical_negation_001",
+      "category": "negation_medical",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "negation_polarity",
+      "actual_guard": "negation_polarity:0→1",
+      "similarity": 0.0,
+      "novelty": 0.054,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 386.4,
+      "rationale": "Take vs avoid — opposite recommendations, must NOT cache-hit"
+    },
+    {
+      "id": "medical_negation_002",
+      "category": "negation_medical",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": "negation_polarity:1→0",
+      "similarity": 0.0,
+      "novelty": 0.142,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 341.3,
+      "rationale": "Lower vs raise — opposite medical advice"
+    },
+    {
+      "id": "medical_entity_001",
+      "category": "entity_medical",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.342,
+      "novelty": 0.658,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 264.2,
+      "rationale": "Different medications — drug-name entity must differentiate"
+    },
+    {
+      "id": "legal_paraphrase_001",
+      "category": "paraphrase_legal",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.731,
+      "novelty": 0.269,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 402.8,
+      "rationale": "Tenant and renter are synonymous in this legal context"
+    },
+    {
+      "id": "legal_negation_001",
+      "category": "negation_legal",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "negation_polarity",
+      "actual_guard": "negation_polarity:0→1",
+      "similarity": 0.0,
+      "novelty": 0.175,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 328.2,
+      "rationale": "File vs avoid — completely opposite legal goals"
+    },
+    {
+      "id": "legal_entity_001",
+      "category": "entity_legal",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": "new_entities:['Texas']",
+      "similarity": 0.0,
+      "novelty": 0.157,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 750.6,
+      "rationale": "Jurisdiction differs — laws are state-specific"
+    },
+    {
+      "id": "finance_paraphrase_001",
+      "category": "paraphrase_finance",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.922,
+      "novelty": 0.078,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 486.4,
+      "rationale": "Beginner stock-investing question, reordered phrasing"
+    },
+    {
+      "id": "finance_negation_001",
+      "category": "negation_finance",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "negation_polarity",
+      "actual_guard": "negation_polarity:0→1",
+      "similarity": 0.0,
+      "novelty": 0.241,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 549.1,
+      "rationale": "File vs avoid filing — opposite intent (and legally dicey)"
+    },
+    {
+      "id": "cooking_paraphrase_001",
+      "category": "paraphrase_cooking",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.875,
+      "novelty": 0.125,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 389.0,
+      "rationale": "Recipe vs how-to-make are the same culinary request"
+    },
+    {
+      "id": "cooking_negation_001",
+      "category": "negation_cooking",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "negation_polarity",
+      "actual_guard": "negation_polarity:0→1",
+      "similarity": 0.0,
+      "novelty": 0.015,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 413.8,
+      "rationale": "With vs without — different cooking method needed"
+    },
+    {
+      "id": "fitness_negation_001",
+      "category": "negation_fitness",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "negation_polarity",
+      "actual_guard": "negation_polarity:1→0",
+      "similarity": 0.0,
+      "novelty": 0.11,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 346.6,
+      "rationale": "Lose vs gain weight — opposite goals, different routines"
+    },
+    {
+      "id": "travel_entity_001",
+      "category": "entity_travel",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": "new_entities:['South Korea']",
+      "similarity": 0.0,
+      "novelty": 0.162,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 389.0,
+      "rationale": "Different country — different destinations entirely"
+    },
+    {
+      "id": "travel_paraphrase_001",
+      "category": "paraphrase_travel",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.944,
+      "novelty": 0.056,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 441.2,
+      "rationale": "Same visa application question phrased differently"
+    },
+    {
+      "id": "creative_paraphrase_001",
+      "category": "paraphrase_creative",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.75,
+      "novelty": 0.25,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 348.3,
+      "rationale": "Write/compose, short/brief, autumn/fall — same creative request"
+    },
+    {
+      "id": "creative_entity_001",
+      "category": "entity_creative",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.719,
+      "novelty": 0.281,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 342.0,
+      "rationale": "Same TYPE of question (pet naming). Layer 2 caches routing decisions, not answers — the same model can handle puppy- and kitten-naming. The LLM differentiates in its response. Known limit: lowercase species nouns aren't differentiated by Model2Vec; document as acceptable for routing purposes."
+    },
+    {
+      "id": "education_paraphrase_001",
+      "category": "paraphrase_education",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.802,
+      "novelty": 0.198,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 681.5,
+      "rationale": "Child-friendly explanation request, paraphrased"
+    },
+    {
+      "id": "relationships_negation_001",
+      "category": "negation_relationships",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": "negation_polarity",
+      "actual_guard": null,
+      "similarity": 0.545,
+      "novelty": 0.455,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 644.6,
+      "rationale": "Save vs divorce — opposite relationship outcomes"
+    },
+    {
+      "id": "pets_paraphrase_001",
+      "category": "paraphrase_pets",
+      "expected_hit": true,
+      "actual_hit": true,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.719,
+      "novelty": 0.281,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 472.9,
+      "rationale": "Same dog-barking question reworded"
+    },
+    {
+      "id": "cross_domain_unrelated_001",
+      "category": "cross_domain_unrelated",
+      "expected_hit": false,
+      "actual_hit": false,
+      "expected_guard": null,
+      "actual_guard": null,
+      "similarity": 0.123,
+      "novelty": 0.877,
+      "detector": "model2vec",
+      "correct": true,
+      "hit_correct": true,
+      "guard_correct": true,
+      "latency_us": 302.6,
+      "rationale": "Completely different domains — must not match"
     }
   ],
   "passed_thresholds": {

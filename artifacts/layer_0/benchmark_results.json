@@ -1,7 +1,7 @@
 {
   "_meta": {
     "produced_by": "scripts/benchmark_layer_0.py",
-    "produced_at_iso": "2026-05-17T23:58:48",
+    "produced_at_iso": "2026-05-19T23:44:09",
     "golden_set": "artifacts/layer_0/golden_set.json",
     "layer": "layer_0_fast_path",
     "accuracy_floor": 0.92,
@@ -9,22 +9,22 @@
     "latency_p50_budget_ms": 0.5
   },
   "summary": {
-    "total_cases": 77,
+    "total_cases": 97,
     "bypass_accuracy": 1.0,
     "category_accuracy": 1.0,
-    "bypass_correct": 77,
-    "category_correct": 77
+    "bypass_correct": 97,
+    "category_correct": 97
   },
   "latency_us": {
-    "count": 77,
-    "min_us": 20.6,
-    "max_us": 930.1,
-    "mean_us": 187.95714285714286,
-    "median_us": 39.5,
-    "p50_us": 39.5,
-    "p95_us": 686.2,
-    "p99_us": 930.1,
-    "stdev_us": 253.51935986350819
+    "count": 97,
+    "min_us": 20.9,
+    "max_us": 1405.5,
+    "mean_us": 324.6453608247423,
+    "median_us": 50.2,
+    "p50_us": 50.2,
+    "p95_us": 1173.5,
+    "p99_us": 1405.5,
+    "stdev_us": 369.8262570675889
   },
   "per_category": {
     "trivial_greeting": {
@@ -63,9 +63,9 @@
       "category_correct": 4
     },
     "none": {
-      "total": 20,
-      "bypass_correct": 20,
-      "category_correct": 20
+      "total": 40,
+      "bypass_correct": 40,
+      "category_correct": 40
     }
   },
   "per_source": {
@@ -84,14 +84,18 @@
     "adversarial": {
       "total": 8,
       "bypass_correct": 8
+    },
+    "multidomain": {
+      "total": 20,
+      "bypass_correct": 20
     }
   },
   "language_coverage": {
     "en": {
-      "total": 36,
+      "total": 56,
       "bypassed": 18,
-      "language_correct": 36,
-      "category_correct": 36
+      "language_correct": 56,
+      "category_correct": 56
     },
     "es": {
       "total": 6,
