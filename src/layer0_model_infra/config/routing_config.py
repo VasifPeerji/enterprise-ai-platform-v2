@@ -9,7 +9,7 @@ Defines model choices for each pipeline layer based on environment.
 """
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -299,7 +299,12 @@ class EscalationConfig(BaseModel):
 
 
 class ComplexityThresholds(BaseModel):
-    """Configurable complexity band thresholds (provisional defaults, calibrate on gold set)."""
+    """Configurable complexity band thresholds (provisional defaults, calibrate on gold set).
+
+    NOTE: Retained for backward compatibility with the legacy fast_triage /
+    complexity_classifier path. The new Layer 3 (benchmark-driven kNN router)
+    does not use these — see ``Layer3Config`` below.
+    """
 
     trivial_simple: float = Field(default=0.12, description="Score boundary: trivial → simple")
     simple_moderate: float = Field(default=0.30, description="Score boundary: simple → moderate")
@@ -313,9 +318,239 @@ class ComplexityThresholds(BaseModel):
     )
 
 
+# ============================================================================
+# Layer 3 — Benchmark-driven kNN router (the new Layer 3)
+# ============================================================================
+#
+# Every threshold, ratio, TTL, and rate that influences Layer 3 behaviour lives
+# here so the router source has zero hardcoded magic numbers. Values can be
+# overridden via env vars by the surrounding `Settings` plumbing where useful
+# (LAYER3_ENABLED, LAYER3_QUALITY_FLOOR_DEFAULT, etc. — see shared/config.py).
+
+
+class Layer3VerdictCacheConfig(BaseModel):
+    """Stage A — verdict cache settings."""
+
+    enable: bool = Field(default=True, description="Master switch for Stage A")
+    persistence_path: str = Field(
+        default="artifacts/triage_cache.db",
+        description="SQLite path for cross-process cache persistence. Relative "
+                    "to repo root.",
+    )
+    ttl_seconds: float = Field(
+        default=168 * 3600.0,  # 7 days
+        description="Entries older than this are treated as stale and recomputed.",
+    )
+    max_entries: int = Field(default=10_000, ge=100)
+    semantic_threshold: float = Field(
+        default=0.93,
+        ge=0.0,
+        le=1.0,
+        description="Tier-2 Model2Vec cosine similarity threshold for a "
+                    "near-duplicate cache hit.",
+    )
+    semantic_model_name: str = Field(default="minishlab/potion-base-8M")
+
+
+class Layer3QualityFloorConfig(BaseModel):
+    """Quality floor + low-coverage penalty configuration."""
+
+    default: float = Field(
+        default=0.65,
+        ge=0.0,
+        le=1.0,
+        description="Base quality floor a model must clear to qualify. Per the "
+                    "revised plan §9 this is the pre-committed starting value; "
+                    "scripts/calibrate_quality_floor.py auto-tunes after 30 "
+                    "days of production telemetry.",
+    )
+    high_risk: float = Field(
+        default=0.75,
+        ge=0.0,
+        le=1.0,
+        description="Elevated floor for medical / legal / financial queries.",
+    )
+    low_coverage_penalty: float = Field(
+        default=0.10,
+        ge=0.0,
+        le=0.50,
+        description="Added to the effective floor when a model is "
+                    "coverage_quality=low. Prevents frontier models from "
+                    "winning on inflated aggregate priors.",
+    )
+    floor_ceiling: float = Field(
+        default=0.95,
+        ge=0.5,
+        le=1.0,
+        description="Hard ceiling for the effective floor after penalty.",
+    )
+
+
+class Layer3KnnConfig(BaseModel):
+    """Stage C — kNN + per-model quality prediction."""
+
+    knn_k: int = Field(default=20, ge=1, le=100)
+    min_similarity: float = Field(
+        default=0.55,
+        ge=0.0,
+        le=1.0,
+        description="Cosine threshold for a benchmark question to count as a "
+                    "neighbor at all.",
+    )
+    min_neighbors_for_trust: int = Field(
+        default=5,
+        description="Below this many neighbors, fall to Stage D (off-distribution).",
+    )
+    min_outcomes_per_model: int = Field(
+        default=3,
+        description="A model needs at least this many neighbor outcomes to "
+                    "use the kNN-weighted prediction; otherwise the aggregate "
+                    "prior takes over.",
+    )
+
+    # P3 — length-adjusted similarity
+    length_adjustment_base: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=1.0,
+        description="Minimum similarity multiplier from length adjustment.",
+    )
+    length_adjustment_range: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Adds up to this amount when query/neighbor lengths match.",
+    )
+
+
+class Layer3ExplorationConfig(BaseModel):
+    """P2 — ε-exploration of borderline models."""
+
+    rate: float = Field(
+        default=0.015,
+        ge=0.0,
+        le=0.1,
+        description="Fraction of decisions where a borderline model is forced "
+                    "for calibration coverage.",
+    )
+    borderline_band: float = Field(
+        default=0.05,
+        description="A borderline model is one whose predicted quality is "
+                    "within this much below its effective floor.",
+    )
+    max_observations_for_borderline: int = Field(
+        default=30,
+        description="Stop exploring a model once it has accumulated this many "
+                    "calibration observations in the active feature cell.",
+    )
+
+
+class Layer3WarmupConfig(BaseModel):
+    """P4 — warmup period for newly-registered models."""
+
+    max_age_days: int = Field(
+        default=30,
+        description="A model exits warmup after this many days even if it "
+                    "hasn't accumulated enough observations.",
+    )
+    min_observations_to_exit: int = Field(
+        default=100,
+        description="A model exits warmup once it has accumulated this many "
+                    "Layer-7 observations across all feature cells.",
+    )
+    forced_selection_rate: float = Field(
+        default=0.05,
+        ge=0.0,
+        le=0.2,
+        description="During warmup, this fraction of decisions force a random "
+                    "warmup model to be selected (subject to it being in the "
+                    "qualifying set — see knn_router.warmup_selection).",
+    )
+
+
+class Layer3CalibrationConfig(BaseModel):
+    """Online EMA calibration over Layer-7 observed quality."""
+
+    ema_alpha: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="EMA blend for the multiplier update: new = 0.9*old + α*ratio.",
+    )
+    confidence_observations_constant: float = Field(
+        default=50.0,
+        ge=1.0,
+        description="Confidence at N observations = 1 - exp(-N/this). 50 means "
+                    "a cell needs ~17 observations to reach 0.3 confidence.",
+    )
+    confidence_threshold_to_apply: float = Field(
+        default=0.3,
+        description="Multipliers below this confidence are not applied — "
+                    "default 1.0 used instead.",
+    )
+    multiplier_min: float = Field(default=0.5, description="Clamp floor.")
+    multiplier_max: float = Field(default=1.5, description="Clamp ceiling.")
+
+
+class Layer3DriftConfig(BaseModel):
+    """Per-class prediction-distribution KL drift detection."""
+
+    kl_info: float = Field(default=0.10, description="Info log only.")
+    kl_warn: float = Field(default=0.15, description="Alert + auto-refit temperature.")
+    kl_halt: float = Field(default=0.30, description="Freeze auto-calibration; manual review.")
+    window_days: int = Field(default=7, description="Rolling window for drift comparison.")
+
+
+class Layer3EncoderConfig(BaseModel):
+    """Stage B encoder used by Stage C (kNN search)."""
+
+    model_name: str = Field(default="BAAI/bge-small-en-v1.5")
+    device: Literal["cuda", "cpu"] = Field(
+        default="cuda",
+        description="Primary inference device. Auto-falls back to CPU+ONNX "
+                    "int8 when CUDA unavailable — see knn_router._build_encoder.",
+    )
+    onnx_fallback_quantization: Literal["fp32", "int8"] = "int8"
+    embedding_dim: int = Field(default=384)
+    qdrant_collection: str = Field(default="layer3_benchmark_corpus")
+
+
+class Layer3SuccessTargets(BaseModel):
+    """Hard success criteria. Surface as a single dashboard panel."""
+
+    p50_latency_ms: float = 50.0
+    p99_latency_ms: float = 200.0
+    fallback_rate_max: float = 0.05
+    over_routing_rate_max: float = 0.02  # P9
+    correctness_lift_pp_min: float = 10.0
+
+
+class Layer3Config(BaseModel):
+    """All Layer 3 settings in one place. No hardcoded numbers in the router."""
+
+    verdict_cache: Layer3VerdictCacheConfig = Field(default_factory=Layer3VerdictCacheConfig)
+    quality_floor: Layer3QualityFloorConfig = Field(default_factory=Layer3QualityFloorConfig)
+    knn: Layer3KnnConfig = Field(default_factory=Layer3KnnConfig)
+    exploration: Layer3ExplorationConfig = Field(default_factory=Layer3ExplorationConfig)
+    warmup: Layer3WarmupConfig = Field(default_factory=Layer3WarmupConfig)
+    calibration: Layer3CalibrationConfig = Field(default_factory=Layer3CalibrationConfig)
+    drift: Layer3DriftConfig = Field(default_factory=Layer3DriftConfig)
+    encoder: Layer3EncoderConfig = Field(default_factory=Layer3EncoderConfig)
+    success_targets: Layer3SuccessTargets = Field(default_factory=Layer3SuccessTargets)
+
+    registry_path: str = Field(
+        default="src/layer0_model_infra/data/registry.json",
+        description="Relative to repo root.",
+    )
+    aggregate_scores_path: str = Field(
+        default="src/layer0_model_infra/data/model_aggregate_scores.json",
+    )
+    rate_limit_blacklist_seconds: int = Field(default=60)
+
+
 class RoutingPipelineConfig(BaseModel):
     """Complete routing pipeline configuration."""
-    
+
     environment: Environment
 
     # Pipeline layers
@@ -333,6 +568,10 @@ class RoutingPipelineConfig(BaseModel):
     complexity_thresholds: ComplexityThresholds = Field(
         default_factory=ComplexityThresholds,
         description="Complexity band thresholds (provisional defaults)"
+    )
+    layer3: Layer3Config = Field(
+        default_factory=Layer3Config,
+        description="Layer 3 — benchmark-driven kNN router configuration",
     )
     
     # Global settings

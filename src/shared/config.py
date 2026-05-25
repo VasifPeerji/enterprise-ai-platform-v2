@@ -139,6 +139,15 @@ class Settings(BaseSettings):
     PREFER_FREE_API_PROVIDERS: bool = True
     ENABLE_FREE_API_FALLBACK: bool = True
     FREE_API_FALLBACK_MODEL_ID: str = "ollama-llama3.1-8b"
+
+    # Layer 3 — Benchmark-driven kNN router (env-overridable surface only;
+    # internal numeric thresholds live in routing_config.Layer3Config).
+    LAYER3_ENABLED: bool = True
+    LAYER3_SHADOW_MODE: bool = False
+    LAYER3_CANARY_FRACTION: float = 0.0
+    LAYER3_QUALITY_FLOOR_DEFAULT: Optional[float] = None  # None = use config default
+    LAYER3_QUALITY_FLOOR_HIGH_RISK: Optional[float] = None
+    LAYER3_ENCODER_DEVICE: Literal["cuda", "cpu", "auto"] = "auto"
     
     # ==========================================
     # LAYER 1 - COGNITIVE (EMBEDDINGS & RAG)
