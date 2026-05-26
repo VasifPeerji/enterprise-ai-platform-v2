@@ -1,0 +1,46 @@
+{
+  "completed_at_utc": "2026-05-26T11:36:45",
+  "encoder": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "device": "cuda",
+  "batch_size": 64,
+  "n_questions_embedded": 13898,
+  "qdrant_collection_points": 13898,
+  "sanity_probe_query": "How do I deploy a Python web service?",
+  "sanity_probe_top_5": [
+    {
+      "qid": "swe_bench_verified:django__django-11087",
+      "source": "swe_bench_verified",
+      "modality": "code",
+      "score": 0.5265,
+      "text": "Optimize .delete() to use only required fields.\nDescription\n\t\nHi!\nWe're in the p"
+    },
+    {
+      "qid": "swe_bench_verified:django__django-16145",
+      "source": "swe_bench_verified",
+      "modality": "code",
+      "score": 0.4391,
+      "text": "`runserver 0`'s \"Starting development server at <address>\" doesn't work\nDescript"
+    },
+    {
+      "qid": "swe_bench_verified:django__django-11276",
+      "source": "swe_bench_verified",
+      "modality": "code",
+      "score": 0.4349,
+      "text": "Use Python stdlib html.escape() to in django.utils.html.escape()\nDescription\n\t\nT"
+    },
+    {
+      "qid": "livebench:cf932b62f91764e164fa14f8b4f50ad8346b1b653765fb9fdec13d372b10be73",
+      "source": "livebench",
+      "modality": "code",
+      "score": 0.4291,
+      "text": "### Instructions: You are an expert Python programmer. You will be given a quest"
+    },
+    {
+      "qid": "swe_bench_verified:django__django-13837",
+      "source": "swe_bench_verified",
+      "modality": "code",
+      "score": 0.4221,
+      "text": "Allow autoreloading of `python -m pkg_other_than_django runserver`\nDescription\n\t"
+    }
+  ]
+}

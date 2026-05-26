@@ -1,0 +1,133 @@
+{
+  "_meta": {
+    "schema_version": "1.0",
+    "purpose": "Maps source-specific model identifiers to our registry's model_id. Each public benchmark source uses its own naming convention — this file is the single source of truth for joining outcomes back to the registry. Add new mappings here when adding new sources or new models.",
+    "structure": "{source_key: {source_model_id: our_registry_model_id}}",
+    "missing_behavior": "Source models without a mapping entry are SKIPPED at corpus-build time. We never silently rename — if a source has Claude-3.5-Sonnet outcomes but we don't map it, it's omitted.",
+    "model_id_aliases_note": "Some models on HF Open LLM Leaderboard appear under multiple paths (e.g., quantised vs full precision). We pick the highest-coverage variant and ignore the others to avoid double-counting outcomes."
+  },
+
+  "huggingface_open_llm_leaderboard": {
+    "meta-llama/Llama-3.3-70B-Instruct": "llama-3.3-70b-versatile-groq",
+    "meta-llama/Meta-Llama-3.1-8B-Instruct": "llama-3.1-8b-instant-groq",
+    "meta-llama/Llama-3.1-8B-Instruct": "llama-3.1-8b-instant-groq",
+    "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": "deepseek-r1-distill-llama-70b-groq",
+    "Qwen/QwQ-32B": "qwen-qwq-32b-groq",
+    "Qwen/QwQ-32B-Preview": "qwen-qwq-32b-groq",
+    "google/gemma-2-9b-it": "gemma2-9b-it-groq",
+    "google/gemma-2-27b-it": "gemma-2-27b-openrouter-free",
+    "deepseek-ai/DeepSeek-V3": "deepseek-v3-openrouter-free",
+    "deepseek-ai/DeepSeek-V3-Base": "deepseek-v3-openrouter-free",
+    "Qwen/Qwen2.5-Coder-32B-Instruct": "qwen-2.5-coder-32b-openrouter-free",
+    "Qwen/Qwen2.5-72B-Instruct": "qwen-2.5-72b-huggingface",
+    "meta-llama/Llama-4-Scout-17B-16E-Instruct": "llama-4-scout-openrouter-free"
+  },
+
+  "livebench": {
+    "llama-3.3-70b-instruct": "llama-3.3-70b-versatile-groq",
+    "llama-3.3-70b-instruct-turbo": "llama-3.3-70b-versatile-groq",
+    "meta-llama-llama-3.3-70b-instruct": "llama-3.3-70b-versatile-groq",
+    "llama-3.1-8b-instruct": "llama-3.1-8b-instant-groq",
+    "meta-llama-3.1-8b-instruct-turbo": "llama-3.1-8b-instant-groq",
+    "meta-llama-llama-3.1-8b-instruct": "llama-3.1-8b-instant-groq",
+    "Meta-Llama-3.1-8B-Instruct-Turbo": "llama-3.1-8b-instant-groq",
+    "deepseek-r1-distill-llama-70b": "deepseek-r1-distill-llama-70b-groq",
+    "DeepSeek-R1-Distill-Llama-70B": "deepseek-r1-distill-llama-70b-groq",
+    "qwen2.5-coder-32b-instruct": "qwen-2.5-coder-32b-openrouter-free",
+    "qwen2.5-72b-instruct": "qwen-2.5-72b-huggingface",
+    "qwen2.5-72b-instruct-turbo": "qwen-2.5-72b-huggingface",
+    "qwq-32b-preview": "qwen-qwq-32b-groq",
+    "qwq-32b": "qwen-qwq-32b-groq",
+    "QwQ-32B-Preview": "qwen-qwq-32b-groq",
+    "deepseek-v3": "deepseek-v3-openrouter-free",
+    "deepseek-chat-v3-0324": "deepseek-v3-openrouter-free",
+    "DeepSeek-V3": "deepseek-v3-openrouter-free",
+    "gemma-2-27b-it": "gemma-2-27b-openrouter-free",
+    "gemma-2-9b-it": "gemma2-9b-it-groq",
+    "llama-4-scout": "llama-4-scout-openrouter-free",
+    "llama-4-maverick-17b-128e-instruct": "llama-4-scout-openrouter-free",
+
+    "gemini-2.0-flash-001": "gemini-2.0-flash",
+    "gemini-2.0-flash": "gemini-2.0-flash",
+    "gemini-2.0-flash-exp": "gemini-2.0-flash",
+    "gemini-1.5-flash-002": "gemini-1.5-flash",
+    "gemini-1.5-flash-latest": "gemini-1.5-flash",
+    "gemini-1.5-pro-002": "gemini-1.5-pro",
+    "gemini-1.5-pro-001": "gemini-1.5-pro",
+    "gemini-1.5-pro-latest": "gemini-1.5-pro",
+
+    "gpt-4o-mini-2024-07-18": "gpt-4o-mini",
+    "gpt-4o-2024-11-20": "gpt-4o",
+    "gpt-4o-2024-08-06": "gpt-4o",
+    "gpt-4o-2024-05-13": "gpt-4o",
+
+    "claude-3-5-haiku-20241022": "claude-3-5-haiku",
+    "claude-3-5-sonnet-20241022": "claude-3-5-sonnet",
+    "claude-3-5-sonnet-20240620": "claude-3-5-sonnet",
+    "claude-3.5-sonnet-2024-10-22": "claude-3-5-sonnet",
+    "claude-sonnet-4-5": "claude-sonnet-4-5",
+    "claude-opus-4-5": "claude-opus-4-5"
+  },
+
+  "mmlu_pro": {
+    "meta-llama/Llama-3.3-70B-Instruct": "llama-3.3-70b-versatile-groq",
+    "meta-llama/Meta-Llama-3.1-8B-Instruct": "llama-3.1-8b-instant-groq",
+    "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": "deepseek-r1-distill-llama-70b-groq",
+    "Qwen/QwQ-32B-Preview": "qwen-qwq-32b-groq",
+    "Qwen/Qwen2.5-Coder-32B-Instruct": "qwen-2.5-coder-32b-openrouter-free",
+    "Qwen/Qwen2.5-72B-Instruct": "qwen-2.5-72b-huggingface",
+    "deepseek-ai/DeepSeek-V3": "deepseek-v3-openrouter-free",
+    "google/gemma-2-27b-it": "gemma-2-27b-openrouter-free",
+    "google/gemma-2-9b-it": "gemma2-9b-it-groq",
+    "gpt-4o-mini": "gpt-4o-mini",
+    "gpt-4o": "gpt-4o",
+    "claude-3-5-haiku": "claude-3-5-haiku",
+    "claude-3-5-sonnet": "claude-3-5-sonnet",
+    "gemini-1.5-flash": "gemini-1.5-flash",
+    "gemini-1.5-pro": "gemini-1.5-pro",
+    "gemini-2.0-flash": "gemini-2.0-flash"
+  },
+
+  "gpqa_diamond": {
+    "meta-llama/Llama-3.3-70B-Instruct": "llama-3.3-70b-versatile-groq",
+    "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": "deepseek-r1-distill-llama-70b-groq",
+    "Qwen/Qwen2.5-72B-Instruct": "qwen-2.5-72b-huggingface",
+    "deepseek-ai/DeepSeek-V3": "deepseek-v3-openrouter-free",
+    "gpt-4o-mini": "gpt-4o-mini",
+    "gpt-4o": "gpt-4o",
+    "claude-3-5-sonnet": "claude-3-5-sonnet",
+    "gemini-1.5-pro": "gemini-1.5-pro"
+  },
+
+  "livecodebench": {
+    "Qwen/Qwen2.5-Coder-32B-Instruct": "qwen-2.5-coder-32b-openrouter-free",
+    "meta-llama/Llama-3.3-70B-Instruct": "llama-3.3-70b-versatile-groq",
+    "deepseek-ai/DeepSeek-V3": "deepseek-v3-openrouter-free",
+    "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": "deepseek-r1-distill-llama-70b-groq",
+    "gpt-4o": "gpt-4o",
+    "gpt-4o-mini": "gpt-4o-mini",
+    "claude-3-5-sonnet": "claude-3-5-sonnet"
+  },
+
+  "swe_bench_verified": {
+    "claude-3-5-sonnet-20241022": "claude-3-5-sonnet",
+    "claude-3-5-sonnet-20240620": "claude-3-5-sonnet",
+    "claude-sonnet-4-5": "claude-sonnet-4-5",
+    "claude-opus-4-5": "claude-opus-4-5",
+    "gpt-4o-2024-11-20": "gpt-4o",
+    "gpt-4o-2024-08-06": "gpt-4o",
+    "deepseek-v3": "deepseek-v3-openrouter-free"
+  },
+
+  "bfcl": {
+    "gpt-4o-mini-2024-07-18": "gpt-4o-mini",
+    "gpt-4o-2024-11-20": "gpt-4o",
+    "claude-3-5-haiku-20241022": "claude-3-5-haiku",
+    "claude-3-5-sonnet-20241022": "claude-3-5-sonnet",
+    "gemini-1.5-flash-002": "gemini-1.5-flash",
+    "gemini-1.5-pro-002": "gemini-1.5-pro",
+    "gemini-2.0-flash-001": "gemini-2.0-flash",
+    "meta-llama/Llama-3.3-70B-Instruct": "llama-3.3-70b-versatile-groq",
+    "Qwen/Qwen2.5-72B-Instruct": "qwen-2.5-72b-huggingface"
+  }
+}

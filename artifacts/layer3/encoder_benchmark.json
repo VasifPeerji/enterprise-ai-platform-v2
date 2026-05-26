@@ -1,0 +1,100 @@
+{
+  "completed_at_utc": "2026-05-26T11:28:49",
+  "cuda_available": true,
+  "gpu_name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "n_sample_queries": 22,
+  "results": [
+    {
+      "candidate": {
+        "name": "bge-small-en-v1.5",
+        "hf_id": "BAAI/bge-small-en-v1.5",
+        "multilingual": false,
+        "params_m": 33.4,
+        "dim": 384,
+        "license": "MIT"
+      },
+      "runs": {
+        "gpu_fp16": {
+          "device": "cuda",
+          "fp16": true,
+          "n_warmup": 5,
+          "n_repeats": 200,
+          "load_seconds": 7.831,
+          "p50_ms": 29.132,
+          "p95_ms": 39.421,
+          "p99_ms": 61.324,
+          "min_ms": 23.764,
+          "max_ms": 117.26,
+          "throughput_qps": 537.9,
+          "vram_peak_mb": 156.9,
+          "sanity_near_cosine": 0.8379,
+          "sanity_far_cosine": 0.2903,
+          "sanity_pass": true
+        }
+      }
+    },
+    {
+      "candidate": {
+        "name": "multilingual-e5-small",
+        "hf_id": "intfloat/multilingual-e5-small",
+        "multilingual": true,
+        "params_m": 118,
+        "dim": 384,
+        "license": "MIT"
+      },
+      "runs": {
+        "gpu_fp16": {
+          "device": "cuda",
+          "fp16": true,
+          "n_warmup": 5,
+          "n_repeats": 200,
+          "load_seconds": 22.056,
+          "p50_ms": 30.507,
+          "p95_ms": 40.025,
+          "p99_ms": 44.322,
+          "min_ms": 25.534,
+          "max_ms": 56.285,
+          "throughput_qps": 416.8,
+          "vram_peak_mb": 674.6,
+          "sanity_near_cosine": 0.918,
+          "sanity_far_cosine": 0.7432,
+          "sanity_pass": true
+        }
+      }
+    },
+    {
+      "candidate": {
+        "name": "paraphrase-multilingual-MiniLM-L12-v2",
+        "hf_id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        "multilingual": true,
+        "params_m": 118,
+        "dim": 384,
+        "license": "Apache-2.0"
+      },
+      "runs": {
+        "gpu_fp16": {
+          "device": "cuda",
+          "fp16": true,
+          "n_warmup": 5,
+          "n_repeats": 200,
+          "load_seconds": 40.282,
+          "p50_ms": 27.142,
+          "p95_ms": 36.083,
+          "p99_ms": 42.946,
+          "min_ms": 24.664,
+          "max_ms": 50.412,
+          "throughput_qps": 549.6,
+          "vram_peak_mb": 674.6,
+          "sanity_near_cosine": 0.6958,
+          "sanity_far_cosine": -0.0614,
+          "sanity_pass": true
+        }
+      }
+    }
+  ],
+  "winner": {
+    "name": "paraphrase-multilingual-MiniLM-L12-v2",
+    "hf_id": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "reason": "lowest p99 latency among multilingual candidates (42.946ms p99, 674.6MB VRAM, 549.6 qps)"
+  }
+}

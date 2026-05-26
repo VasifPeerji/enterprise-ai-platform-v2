@@ -504,7 +504,12 @@ class Layer3DriftConfig(BaseModel):
 class Layer3EncoderConfig(BaseModel):
     """Stage B encoder used by Stage C (kNN search)."""
 
-    model_name: str = Field(default="BAAI/bge-small-en-v1.5")
+    model_name: str = Field(
+        default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        description="Encoder used by Stage C kNN. Chosen on RTX 4060 via "
+                    "scripts/layer3/benchmark_encoders.py — see "
+                    "docs/layer3/encoder_choice.md for the measured comparison.",
+    )
     device: Literal["cuda", "cpu"] = Field(
         default="cuda",
         description="Primary inference device. Auto-falls back to CPU+ONNX "

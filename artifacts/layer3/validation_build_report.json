@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "n_total": 650,
+  "by_source": {
+    "arena_hard": 500,
+    "mt_bench": 80,
+    "livebench": 70
+  },
+  "by_modality": {
+    "text": 650
+  },
+  "outputs": {
+    "validation_set": "D:\\College\\enterprise-ai-platform\\data\\processed\\validation_set.parquet",
+    "validation_outcomes": "D:\\College\\enterprise-ai-platform\\data\\processed\\validation_outcomes.parquet",
+    "locked_ids_json": "D:\\College\\enterprise-ai-platform\\data\\validation_set_ids.json"
+  }
+}

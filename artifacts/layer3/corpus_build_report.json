@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "completed_at_utc": "2026-05-26T11:20:46",
+  "elapsed_seconds_total": 117.42,
+  "sources_run": [
+    "livebench",
+    "mmlu_pro",
+    "gpqa_diamond",
+    "swe_bench_verified",
+    "arena_hard",
+    "mt_bench"
+  ],
+  "per_source": [
+    {
+      "source": "livebench",
+      "outcomes_added": 5431,
+      "questions_added": 1436,
+      "elapsed_seconds": 77.6
+    },
+    {
+      "source": "mmlu_pro",
+      "outcomes_added": 0,
+      "questions_added": 12032,
+      "elapsed_seconds": 26.16
+    },
+    {
+      "source": "gpqa_diamond",
+      "outcomes_added": 0,
+      "questions_added": 0,
+      "elapsed_seconds": 0.65
+    },
+    {
+      "source": "swe_bench_verified",
+      "outcomes_added": 0,
+      "questions_added": 500,
+      "elapsed_seconds": 3.84
+    },
+    {
+      "source": "arena_hard",
+      "outcomes_added": 0,
+      "questions_added": 500,
+      "elapsed_seconds": 5.34
+    },
+    {
+      "source": "mt_bench",
+      "outcomes_added": 0,
+      "questions_added": 80,
+      "elapsed_seconds": 3.61
+    }
+  ],
+  "totals": {
+    "n_outcomes": 5431,
+    "n_unique_models": 16,
+    "n_unique_questions": 394,
+    "n_question_rows": 13898
+  },
+  "outcomes_per_model": {
+    "claude-3-5-haiku": 394,
+    "claude-3-5-sonnet": 394,
+    "gemini-1.5-flash": 394,
+    "gemini-1.5-pro": 394,
+    "gemma-2-27b-openrouter-free": 394,
+    "gemma2-9b-it-groq": 394,
+    "gpt-4o": 394,
+    "gpt-4o-mini": 394,
+    "llama-3.1-8b-instant-groq": 394,
+    "qwen-qwq-32b-groq": 318,
+    "deepseek-r1-distill-llama-70b-groq": 318,
+    "deepseek-v3-openrouter-free": 318,
+    "gemini-2.0-flash": 318,
+    "llama-3.3-70b-versatile-groq": 318,
+    "llama-4-scout-openrouter-free": 280,
+    "qwen-2.5-72b-huggingface": 15
+  },
+  "outputs": {
+    "outcomes_parquet": "data\\processed\\outcomes.parquet",
+    "questions_parquet": "data\\processed\\questions.parquet"
+  }
+}
