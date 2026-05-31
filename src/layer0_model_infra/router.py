@@ -135,6 +135,27 @@ class ModelRouter:
         self.escalation_engine = get_escalation_engine()      # Layer 8
         self.benchmark_router = get_benchmark_router()        # Benchmark advisor
 
+        # ── NEW Layer 3 (benchmark-driven kNN router), behind feature flags ──
+        # LAYER3_ENABLED is the master switch; LAYER3_CANARY_FRACTION is the share
+        # of live traffic routed through it (0.0 = wired but inactive — the safe
+        # default, so legacy behaviour is unchanged until you dial it up; 1.0 =
+        # full). SHADOW runs it alongside the legacy path for comparison with no
+        # user impact. Layer 3 models are registered into the gateway registry
+        # LAZILY (first real Layer 3 route) so canary=0.0 leaves the legacy
+        # candidate pool — and the legacy tests — untouched.
+        self._layer3_enabled = bool(settings.LAYER3_ENABLED)
+        self._layer3_shadow = bool(settings.LAYER3_SHADOW_MODE)
+        self._layer3_canary = float(settings.LAYER3_CANARY_FRACTION or 0.0)
+        self._layer3_models_registered = False
+        self._knn_router = None
+        if self._layer3_enabled:
+            try:
+                from src.layer0_model_infra.routing.knn_router import get_knn_router
+                self._knn_router = get_knn_router()
+            except Exception as exc:
+                logger.error("layer3_init_failed_disabling", reason=str(exc))
+                self._layer3_enabled = False
+
     def route(
         self,
         query: str,
@@ -297,6 +318,22 @@ class ModelRouter:
                 query=query,
             )
             return decision
+
+        # =======================================================
+        # NEW LAYER 3: benchmark-driven kNN router (replaces legacy L3-L5)
+        # =======================================================
+        if self._layer3_enabled and not self._layer3_shadow and self._use_layer3(request_id):
+            l3_decision = self._route_via_layer3(
+                query, modality_analysis, input_signals, memory_result, request_id
+            )
+            if l3_decision is not None:
+                self._emit_telemetry(
+                    request_id=request_id, decision=l3_decision, user_tier=user_tier,
+                    budget_remaining=budget_remaining,
+                    novelty_score=memory_result.novelty_score, query=query,
+                )
+                return l3_decision
+            # kNN router unavailable/failed → fall through to the legacy pipeline.
 
         # =======================================================
         # LAYER 3: FAST TRIAGE
@@ -484,6 +521,10 @@ class ModelRouter:
             confidence=uncertainty_score.confidence_level,
             estimated_cost=estimated_cost,
         )
+
+        if self._layer3_enabled and self._layer3_shadow:
+            self._shadow_compare_layer3(query, modality_analysis, input_signals, request_id, decision)
+
         return decision
 
     # ------------------------------------------------------------------
@@ -1076,6 +1117,147 @@ class ModelRouter:
             TelemetryLogger.log_async(telemetry)
         except Exception as e:
             logger.error("telemetry_emission_failed", error=str(e))
+
+    # ------------------------------------------------------------------
+    # NEW Layer 3 (kNN router) integration
+    # ------------------------------------------------------------------
+
+    _DIFFICULTY_TO_BAND = {"trivial": "trivial", "normal": "moderate", "hard": "complex"}
+
+    def _use_layer3(self, request_id: str) -> bool:
+        """Deterministic canary split: 0.0 = never (wired but inactive), 1.0 =
+        always, otherwise that share of traffic — stable per request_id so a
+        request doesn't flip routers on retry."""
+        if self._knn_router is None:
+            return False
+        if self._layer3_canary >= 1.0:
+            return True
+        if self._layer3_canary <= 0.0:
+            return False
+        return (hash(request_id) % 10_000) / 10_000.0 < self._layer3_canary
+
+    def _ensure_layer3_models_registered(self) -> None:
+        """Register Layer 3 models into the gateway registry the first time we
+        actually route through Layer 3, so the default canary=0.0 leaves the
+        legacy candidate pool (and legacy tests) untouched."""
+        if self._layer3_models_registered:
+            return
+        from src.layer0_model_infra.routing.layer3_adapter import register_layer3_models
+        from src.layer0_model_infra.routing.registry_loader import get_layer3_registry
+        register_layer3_models(self.registry, get_layer3_registry())
+        self._layer3_models_registered = True
+
+    def _route_via_layer3(self, query, modality_analysis, input_signals, memory_result, request_id):
+        """Run the kNN router and adapt its decision to the legacy schema.
+        Returns None on any failure so route() falls back to the legacy pipeline."""
+        try:
+            self._ensure_layer3_models_registered()
+            l3 = self._knn_router.route(
+                query, layer1_analysis=modality_analysis, request_id=request_id
+            )
+            model_def = self.registry.get_model(l3.selected_model)
+            decision = self._adapt_layer3_decision(
+                l3, model_def, modality_analysis, input_signals, memory_result
+            )
+            logger.info(
+                "layer3_routing_completed",
+                selected_model=l3.selected_model, source=l3.source.value,
+                predicted_quality=l3.predicted_quality,
+                latency_ms=round(l3.latency_ms, 1), request_id=request_id,
+            )
+            return decision
+        except Exception as exc:
+            logger.error("layer3_route_failed_fallback_legacy", reason=str(exc), request_id=request_id)
+            return None
+
+    def _adapt_layer3_decision(self, l3, model_def, modality_analysis, input_signals, memory_result):
+        """Convert a Layer 3 RoutingDecision into the legacy RoutingDecision that
+        Layer 7/8/9 + the orchestrator consume. The triage/uncertainty dicts are
+        synthesized (the new design has no such layers) and flagged as such."""
+        feats = l3.features
+        difficulty = getattr(feats.difficulty_signal, "value", str(feats.difficulty_signal))
+        complexity_band = self._DIFFICULTY_TO_BAND.get(difficulty, "moderate")
+        domain = feats.high_risk_domain.value if feats.high_risk_domain else "general"
+        predicted = l3.predicted_quality if l3.predicted_quality is not None else 0.5
+        confidence_level = "HIGH" if l3.prediction_confidence == "high" else "MEDIUM"
+
+        triage_result = {
+            "intent": "qa", "domain": domain, "complexity_band": complexity_band,
+            "confidence": predicted,
+            "ambiguity": {"is_multi_intent": False, "is_vague": False, "is_underspecified": False},
+            "task_type": "qa", "instruction_count": 1, "prompt_length": feats.char_count,
+            "reasoning": f"Layer 3 kNN router ({l3.source.value})",
+            "complexity_raw_score": round(1.0 - predicted, 4),
+            "complexity_rubric": {
+                "raw_score": round(1.0 - predicted, 4), "task_count": 0.5, "domain_depth": 0.5,
+                "reasoning_hops": 0.5, "output_structure": 0.5, "knowledge_breadth": 0.5,
+            },
+            "synthesized": True, "synthesis_reason": "layer3_knn_router",
+        }
+        uncertainty_score = {
+            "total_uncertainty": round(1.0 - predicted, 4),
+            "confidence_level": confidence_level,
+            "cross_domain_score": 0.0, "classification_entropy": 0.0,
+            "instruction_conflict_score": 0.0,
+            "synthesized": True, "synthesis_reason": "layer3_knn_router",
+        }
+
+        fallback_models = []
+        for mid in l3.qualifying_models[1:3]:
+            try:
+                fallback_models.append(self.registry.get_model(mid))
+            except Exception:
+                pass
+
+        return RoutingDecision(
+            selected_model=model_def,
+            fallback_models=fallback_models,
+            modality_analysis=modality_analysis.model_dump(),
+            triage_result=triage_result,
+            uncertainty_score=uncertainty_score,
+            routing_reasoning=(
+                f"Layer 3 kNN router: source={l3.source.value}, model={l3.selected_model}, "
+                f"predicted_quality={l3.predicted_quality}, effective_floor={l3.effective_floor}"
+            ),
+            estimated_cost_usd=l3.estimated_cost_usd,
+            confidence_level=confidence_level,
+            escalation_path_available=len(l3.qualifying_models) > 1,
+            escalation_levels=max(0, len(l3.qualifying_models) - 1),
+            pipeline_metadata={
+                "router": "layer3_knn",
+                "layer3_source": l3.source.value,
+                "layer3_predicted_quality": l3.predicted_quality,
+                "layer3_prediction_confidence": l3.prediction_confidence,
+                "layer3_feature_cell": l3.feature_cell,
+                "layer3_quality_floor_base": l3.quality_floor_base,
+                "layer3_effective_floor": l3.effective_floor,
+                "layer3_fallback_reason": l3.fallback_reason,
+                "layer3_qualifying_models": l3.qualifying_models,
+                "layer3_neighbors_used": [list(n) for n in l3.neighbors_used[:5]],
+                "layer3_calibration_multiplier": l3.calibration_multiplier_applied,
+                "layer3_latency_ms": round(l3.latency_ms, 2),
+                "layer3_request_id": l3.request_id,
+                "novelty_score": getattr(memory_result, "novelty_score", 0.0),
+                "task_type": getattr(getattr(input_signals, "task_type", None), "value", "qa"),
+            },
+        )
+
+    def _shadow_compare_layer3(self, query, modality_analysis, input_signals, request_id, legacy_decision):
+        """Shadow mode: run the kNN router alongside the served legacy decision
+        and log the comparison. Never affects what's returned."""
+        try:
+            l3 = self._knn_router.route(query, layer1_analysis=modality_analysis, request_id=request_id)
+            logger.info(
+                "layer3_shadow_compare",
+                legacy_model=legacy_decision.selected_model.model_id,
+                layer3_model=l3.selected_model, layer3_source=l3.source.value,
+                agree=(legacy_decision.selected_model.model_id == l3.selected_model),
+                legacy_cost_usd=round(legacy_decision.estimated_cost_usd, 6),
+                layer3_cost_usd=round(l3.estimated_cost_usd, 6),
+                layer3_predicted_quality=l3.predicted_quality, request_id=request_id,
+            )
+        except Exception as exc:
+            logger.warning("layer3_shadow_failed", reason=str(exc))
 
 
 # ---------------------------------------------------------------------------
