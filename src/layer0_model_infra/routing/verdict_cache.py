@@ -49,6 +49,22 @@ from src.shared.logger import get_logger
 logger = get_logger(__name__)
 
 
+# Negation/polarity scoring is shared with Layer 2's semantic memory so both
+# caches reject the same "install vs uninstall" class of false near-duplicates.
+# Imported lazily + cached to avoid pulling semantic_memory into this module's
+# import path (and it's only needed on a Tier-2 hit, by which point the embedder
+# is already loaded anyway).
+_neg_score_fn = None
+
+
+def _negation_score(text: str) -> int:
+    global _neg_score_fn
+    if _neg_score_fn is None:
+        from src.layer0_model_infra.routing.semantic_memory import _negation_score as _ns
+        _neg_score_fn = _ns
+    return _neg_score_fn(text)
+
+
 # ============================================================================
 # Embedder — Model2Vec with no-op fallback
 # ============================================================================
@@ -157,10 +173,12 @@ class VerdictCache:
         semantic_threshold: float = 0.93,
         semantic_model_name: str = "minishlab/potion-base-8M",
         enable_semantic_tier: bool = True,
+        enable_negation_guard: bool = True,
     ) -> None:
         self._ttl = ttl_seconds
         self._max = max_entries
         self._semantic_threshold = semantic_threshold
+        self._negation_guard = enable_negation_guard
 
         # OrderedDict by query_signature → entry; LRU order maintained on
         # access. Tier 1 lookups go straight against this.
@@ -357,6 +375,15 @@ class VerdictCache:
             self._remove_locked(best_sig)
             return None
 
+        # M3 — negation/polarity guard. A near-duplicate embedding can still be
+        # the opposite intent ("install X" vs "uninstall X"); reject the hit when
+        # polarity differs. Tier-1 exact matches can't differ, so this is
+        # semantic-only.
+        if self._negation_guard and abs(
+            _negation_score(normalised) - _negation_score(entry.normalised_query)
+        ) >= 1:
+            return None
+
         self._entries.move_to_end(best_sig)
         entry.hit_count += 1
         return VerdictCacheHit(entry, kind="semantic", similarity=best_sim)
@@ -384,6 +411,7 @@ def get_verdict_cache() -> VerdictCache:
                     semantic_threshold=cfg.semantic_threshold,
                     semantic_model_name=cfg.semantic_model_name,
                     enable_semantic_tier=cfg.enable,
+                    enable_negation_guard=cfg.enable_negation_guard,
                 )
     return _cache
 

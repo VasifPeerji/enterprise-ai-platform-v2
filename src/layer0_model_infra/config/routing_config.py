@@ -350,6 +350,13 @@ class Layer3VerdictCacheConfig(BaseModel):
                     "near-duplicate cache hit.",
     )
     semantic_model_name: str = Field(default="minishlab/potion-base-8M")
+    enable_negation_guard: bool = Field(
+        default=True,
+        description="Reject a semantic (Tier-2) cache hit when query and cached "
+                    "query differ in negation polarity (install vs uninstall, "
+                    "do vs don't). Mirrors Layer 2's guard so a near-duplicate "
+                    "embedding can't serve the opposite intent's decision.",
+    )
 
 
 class Layer3QualityFloorConfig(BaseModel):
@@ -398,14 +405,43 @@ class Layer3KnnConfig(BaseModel):
                     "neighbor at all.",
     )
     min_neighbors_for_trust: int = Field(
-        default=5,
-        description="Below this many neighbors, fall to Stage D (off-distribution).",
+        default=3,
+        description="Below this many neighbors above min_similarity, fall to "
+                    "Stage D (off-distribution). Lowered from 5 to 3 after live "
+                    "measurement showed the stricter gate discarding genuinely "
+                    "on-distribution queries — including ones with a near-exact "
+                    "(cosine ≈ 1.0) corpus match but only 1-2 close runners-up. "
+                    "Rigorous calibration of this and min_similarity is Batch 4 "
+                    "(validation harness over the 650 locked queries).",
     )
     min_outcomes_per_model: int = Field(
         default=3,
         description="A model needs at least this many neighbor outcomes to "
                     "use the kNN-weighted prediction; otherwise the aggregate "
                     "prior takes over.",
+    )
+
+    filter_by_modality: bool = Field(
+        default=False,
+        description="Constrain the kNN search to same-modality neighbors. "
+                    "Default OFF: query modality is tagged by LITERAL content "
+                    "(does the prompt contain a code block / math notation) "
+                    "while the corpus modality is tagged by DOMAIN, so a "
+                    "natural-language coding request ('write a function to…') "
+                    "reads as text and a hard filter would wrongly exclude the "
+                    "code-tagged benchmark neighbors it should match. A/B on the "
+                    "live corpus showed the filter changes nothing the 0.55 "
+                    "similarity threshold doesn't already handle, so we rely on "
+                    "semantic similarity + threshold instead. Vision / multimodal "
+                    "queries are routed to Stage D before search regardless.",
+    )
+    filter_by_language: bool = Field(
+        default=False,
+        description="Constrain the kNN search by language. Default OFF: the "
+                    "benchmark corpus is 100% English (measured) while the "
+                    "encoder is multilingual, so filtering by language would "
+                    "send every non-English query to fallback and discard the "
+                    "cross-lingual transfer the encoder exists to provide.",
     )
 
     # P3 — length-adjusted similarity
@@ -490,6 +526,13 @@ class Layer3CalibrationConfig(BaseModel):
     )
     multiplier_min: float = Field(default=0.5, description="Clamp floor.")
     multiplier_max: float = Field(default=1.5, description="Clamp ceiling.")
+    auto_save_every: int = Field(
+        default=50,
+        description="Persist the calibration store to Parquet after this many "
+                    "updates (0 = manual save() only). Amortizes I/O off the "
+                    "post-call path so the learned EMA survives restarts without "
+                    "an external scheduler.",
+    )
 
 
 class Layer3DriftConfig(BaseModel):
@@ -530,6 +573,24 @@ class Layer3SuccessTargets(BaseModel):
     correctness_lift_pp_min: float = 10.0
 
 
+class Layer3HighRiskConfig(BaseModel):
+    """Tier-2 high-risk (medical / legal / financial) detection — runs only when
+    the narrow Tier-1 regex finds nothing. Mode + thresholds are chosen by the
+    3-arm benchmark (scripts/layer3/benchmark_high_risk_detection.py); see
+    docs/layer3/high_risk_classifier_choice.md."""
+
+    tier2_mode: Literal["off", "bge", "mdeberta"] = Field(
+        default="bge",
+        description="'off' = Tier-1 regex only; 'bge' = bge-small-en kNN over "
+                    "prototype utterances; 'mdeberta' = mDeBERTa-v3 zero-shot NLI. "
+                    "Default 'bge': the 3.5 benchmark picked it (F1 0.97 / recall "
+                    "1.0 modality-gated, vs regex 0.32 and mDeBERTa 0.75 @ 156ms). "
+                    "Runs only on a Tier-1 miss for TEXT-modality queries.",
+    )
+    bge_threshold: float = Field(default=0.62, ge=0.0, le=1.0)
+    mdeberta_threshold: float = Field(default=0.55, ge=0.0, le=1.0)
+
+
 class Layer3Config(BaseModel):
     """All Layer 3 settings in one place. No hardcoded numbers in the router."""
 
@@ -541,6 +602,7 @@ class Layer3Config(BaseModel):
     calibration: Layer3CalibrationConfig = Field(default_factory=Layer3CalibrationConfig)
     drift: Layer3DriftConfig = Field(default_factory=Layer3DriftConfig)
     encoder: Layer3EncoderConfig = Field(default_factory=Layer3EncoderConfig)
+    high_risk: Layer3HighRiskConfig = Field(default_factory=Layer3HighRiskConfig)
     success_targets: Layer3SuccessTargets = Field(default_factory=Layer3SuccessTargets)
 
     registry_path: str = Field(
@@ -549,6 +611,12 @@ class Layer3Config(BaseModel):
     )
     aggregate_scores_path: str = Field(
         default="src/layer0_model_infra/data/model_aggregate_scores.json",
+    )
+    calibration_path: str = Field(
+        default="data/processed/calibration.parquet",
+        description="Relative to repo root. Online EMA calibration state, one "
+                    "row per (model_id, feature_cell). Runtime-generated and "
+                    "gitignored — see calibration_store.py.",
     )
     rate_limit_blacklist_seconds: int = Field(default=60)
 

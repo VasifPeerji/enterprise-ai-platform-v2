@@ -521,20 +521,13 @@ class ModelRegistry:
             )
         )
 
-        # Compatibility aliases for common benchmark / demo names.
-        self.register_alias("gpt-4o-mini", "ollama-phi3-mini")
-        self.register_alias("gpt-4o", "claude-sonnet-4")
-        self.register_alias("claude-3-5-sonnet", "claude-sonnet-4")
-        self.register_alias("claude-3-7-sonnet", "claude-sonnet-4")
-        self.register_alias("gpt-4.1", "gpt-4-turbo")
-        self.register_alias("gpt-4.1-mini", "gpt-3.5-turbo")
-        self.register_alias("qwen3:8b", "ollama-qwen3-8b")
-        self.register_alias("qwen3", "ollama-qwen3-8b")
-        self.register_alias("gemma3:4b", "ollama-gemma3-4b")
-        self.register_alias("gemma3", "ollama-gemma3-4b")
-        self.register_alias("phi4-mini-reasoning:3.8b", "ollama-phi4-mini-reasoning-3.8b")
-        self.register_alias("deepseek-r1:7b", "ollama/deepseek-r1:7b")
-        self.register_alias("llama3.1:8b", "ollama-llama3.1-8b")
+        # NOTE: model-id aliases were intentionally removed. They mapped names
+        # like "gpt-4o" and "claude-3-5-sonnet" to *different* local models
+        # (claude-sonnet-4 / ollama-phi3-mini), which silently misroutes once the
+        # Layer 3 registry — whose real model_ids are exactly "gpt-4o" /
+        # "claude-3-5-sonnet" — is wired into execution. If a genuine alias is
+        # ever needed, add it explicitly; register_alias now refuses any alias
+        # that shadows a registered model_id.
         
         logger.info(
             "model_registry_initialized",
@@ -932,7 +925,19 @@ class ModelRegistry:
         logger.debug("model_registered", model_id=model.model_id, model_name=model.model_name)
 
     def register_alias(self, alias_id: str, target_model_id: str) -> None:
-        """Register a compatibility alias to an existing model id."""
+        """Register a compatibility alias to an existing model id.
+
+        Refuses to register an alias that shadows a real model_id — that's how
+        the old "gpt-4o" -> "claude-sonnet-4" misroute happened, and it must
+        never recur once the Layer 3 registry's ids are executable.
+        """
+        if alias_id in self._models:
+            logger.warning(
+                "model_alias_shadows_model",
+                alias_id=alias_id,
+                note="alias collides with a registered model_id; skipping to avoid misroute",
+            )
+            return
         self._aliases[alias_id] = target_model_id
         logger.debug("model_alias_registered", alias_id=alias_id, target_model_id=target_model_id)
     

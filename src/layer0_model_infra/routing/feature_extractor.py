@@ -33,7 +33,7 @@ from __future__ import annotations
 import re
 import threading
 import unicodedata
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from src.layer0_model_infra.routing.layer3_types import (
     DifficultySignal,
@@ -42,6 +42,11 @@ from src.layer0_model_infra.routing.layer3_types import (
     QueryFeatures,
 )
 from src.shared.logger import get_logger
+
+if TYPE_CHECKING:
+    # Type-only import: avoids pulling the heavier modality_gate module (and its
+    # config/lingua/pygments init) into processes that just want Stage B.
+    from src.layer0_model_infra.routing.modality_gate import ModalityAnalysis
 
 logger = get_logger(__name__)
 
@@ -125,6 +130,39 @@ _CODE_SIGNATURE_RES = [
     # SQL — use non-greedy `.+?` between SELECT and FROM so column lists
     # containing function calls like COUNT(*) match correctly.
     re.compile(r"\bSELECT\s+.+?\s+FROM\s+\w+", re.IGNORECASE),
+]
+
+# Code-generation INTENT — natural-language coding requests that contain no
+# literal code, so the fence/signature regexes above miss them (e.g. "write a
+# Python function to reverse a linked list", which otherwise reads as plain
+# text and gets the text safe-default instead of the free code model). High
+# precision by construction: a code-action verb paired with a code noun, an
+# explicit "in <language>", or a bare "write code". Used ONLY to upgrade an
+# otherwise-TEXT query to CODE — never to force MATH/VISION/MULTIMODAL — so a
+# false positive at worst routes a general query to a (free) code-capable model.
+_CODE_INTENT_NOUNS = (
+    r"function|method|class|script|program|algorithm|module|snippet|regex|"
+    r"api|endpoint|sql\s+query|linked\s+list|binary\s+search|unit\s+tests?|"
+    r"web\s*app|website|web\s+service|microservices?|rate\s+limiter|"
+    r"data\s+structure|parser|compiler"
+)
+_CODE_INTENT_LANGS = (
+    r"python|javascript|typescript|java|c\+\+|c#|rust|golang|ruby|php|kotlin|"
+    r"swift|scala|sql|bash|powershell|html|css|react|node\.?js"
+)
+_CODE_INTENT_RES = [
+    re.compile(
+        r"\b(?:write|implement|create|generate|build|develop|design|code|program)\s+"
+        r"(?:me\s+)?(?:a|an|the|some|my)?\s*(?:[\w+#.]+\s+){0,4}?(?:" + _CODE_INTENT_NOUNS + r")\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:debug|refactor|optimi[sz]e|fix)\s+"
+        r"(?:this|my|the|a|an)?\s*(?:[\w+#.]+\s+){0,4}?(?:code|bug|" + _CODE_INTENT_NOUNS + r")\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bwrite\s+code\b", re.IGNORECASE),
+    re.compile(r"\b(?:in|using|with)\s+(?:" + _CODE_INTENT_LANGS + r")\b", re.IGNORECASE),
 ]
 
 # Math signature patterns. A query is MATH if it has explicit math notation
@@ -242,9 +280,21 @@ class FeatureExtractor:
     Stateless except for the cached lingua detector. Thread-safe.
     """
 
-    def __init__(self, lingua_confidence_threshold: float = 0.55) -> None:
+    def __init__(
+        self,
+        lingua_confidence_threshold: float = 0.55,
+        high_risk_tier2_mode: str = "off",
+        high_risk_threshold: Optional[float] = None,
+    ) -> None:
         self._lingua = _maybe_build_lingua_detector(lingua_confidence_threshold)
         self._lingua_threshold = lingua_confidence_threshold
+        # Tier-2 high-risk classifier: "off" (regex only), "bge", or "mdeberta".
+        # Lazily resolved; direct construction defaults to "off" so tests are
+        # model-free. The singleton reads the configured mode (see
+        # get_feature_extractor) so production runs the benchmark-chosen arm.
+        self._high_risk_mode = high_risk_tier2_mode
+        self._high_risk_threshold = high_risk_threshold
+        self._high_risk_tier2 = None
 
     # ---------------- public ----------------
 
@@ -278,8 +328,12 @@ class FeatureExtractor:
             attachment_mime_types=attachment_mime_types or [],
             query_word_count=len(clean.split()),
         )
+        # Upgrade a plain-text query to CODE when it's a natural-language coding
+        # request (no literal code block, so _determine_modality saw only text).
+        if modality == Modality.TEXT and any(r.search(clean) for r in _CODE_INTENT_RES):
+            modality = Modality.CODE
 
-        high_risk = self._detect_high_risk_domain(clean)
+        high_risk = self._high_risk_domain(clean, modality)
 
         char_count = len(clean)
         estimated_input_tokens = self._estimate_input_tokens(clean, language)
@@ -298,6 +352,105 @@ class FeatureExtractor:
             has_image_attachment=has_image_attachment,
             has_audio_attachment=has_audio_attachment,
             char_count=char_count,
+        )
+
+    def extract_from_layer1(
+        self,
+        layer1_analysis: "ModalityAnalysis",
+        query: str,
+        *,
+        has_image_attachment: bool = False,
+        has_audio_attachment: bool = False,
+        attachment_mime_types: Optional[list[str]] = None,
+    ) -> QueryFeatures:
+        """Stage B over Layer 1's already-computed ModalityAnalysis.
+
+        This is the path the live router uses: Layer 1 has already run language
+        detection (lingua), code/vision detection, and a language-/code-aware
+        token estimate, so we reuse those rather than paying for them twice.
+        We add only what Layer 1 doesn't produce — math modality (Layer 1 has no
+        MATH bucket), high_risk_domain, difficulty_signal, the collapse of
+        Layer 1's 8-way InputModality into our 5-bucket Modality, and the
+        modality-based output-token estimate.
+
+        The standalone ``extract()`` remains for contexts with no prior Layer 1
+        pass (validation harness, dashboard manual mode, unit tests).
+
+        ``layer1_analysis`` is duck-typed (attribute access + enum ``.value``)
+        so this module needn't import modality_gate at runtime.
+        """
+        if query is None:
+            query = ""
+        clean = self._sanitize(query)
+
+        # Reuse Layer 1's language + primary modality verbatim.
+        language = getattr(layer1_analysis, "language", None) or "en"
+        pm = getattr(layer1_analysis, "primary_modality", None)
+        pm_val = pm.value if hasattr(pm, "value") else str(pm or "text_only")
+
+        # Code / vision / audio signals come from Layer 1's conclusions.
+        has_code_block = (
+            bool(getattr(layer1_analysis, "requires_code_model", False))
+            or pm_val == "code_heavy"
+        )
+        # Layer 1's requires_vision also fires on diagram KEYWORDS ("plot",
+        # "architecture", "chart") even when no image is attached — e.g.
+        # "summarize the plot of Hamlet" or "design a microservices
+        # architecture". That flag alone must NOT promote a text query to the
+        # vision modality, so gate it on a real image signal.
+        has_real_image = has_image_attachment or pm_val in {"image", "video"}
+        text_references_image = (
+            bool(getattr(layer1_analysis, "requires_vision", False)) and has_real_image
+        )
+        has_image = has_real_image
+        has_audio = (
+            has_audio_attachment
+            or bool(getattr(layer1_analysis, "requires_audio", False))
+            or pm_val == "audio"
+        )
+
+        # Math is Layer-3-specific (Layer 1 has no MATH bucket) — recompute.
+        is_math = any(r.search(clean) for r in _MATH_RES)
+
+        if pm_val == "multimodal":
+            modality = Modality.MULTIMODAL
+        else:
+            modality = self._determine_modality(
+                has_code_block=has_code_block,
+                is_math=is_math,
+                has_image_attachment=has_image,
+                has_audio_attachment=has_audio,
+                text_references_image=text_references_image,
+                attachment_mime_types=attachment_mime_types or [],
+                query_word_count=len(clean.split()),
+            )
+            # Same code-intent upgrade as the standalone path (Layer 1 has no
+            # MATH/CODE-intent notion, so this is purely additive here).
+            if modality == Modality.TEXT and any(r.search(clean) for r in _CODE_INTENT_RES):
+                modality = Modality.CODE
+
+        high_risk = self._high_risk_domain(clean, modality)
+        difficulty = self._detect_difficulty(clean)
+
+        # Trust Layer 1's token estimate (it's language/code-aware); fall back
+        # to our own only if Layer 1 reported nothing.
+        layer1_tokens = int(getattr(layer1_analysis, "token_count", 0) or 0)
+        estimated_input_tokens = (
+            layer1_tokens if layer1_tokens > 0 else self._estimate_input_tokens(clean, language)
+        )
+        estimated_output_tokens = _OUTPUT_TOKEN_DEFAULTS.get(modality, 400)
+
+        return QueryFeatures(
+            language=language,
+            modality=modality,
+            high_risk_domain=high_risk,
+            estimated_input_tokens=estimated_input_tokens,
+            estimated_output_tokens=estimated_output_tokens,
+            difficulty_signal=difficulty,
+            has_code_block=has_code_block,
+            has_image_attachment=has_image_attachment,
+            has_audio_attachment=has_audio_attachment,
+            char_count=len(clean),
         )
 
     # ---------------- internals ----------------
@@ -393,6 +546,41 @@ class FeatureExtractor:
             return HighRiskDomain.FINANCIAL
         return None
 
+    def _high_risk_domain(self, text: str, modality: Modality) -> Optional[HighRiskDomain]:
+        """Tier-1 narrow regex (any modality), then Tier-2 semantic (TEXT only).
+
+        Tier-2 is gated to TEXT because a CODE/MATH query that merely mentions a
+        domain word ("compute compound interest", "regex for an SSN", "optimize
+        a legal-documents table") is not asking for medical/legal/financial
+        ADVICE. Measured on the 3.5 eval set, that gate removes the bulk of
+        Tier-2's false positives while keeping full recall on real advice
+        queries (which are all text). See docs/layer3/high_risk_classifier_choice.md.
+        """
+        regex_domain = self._detect_high_risk_domain(text)
+        if regex_domain is not None:
+            return regex_domain
+        if modality != Modality.TEXT:
+            return None
+        tier2 = self._get_tier2()
+        if tier2 is None:
+            return None
+        try:
+            pred, _score = tier2.classify(text)
+            return pred
+        except Exception as exc:  # never let a Tier-2 failure break extraction
+            logger.warning("layer3_high_risk_tier2_failed", reason=str(exc))
+            return None
+
+    def _get_tier2(self):
+        if self._high_risk_mode == "off":
+            return None
+        if self._high_risk_tier2 is None:
+            from src.layer0_model_infra.routing.high_risk_classifier import get_high_risk_tier2
+            self._high_risk_tier2 = get_high_risk_tier2(
+                self._high_risk_mode, threshold=self._high_risk_threshold
+            )
+        return self._high_risk_tier2
+
     @staticmethod
     def _estimate_input_tokens(text: str, language: str) -> int:
         if not text:
@@ -437,12 +625,23 @@ _extractor_lock = threading.Lock()
 
 
 def get_feature_extractor() -> FeatureExtractor:
-    """Process-wide FeatureExtractor. Thread-safe double-checked init."""
+    """Process-wide FeatureExtractor. Thread-safe double-checked init.
+
+    Reads the high-risk Tier-2 mode from routing_config, so production picks up
+    the benchmark-chosen classifier while a direct ``FeatureExtractor()`` stays
+    regex-only (model-free, fast) for tests.
+    """
     global _extractor
     if _extractor is None:
         with _extractor_lock:
             if _extractor is None:
-                _extractor = FeatureExtractor()
+                from src.layer0_model_infra.config.routing_config import get_routing_config
+                hr = get_routing_config().layer3.high_risk
+                threshold = hr.bge_threshold if hr.tier2_mode == "bge" else hr.mdeberta_threshold
+                _extractor = FeatureExtractor(
+                    high_risk_tier2_mode=hr.tier2_mode,
+                    high_risk_threshold=threshold,
+                )
     return _extractor
 
 
