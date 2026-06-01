@@ -72,6 +72,30 @@ def get_semantic_memory():
     return mem
 
 
+@st.cache_resource
+def get_knn_router():
+    """Layer 3 benchmark kNN router (production singleton). Warmed up on first
+    load so the first manual route doesn't pay the ~20-40s encoder cold-start.
+    Loaded lazily — only when an L3 page is opened — so other pages stay snappy.
+    """
+    from src.layer0_model_infra.routing.knn_router import get_knn_router as _get
+    router = _get()
+    router.warmup()
+    return router
+
+
+@st.cache_resource
+def get_question_text_lookup() -> dict:
+    """Map question_global_id -> question_text so the manual page can show the
+    actual text of each kNN neighbor (the RoutingDecision only carries the ids).
+    """
+    path = REPO_ROOT / "data/processed/questions.parquet"
+    if not path.exists():
+        return {}
+    df = pd.read_parquet(path, columns=["question_global_id", "question_text"])
+    return dict(zip(df["question_global_id"], df["question_text"]))
+
+
 # ============================================================================
 # Helpers
 # ============================================================================
@@ -101,6 +125,12 @@ def latency_metric(label: str, microseconds: float):
         st.metric(label, f"{microseconds:.0f} μs")
     else:
         st.metric(label, f"{microseconds / 1000:.2f} ms")
+
+
+def _mod_value(features) -> str:
+    """QueryFeatures.modality may be an enum or a bare string — normalise it."""
+    m = features.modality
+    return m.value if hasattr(m, "value") else str(m)
 
 
 # ============================================================================
@@ -466,14 +496,214 @@ def render_layer_2_manual(mem):
 
 
 # ============================================================================
-# Pipeline page — Layer 0 → Layer 1
+# Layer 3 — Benchmark kNN Router
 # ============================================================================
 
-def render_pipeline(fp, gate):
-    st.subheader("End-to-end: Layer 0 → Layer 1")
+def render_layer_3_manual(router, qtext):
+    st.subheader("Layer 3 — Benchmark kNN Router (manual)")
     st.caption(
-        "If Layer 0 bypasses, downstream layers are skipped. Otherwise the "
-        "modality gate runs. This is exactly what the orchestrator does."
+        "Predicts per-model quality from the benchmark corpus and picks the "
+        "cheapest model clearing the quality floor. Stage A cache → B features → "
+        "C kNN/prior + calibration → D fallback. First route warms the encoder (~20-40s)."
+    )
+
+    col_q, col_btn = st.columns([5, 1])
+    with col_q:
+        query = st.text_area(
+            "Query",
+            value=st.session_state.get("l3_query", "What is the derivative of x^2 * sin(x)?"),
+            height=100,
+            key="l3_query_input",
+        )
+    with col_btn:
+        st.write("")
+        st.write("")
+        run = st.button("Route ▶", type="primary", key="l3_run", use_container_width=True)
+
+    if run or st.session_state.get("l3_query") != query:
+        st.session_state["l3_query"] = query
+        with st.spinner("Routing (first call warms the encoder)…"):
+            d = router.route(query)
+        feats = d.features
+
+        # Top badges
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(color_badge("selected", d.selected_model,
+                        ok=(d.source.value != "fallback")), unsafe_allow_html=True)
+        with c2:
+            st.markdown(color_badge("source", d.source.value,
+                        ok=(d.source.value == "knn_corpus")), unsafe_allow_html=True)
+        with c3:
+            pq = f"{d.predicted_quality:.3f}" if d.predicted_quality is not None else "—"
+            st.markdown(color_badge("pred_quality", pq), unsafe_allow_html=True)
+        with c4:
+            st.metric("Latency", f"{d.latency_ms:.0f} ms")
+
+        # Second row: confidence / floor / cost / high-risk
+        c5, c6, c7, c8 = st.columns(4)
+        with c5:
+            st.markdown(color_badge("confidence", d.prediction_confidence,
+                        ok=(d.prediction_confidence == "high")), unsafe_allow_html=True)
+        with c6:
+            ef = f"{d.effective_floor:.2f}" if d.effective_floor is not None else "—"
+            st.markdown(color_badge("eff_floor", ef), unsafe_allow_html=True)
+        with c7:
+            st.markdown(color_badge("est_cost", f"${d.estimated_cost_usd:.6f}"), unsafe_allow_html=True)
+        with c8:
+            hr = feats.high_risk_domain.value if feats.high_risk_domain else "none"
+            st.markdown(color_badge("high_risk", hr, ok=(feats.high_risk_domain is None)),
+                        unsafe_allow_html=True)
+
+        if d.source.value == "fallback":
+            st.warning(
+                f"⚠️ Stage D fallback — reason `{d.fallback_reason}`. Routed to the safe "
+                f"default for modality `{_mod_value(feats)}`. Answer quality is preserved; "
+                f"only cost-optimization is limited (off-distribution / thin corpus coverage)."
+            )
+        elif d.source.value == "knn_corpus":
+            st.success(
+                f"✓ kNN-grounded route. {len(d.qualifying_models)} model(s) cleared the "
+                f"floor; the cheapest was selected."
+            )
+        else:
+            st.info(f"Source `{d.source.value}` — off-policy (ε-exploration / warmup / forced).")
+
+        st.markdown("---")
+        col_l, col_r = st.columns([1, 1])
+        with col_l:
+            st.markdown("**Extracted features (Stage B)**")
+            st.json({
+                "modality": _mod_value(feats),
+                "language": feats.language,
+                "high_risk_domain": feats.high_risk_domain.value if feats.high_risk_domain else None,
+                "difficulty_signal": getattr(feats.difficulty_signal, "value", str(feats.difficulty_signal)),
+                "estimated_input_tokens": feats.estimated_input_tokens,
+                "estimated_output_tokens": feats.estimated_output_tokens,
+                "char_count": feats.char_count,
+            })
+        with col_r:
+            st.markdown("**Quality floor & calibration**")
+            st.json({
+                "quality_floor_base": d.quality_floor_base,
+                "effective_floor": d.effective_floor,
+                "feature_cell": d.feature_cell,
+                "calibration_multiplier_applied": d.calibration_multiplier_applied,
+            })
+
+        # kNN neighbors (top 5) with their question text
+        st.markdown("##### kNN neighbors (top 5)")
+        if d.neighbors_used:
+            nrows = [{
+                "question_global_id": qid,
+                "similarity": round(s, 4),
+                "question_text": (qtext.get(qid, "(text unavailable)") or "")[:140],
+            } for qid, s in d.neighbors_used[:5]]
+            st.dataframe(pd.DataFrame(nrows), use_container_width=True, hide_index=True)
+        else:
+            st.caption("No neighbors — fallback fired before search, or search returned none.")
+
+        # Per-model predicted quality
+        st.markdown("##### Per-model predicted quality")
+        if d.all_model_qualities:
+            qualifying = set(d.qualifying_models)
+            qual_rows = [{
+                "model_id": mid,
+                "predicted_quality": round(q, 4),
+                "qualifies": "✓" if mid in qualifying else "",
+                "selected": "★" if mid == d.selected_model else "",
+            } for mid, q in sorted(d.all_model_qualities.items(), key=lambda kv: -kv[1])]
+            st.dataframe(pd.DataFrame(qual_rows), use_container_width=True, hide_index=True, height=320)
+            st.caption(f"Qualifying (cheapest-first): {d.qualifying_models}")
+        else:
+            st.caption("No per-model qualities computed (fallback path skips Stage C scoring).")
+
+
+def render_layer_3_corpus(router, qtext):
+    st.subheader("Corpus runner — Layer 3")
+    st.caption(
+        "Route a sample of the 650-query locked validation set through the kNN "
+        "router. Surfaces kNN-engagement vs fallback rate, latency, and a "
+        "per-modality engagement breakdown."
+    )
+    val_path = REPO_ROOT / "data/processed/validation_set.parquet"
+    if not val_path.exists():
+        st.warning(f"validation_set.parquet not found at {val_path}.")
+        return
+    df_val = pd.read_parquet(val_path)
+    n_max = len(df_val)
+    n = st.slider("Sample size (first N, for reproducibility)", min_value=5,
+                  max_value=min(n_max, 300), value=30, step=5, key="l3_corpus_n")
+    st.caption(f"{n_max} validation queries available; routing the first {n}.")
+
+    if st.button("Run on Layer 3", type="primary", key="l3_corpus_run"):
+        sample = df_val.head(n)
+        rows = []
+        prog = st.progress(0.0)
+        with st.spinner("Routing sample (first call warms the encoder)…"):
+            for i, (_, row) in enumerate(sample.iterrows()):
+                q = str(row["question_text"])
+                d = router.route(q)
+                rows.append({
+                    "id": row["question_global_id"],
+                    "query": q[:60] + ("…" if len(q) > 60 else ""),
+                    "modality": _mod_value(d.features),
+                    "source": d.source.value,
+                    "selected_model": d.selected_model,
+                    "pred_quality": round(d.predicted_quality, 3) if d.predicted_quality is not None else None,
+                    "fallback_reason": d.fallback_reason or "",
+                    "latency_ms": round(d.latency_ms, 1),
+                })
+                prog.progress((i + 1) / n)
+        prog.empty()
+        df = pd.DataFrame(rows)
+
+        knn_n = int((df["source"] == "knn_corpus").sum())
+        fb_n = int((df["source"] == "fallback").sum())
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Queries", len(df))
+        c2.metric("kNN-engaged", f"{knn_n/len(df):.0%}", f"{knn_n}")
+        c3.metric("Fallback", f"{fb_n/len(df):.0%}", f"{fb_n}")
+        c4.metric("p50 / p99 latency",
+                  f"{df['latency_ms'].median():.0f} / {df['latency_ms'].quantile(0.99):.0f} ms")
+
+        src = df["source"].value_counts().reset_index()
+        src.columns = ["source", "count"]
+        fig = px.bar(src, x="source", y="count", title="Routing-source distribution",
+                     color="source", color_discrete_sequence=px.colors.qualitative.Set2)
+        fig.update_layout(height=280, showlegend=False, margin=dict(t=40, b=20))
+        st.plotly_chart(fig, use_container_width=True)
+
+        if df["modality"].nunique() > 1:
+            mod_eng = df.assign(_knn=(df["source"] == "knn_corpus")).groupby("modality").agg(
+                total=("modality", "count"), knn=("_knn", "sum")).reset_index()
+            mod_eng["knn_rate"] = mod_eng["knn"] / mod_eng["total"]
+            fig2 = px.bar(mod_eng, x="modality", y="knn_rate", title="kNN engagement by modality",
+                          hover_data=["knn", "total"], color="knn_rate",
+                          color_continuous_scale=["#ef4444", "#f59e0b", "#22c55e"], range_color=[0, 1])
+            fig2.update_layout(height=280, yaxis_tickformat=".0%")
+            st.plotly_chart(fig2, use_container_width=True)
+
+        st.markdown("##### All results")
+        st.dataframe(df, use_container_width=True, height=400)
+        st.download_button(
+            "📥 Download results.json",
+            data=df.to_json(orient="records", indent=2),
+            file_name="layer_3_validation_dashboard_run.json",
+            mime="application/json",
+        )
+
+
+# ============================================================================
+# Pipeline page — Layer 0 → Layer 3
+# ============================================================================
+
+def render_pipeline(fp, gate, mem, router, qtext):
+    st.subheader("End-to-end: Layer 0 → Layer 1 → Layer 2 → Layer 3")
+    st.caption(
+        "Real orchestrator order. Layer 0 bypass short-circuits everything; a "
+        "Layer 2 cache hit serves the cached model and stops; otherwise Layer 3 "
+        "(the kNN router) makes the call. First L3 route warms the encoder (~20-40s)."
     )
 
     query = st.text_area("Query", value="Hi, can you help me debug this Python function: def add(a, b): return a + b",
@@ -545,10 +775,62 @@ def render_pipeline(fp, gate):
         with c4:
             latency_metric("L1 latency", l1_latency)
 
-        st.markdown(f"**Total latency:** {(l0_latency + l1_latency) / 1000:.2f} ms")
-        st.markdown(f"**Pipeline would continue to:** Layer 2 (Semantic Memory) — not yet retrofitted.")
+        # Step 3: Layer 2 — semantic memory
+        st.markdown("##### 🧠 Layer 2 — Semantic Memory")
+        t0 = time.perf_counter_ns()
+        l2 = mem.lookup(query)
+        t1 = time.perf_counter_ns()
+        l2_latency = (t1 - t0) / 1000
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.markdown(color_badge("verdict", "HIT" if l2.hit else "MISS", ok=l2.hit),
+                        unsafe_allow_html=True)
+        with c2:
+            st.markdown(color_badge("similarity", f"{l2.similarity:.3f}"), unsafe_allow_html=True)
+        with c3:
+            latency_metric("L2 latency", l2_latency)
 
-        with st.expander("L1 details"):
+        if l2.hit:
+            st.success(
+                f"✓ Cache hit → the router serves cached model `{l2.matched_model_id}` and stops. "
+                f"(This dashboard's L2 cache starts empty — populate it on the Layer 2 page to see hits.)"
+            )
+            st.markdown(f"**Total latency:** {(l0_latency + l1_latency + l2_latency) / 1000:.2f} ms")
+            return
+        st.info("Layer 2 miss → running Layer 3.")
+
+        # Step 4: Layer 3 — benchmark kNN router (reuses Layer 1's analysis)
+        l3 = router.route(query, layer1_analysis=m)
+        st.markdown("##### 🎯 Layer 3 — Benchmark kNN Router")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(color_badge("selected", l3.selected_model,
+                        ok=(l3.source.value != "fallback")), unsafe_allow_html=True)
+        with c2:
+            st.markdown(color_badge("source", l3.source.value,
+                        ok=(l3.source.value == "knn_corpus")), unsafe_allow_html=True)
+        with c3:
+            pq = f"{l3.predicted_quality:.3f}" if l3.predicted_quality is not None else "—"
+            st.markdown(color_badge("pred_quality", pq), unsafe_allow_html=True)
+        with c4:
+            st.metric("L3 latency", f"{l3.latency_ms:.0f} ms")
+
+        if l3.source.value == "fallback":
+            st.warning(f"⚠️ Stage D fallback — `{l3.fallback_reason}` → safe default `{l3.selected_model}`.")
+        else:
+            st.success(
+                f"✓ Routed to **{l3.selected_model}** — {len(l3.qualifying_models)} cleared the "
+                f"floor, cheapest selected."
+            )
+
+        cpu_ms = (l0_latency + l1_latency + l2_latency) / 1000
+        st.markdown(
+            f"**Total pipeline latency:** {cpu_ms + l3.latency_ms:.1f} ms "
+            f"(L0+L1+L2 {cpu_ms:.2f} ms + L3 {l3.latency_ms:.0f} ms)"
+        )
+
+        with st.expander("Layer details (L1 + L3)"):
+            st.markdown("**Layer 1 — Modality Gate**")
             st.json({
                 "primary_modality": m.primary_modality.value,
                 "language": m.language,
@@ -557,7 +839,16 @@ def render_pipeline(fp, gate):
                 "requires_vision": m.requires_vision,
                 "requires_code_model": m.requires_code_model,
                 "token_count": m.token_count,
-                "reasoning": m.reasoning,
+            })
+            st.markdown("**Layer 3 — kNN Router**")
+            st.json({
+                "selected_model": l3.selected_model,
+                "source": l3.source.value,
+                "predicted_quality": l3.predicted_quality,
+                "effective_floor": l3.effective_floor,
+                "fallback_reason": l3.fallback_reason,
+                "qualifying_models": l3.qualifying_models,
+                "feature_cell": l3.feature_cell,
             })
 
 
@@ -784,9 +1075,14 @@ the same call paths as production, so what you see here is what real users get.
 **Layers retrofitted so far:**
 - ✅ **Layer 0 — Fast Path** ([report](../docs/layers/LAYER_0_REPORT.md))
 - ✅ **Layer 1 — Modality Gate** ([report](../docs/layers/LAYER_1_REPORT.md))
-- ⏳ Layer 2 — Semantic Memory (next)
-- ⏳ Layer 3 — Fast Triage (partial — delegates to Layer 0)
+- ✅ **Layer 2 — Semantic Memory** ([report](../docs/layers/LAYER_2_REPORT.md))
+- ✅ **Layer 3 — Benchmark kNN Router** (new design; replaces the legacy fast-triage / uncertainty / bandit)
 - ⏳ Layers 4-9
+
+**Layer 3 note:** the kNN router needs Qdrant up (the `layer3_benchmark_corpus`
+collection) and loads a sentence-transformer encoder — the first L3 route warms
+it (~20-40s), then routes are ~50-150ms. Its corpus runner reads the 650-query
+locked validation set, not the `artifacts/layer_N/*.json` files the L0/L1 runners use.
 
 **How to use:**
 
@@ -824,9 +1120,11 @@ def main():
             "Layer 0 — manual",
             "Layer 1 — manual",
             "Layer 2 — manual",
-            "Pipeline (L0 → L1)",
+            "Layer 3 — manual",
+            "Pipeline (L0 → L3)",
             "Corpus runner — Layer 0",
             "Corpus runner — Layer 1",
+            "Corpus runner — Layer 3",
             "A/B compare",
         ],
         index=1,
@@ -837,7 +1135,9 @@ def main():
     st.sidebar.caption(
         "Layer 0: sub-ms bypass for trivial queries\n\n"
         "Layer 1: modality + language + code + structured signals\n\n"
-        "Pipeline: chain L0 → L1 (real router order)"
+        "Layer 2: outcome-aware semantic cache\n\n"
+        "Layer 3: benchmark kNN router — cheapest model above the quality floor\n\n"
+        "Pipeline: chain L0 → L1 → L2 → L3 (real router order)"
     )
 
     fp = get_fast_path()
@@ -852,12 +1152,17 @@ def main():
         render_layer_1_manual(gate)
     elif page == "Layer 2 — manual":
         render_layer_2_manual(mem)
-    elif page == "Pipeline (L0 → L1)":
-        render_pipeline(fp, gate)
+    elif page == "Layer 3 — manual":
+        # Loaded lazily (encoder warmup ~20-40s) so other pages stay snappy.
+        render_layer_3_manual(get_knn_router(), get_question_text_lookup())
+    elif page == "Pipeline (L0 → L3)":
+        render_pipeline(fp, gate, mem, get_knn_router(), get_question_text_lookup())
     elif page == "Corpus runner — Layer 0":
         render_corpus_runner(fp, gate, layer_idx=0)
     elif page == "Corpus runner — Layer 1":
         render_corpus_runner(fp, gate, layer_idx=1)
+    elif page == "Corpus runner — Layer 3":
+        render_layer_3_corpus(get_knn_router(), get_question_text_lookup())
     elif page == "A/B compare":
         render_ab_compare(fp, gate)
 
