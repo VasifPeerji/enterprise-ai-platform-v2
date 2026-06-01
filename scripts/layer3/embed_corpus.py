@@ -30,9 +30,19 @@ from scripts.layer3._common import (
     ensure_dirs,
     get_pipeline_logger,
 )
+from src.layer0_model_infra.config.routing_config import get_routing_config
 
 
-DEFAULT_ENCODER = "BAAI/bge-small-en-v1.5"
+# The corpus MUST be embedded with the SAME model the router queries with, or
+# query vectors and corpus vectors live in different spaces and kNN returns
+# nonsense. Source the default straight from the routing config (the single
+# source of truth — Layer3EncoderConfig.model_name) so the build encoder and the
+# router's query encoder can never silently diverge. This previously hardcoded a
+# DIFFERENT model (bge-small-en) than the router's encoder
+# (paraphrase-multilingual-MiniLM-L12-v2) — a latent footgun that would corrupt
+# the live collection on a default re-run. (bge-small is the high-risk Tier-2
+# classifier's model, not the kNN encoder.)
+DEFAULT_ENCODER = get_routing_config().layer3.encoder.model_name
 DEFAULT_BATCH_SIZE = 64
 COLLECTION_NAME = "layer3_benchmark_corpus"
 
