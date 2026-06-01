@@ -1,4 +1,9 @@
-fastapi>=0.109.0,<0.110.0
+fastapi>=0.136.0,<0.137.0
+# starlette MUST be pinned: it was previously unpinned, floated to 1.0.0, and
+# the old fastapi (<0.110) couldn't accept it — Starlette dropped the on_startup
+# kwarg fastapi 0.109 passes to Router, so every APIRouter() raised and the app
+# stopped booting. This range is shared by fastapi 0.136, streamlit, and phoenix.
+starlette>=1.0.0,<1.1.0
 uvicorn[standard]>=0.27.0,<0.28.0
 pydantic>=2.5.0,<3.0.0
 pydantic-settings>=2.1.0,<3.0.0
