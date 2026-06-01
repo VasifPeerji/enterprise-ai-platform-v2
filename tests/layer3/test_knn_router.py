@@ -328,7 +328,12 @@ def test_vision_modality_routes_to_fallback_without_search(all_keys_set, reset_r
 def _live_qdrant_ok() -> bool:
     try:
         from qdrant_client import QdrantClient
-        c = QdrantClient(host="localhost", port=6333, timeout=3.0)
+        from src.shared.config import get_settings
+        s = get_settings()
+        # Honor the configured QDRANT_HOST (not a hardcoded "localhost", which
+        # resolves to IPv6 ::1 on this Windows + Docker Desktop host and isn't
+        # forwarded by the port-proxy).
+        c = QdrantClient(host=s.QDRANT_HOST, port=s.QDRANT_PORT, timeout=3.0)
         return c.get_collection("layer3_benchmark_corpus").points_count > 0
     except Exception:
         return False

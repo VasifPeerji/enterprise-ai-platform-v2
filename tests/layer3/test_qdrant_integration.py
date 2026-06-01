@@ -4,8 +4,8 @@ End-to-end Qdrant integration tests.
 Verifies the kNN search wiring: encoder → Qdrant query → payload returned →
 outcome_store lookup → coherent neighbor sets for representative queries.
 
-Skipped when Qdrant isn't reachable on localhost:6333 OR the corpus hasn't
-been embedded yet. Catches the kind of issues unit tests can't:
+Skipped when Qdrant isn't reachable at the configured QDRANT_HOST:PORT OR the
+corpus hasn't been embedded yet. Catches the kind of issues unit tests can't:
   • Encoder + collection vector dim mismatch
   • Payload schema drift
   • Search-API breaking changes in qdrant-client
@@ -18,15 +18,24 @@ from pathlib import Path
 
 import pytest
 
+from src.shared.config import get_settings
+
 
 COLLECTION_NAME = "layer3_benchmark_corpus"
 ENCODER_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+# Connect to the same Qdrant the app uses — read QDRANT_HOST from settings
+# rather than hardcoding "localhost". On Windows + Docker Desktop, localhost
+# resolves to IPv6 ::1 which the port-proxy doesn't forward, so a hardcoded
+# host made these tests skip even with the collection fully embedded.
+_QDRANT_HOST = get_settings().QDRANT_HOST
+_QDRANT_PORT = get_settings().QDRANT_PORT
 
 
 def _qdrant_available() -> bool:
     try:
         from qdrant_client import QdrantClient
-        client = QdrantClient(host="localhost", port=6333, timeout=2.0)
+        client = QdrantClient(host=_QDRANT_HOST, port=_QDRANT_PORT, timeout=2.0)
         collections = client.get_collections().collections
         return COLLECTION_NAME in {c.name for c in collections}
     except Exception:
@@ -36,7 +45,7 @@ def _qdrant_available() -> bool:
 def _has_points() -> bool:
     try:
         from qdrant_client import QdrantClient
-        client = QdrantClient(host="localhost", port=6333, timeout=2.0)
+        client = QdrantClient(host=_QDRANT_HOST, port=_QDRANT_PORT, timeout=2.0)
         info = client.get_collection(COLLECTION_NAME)
         return (info.points_count or 0) > 100
     except Exception:
@@ -52,7 +61,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def client():
     from qdrant_client import QdrantClient
-    return QdrantClient(host="localhost", port=6333, timeout=10.0)
+    return QdrantClient(host=_QDRANT_HOST, port=_QDRANT_PORT, timeout=10.0)
 
 
 @pytest.fixture(scope="module")
