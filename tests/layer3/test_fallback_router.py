@@ -48,13 +48,13 @@ def _router() -> FallbackRouter:
 
 def test_text_modality_uses_text_default(all_keys_set, reset_registry):
     decision = _router().route(_features(Modality.TEXT), "rid-1", REASON_INSUFFICIENT_NEIGHBORS)
-    assert decision.selected_model == "gemini-1.5-pro"
+    assert decision.selected_model == "llama-3.3-70b-versatile-groq"
     assert decision.source == RoutingSource.FALLBACK
     assert decision.predicted_quality is None
     assert decision.prediction_confidence == "low"
     assert decision.fallback_reason == REASON_INSUFFICIENT_NEIGHBORS
-    assert decision.qualifying_models == ["gemini-1.5-pro"]
-    assert decision.estimated_cost_usd > 0  # gemini-1.5-pro is paid
+    assert decision.qualifying_models == ["llama-3.3-70b-versatile-groq"]
+    assert decision.estimated_cost_usd == 0.0  # the text default is now a free model
 
 
 def test_code_modality_uses_code_default(all_keys_set, reset_registry):
@@ -74,6 +74,23 @@ def test_high_risk_overrides_modality_default(all_keys_set, reset_registry):
     assert decision.selected_model == "gemini-1.5-pro"  # high_risk default
 
 
+def test_safe_default_policy_free_text_premium_high_risk(all_keys_set, reset_registry):
+    """Policy lock: off-distribution non-high-risk text falls back to a FREE
+    strong model (cost), while medical / legal / financial queries keep a premium
+    default (safety). Guards safe_defaults.text -> free against a silent revert
+    that would route every fallback through a paid model again."""
+    fb = _router()
+    text_default = fb.select_model(_features(Modality.TEXT))
+    hr_default = fb.select_model(_features(Modality.TEXT, high_risk=HighRiskDomain.MEDICAL))
+    assert text_default is not None and hr_default is not None
+    # non-high-risk text falls back to a free model
+    assert text_default.pricing.input_per_1m_usd == 0.0
+    assert text_default.pricing.output_per_1m_usd == 0.0
+    # high-risk keeps a premium (paid) model
+    assert hr_default.pricing.output_per_1m_usd > 0.0
+    assert hr_default.model_id != text_default.model_id
+
+
 def test_vision_modality_uses_vision_default(all_keys_set, reset_registry):
     decision = _router().route(_features(Modality.VISION), "rid-5", REASON_UNSUPPORTED_MODALITY)
     assert decision.selected_model == "gemini-1.5-pro"
@@ -86,9 +103,12 @@ def test_vision_modality_uses_vision_default(all_keys_set, reset_registry):
 
 
 def test_inactive_default_walks_to_active_model(only_groq_set, reset_registry):
-    # gemini-1.5-pro (text default) requires GEMINI_API_KEY which is absent here.
-    decision = _router().route(_features(Modality.TEXT), "rid-6", REASON_INSUFFICIENT_NEIGHBORS)
-    assert decision.selected_model != "gemini-1.5-pro"
+    # The code default (qwen-2.5-coder-32b-openrouter-free) needs OPENROUTER_API_KEY,
+    # absent here, so the router must walk past it to an active groq model. (The
+    # text default is itself a groq model now, so it stays active under only-groq —
+    # code is the modality whose configured default goes inactive here.)
+    decision = _router().route(_features(Modality.CODE), "rid-6", REASON_INSUFFICIENT_NEIGHBORS)
+    assert decision.selected_model != "qwen-2.5-coder-32b-openrouter-free"
     chosen = get_layer3_registry().get(decision.selected_model)
     assert chosen.is_active is True
     assert chosen.provider == "groq"  # only groq keys are set
@@ -109,7 +129,7 @@ def test_vision_under_partial_keys_returns_active_model(only_groq_set, reset_reg
 
 def test_no_active_models_returns_marker(no_keys_set, reset_registry):
     decision = _router().route(_features(Modality.TEXT), "rid-8", REASON_INSUFFICIENT_NEIGHBORS)
-    assert decision.selected_model == "gemini-1.5-pro"  # configured default, inactive
+    assert decision.selected_model == "llama-3.3-70b-versatile-groq"  # configured default, inactive
     assert decision.fallback_reason == REASON_NO_ACTIVE_MODELS
     assert decision.source == RoutingSource.FALLBACK
 

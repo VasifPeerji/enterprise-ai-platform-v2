@@ -8,7 +8,7 @@
   },
 
   "safe_defaults": {
-    "text": "gemini-1.5-pro",
+    "text": "llama-3.3-70b-versatile-groq",
     "code": "qwen-2.5-coder-32b-openrouter-free",
     "math": "deepseek-r1-distill-llama-70b-groq",
     "vision": "gemini-1.5-pro",
