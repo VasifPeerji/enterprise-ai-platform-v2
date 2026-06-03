@@ -351,6 +351,10 @@
       "livebench_coding": 0.80,
       "livebench_reasoning": 0.81,
       "arena_elo_normalised": 0.95
-    }
+    },
+    "nemotron-70b-huggingface": {"mmlu_pro": 0.49, "arena_elo_normalised": 0.85, "ifeval": 0.87, "bbh": 0.78},
+    "qwen-2.5-32b-huggingface": {"mmlu_pro": 0.57, "arena_elo_normalised": 0.84, "humaneval": 0.88, "math_hard": 0.83, "gpqa_diamond": 0.49},
+    "mistral-small-2409-openrouter": {"mmlu_pro": 0.41, "arena_elo_normalised": 0.76, "humaneval": 0.80},
+    "kimi-k2-openrouter-free": {"mmlu_pro": 0.69, "swe_bench_verified": 0.77, "livecodebench": 0.65, "humaneval": 0.92, "arena_elo_normalised": 0.90, "gpqa_diamond": 0.60}
   }
 }

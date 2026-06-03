@@ -256,6 +256,10 @@ MMLU_PRO_MODELS: dict[str, str] = {
     "gemma2-9b-it-groq":            "open-llm-leaderboard/google__gemma-2-9b-it-details",
     "gemma-2-27b-openrouter-free":  "open-llm-leaderboard/google__gemma-2-27b-it-details",
     "deepseek-r1-distill-llama-70b-groq": "open-llm-leaderboard/deepseek-ai__DeepSeek-R1-Distill-Llama-70B-details",
+    # --- pool-expansion additions (strong, groundable, servable) ---
+    "nemotron-70b-huggingface": "open-llm-leaderboard/nvidia__Llama-3.1-Nemotron-70B-Instruct-HF-details",
+    "qwen-2.5-32b-huggingface": "open-llm-leaderboard/Qwen__Qwen2.5-32B-Instruct-details",
+    "mistral-small-2409-openrouter": "open-llm-leaderboard/mistralai__Mistral-Small-Instruct-2409-details",
 }
 OPENLLM_SOURCE = "https://huggingface.co/open-llm-leaderboard"
 

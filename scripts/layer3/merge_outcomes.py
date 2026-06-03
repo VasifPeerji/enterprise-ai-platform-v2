@@ -60,6 +60,11 @@ MODEL_MAP: dict[str, list[str]] = {
     "Meta-Llama-3.1-8B-Instruct-Turbo": ["llama-3.1-8b-instant-groq"],
     "gpt-4o-2024-08-06": ["gpt-4o"],
     "gpt-4o-mini": ["gpt-4o-mini"],
+    # pool-expansion additions: 3 grounded (identity) + kimi (from SWE "kimi")
+    "nemotron-70b-huggingface": ["nemotron-70b-huggingface"],
+    "qwen-2.5-32b-huggingface": ["qwen-2.5-32b-huggingface"],
+    "mistral-small-2409-openrouter": ["mistral-small-2409-openrouter"],
+    "kimi": ["kimi-k2-openrouter-free"],
 }
 
 
