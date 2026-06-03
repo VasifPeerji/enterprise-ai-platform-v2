@@ -250,8 +250,11 @@ def test_no_qualifier_falls_back(all_keys_set, reset_registry, tmp_path):
 
 def test_high_risk_raises_floor(all_keys_set, reset_registry, tmp_path):
     router = _router(tmp_path)
-    feats = _features(Modality.TEXT, high_risk=HighRiskDomain.MEDICAL)  # floor 0.75
-    qualities = {"llama-3.1-8b-instant-groq": 0.70, "gemini-1.5-pro": 0.80}
+    feats = _features(Modality.TEXT, high_risk=HighRiskDomain.MEDICAL)  # base floor 0.75
+    # llama-3.1-8b is full-coverage → effective floor is the 0.75 base; 0.70 misses it.
+    # gemini-1.5-pro is low-coverage → effective floor 0.75 + 0.10 penalty = 0.85, so it
+    # needs 0.90 to qualify (a re-tag to medium/full would only lower that bar).
+    qualities = {"llama-3.1-8b-instant-groq": 0.70, "gemini-1.5-pro": 0.90}
     confidence = {k: "high" for k in qualities}
     decision = router._choose("q", feats, qualities, confidence, [], "rid", make_feature_cell(feats))
     assert decision.quality_floor_base == 0.75

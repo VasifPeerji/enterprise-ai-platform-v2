@@ -73,19 +73,23 @@ def test_real_corpus_outcomes_in_unit_interval(store):
 
 
 def test_real_corpus_coverage_by_source(store):
-    """LiveBench should dominate (it's the primary outcome source)."""
+    """MMLU-Pro (Open LLM Leaderboard) is the primary outcome source after the
+    benchmark harvest; LiveBench and SWE-bench are smaller secondary sources."""
     by_source = store.coverage_by_source()
     sources = {row["source_url"]: row["n"] for row in by_source}
-    # All sources should be HuggingFace dataset URLs
+    # Every source must be a real URL (HF dataset / leaderboard / SWE-bench repo).
     for url in sources:
         assert url.startswith("https://"), f"non-URL source: {url!r}"
-    # LiveBench is expected to dominate
-    livebench_rows = sum(n for url, n in sources.items() if "livebench" in url.lower())
     total = sum(sources.values())
-    assert livebench_rows / total > 0.5, (
-        f"LiveBench is only {livebench_rows}/{total} rows; expected >50%. "
-        f"Sources: {sources}"
+    # MMLU-Pro (harvested from the Open LLM Leaderboard) dominates the corpus.
+    mmlu_rows = sum(n for url, n in sources.items() if "open-llm-leaderboard" in url.lower())
+    assert mmlu_rows / total > 0.5, (
+        f"MMLU-Pro is only {mmlu_rows}/{total} rows; expected the harvested "
+        f"MMLU-Pro outcomes to dominate. Sources: {sources}"
     )
+    # LiveBench remains present as the original seed outcome source.
+    livebench_rows = sum(n for url, n in sources.items() if "livebench" in url.lower())
+    assert livebench_rows > 0, f"LiveBench outcomes missing entirely. Sources: {sources}"
 
 
 def test_real_corpus_lookup_batch_returns_outcomes(store):

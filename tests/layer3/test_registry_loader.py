@@ -139,15 +139,20 @@ def test_p1_paid_commercial_not_full_coverage(registry_path):
 
 
 def test_p1_open_weights_keep_full_coverage(registry_path):
-    """Patch P1: open-weights models served by Groq / OpenRouter keep coverage=full
-    because they're on HF Open LLM Leaderboard + LiveBench with per-question data.
+    """Patch P1: open-weights models with per-question MMLU-Pro coverage keep
+    coverage=full because they're on the HF Open LLM Leaderboard with real
+    per-question outcomes.
+
+    deepseek-v3-openrouter-free is deliberately NOT in this set: its only
+    per-question outcomes are SWE-bench coding (~6% of the corpus), far below
+    the 60% 'full' threshold, so it was re-tagged 'low' from the real merged
+    corpus. See test_p1_frontier_models_are_low_coverage for the low side.
     """
     reg = Layer3Registry(registry_path)
     must_be_full = {
         "llama-3.3-70b-versatile-groq",
         "llama-3.1-8b-instant-groq",
         "deepseek-r1-distill-llama-70b-groq",
-        "deepseek-v3-openrouter-free",
         "qwen-2.5-coder-32b-openrouter-free",
         "gemma-2-27b-openrouter-free",
     }
