@@ -137,11 +137,44 @@ def _print_report(report):
         show(f"source={src}", m)
 
 
+def _apply_free_fallback(reg, active_ids):
+    """What-if override: point the non-high-risk safe defaults at free strong
+    models, keeping the high-risk default premium so medical / legal / financial
+    off-distribution queries stay on the safer model. Mutates the in-memory
+    registry only — nothing on disk changes."""
+    from src.layer0_model_infra.routing.layer3_types import SafeDefaults
+    free_text, free_code, free_math = (
+        "llama-3.3-70b-versatile-groq",
+        "qwen-2.5-coder-32b-openrouter-free",
+        "qwen-qwq-32b-groq",
+    )
+    missing = [m for m in (free_text, free_code, free_math) if m not in active_ids]
+    if missing:
+        print(f"  [free-fallback] skipped — free models inactive: {missing}")
+        return "registry_default"
+    old = reg.safe_defaults
+    reg._safe_defaults = SafeDefaults(
+        text=free_text, code=free_code, math=free_math,
+        vision=old.vision, multimodal=old.multimodal,
+        high_risk=old.high_risk,  # keep premium for medical / legal / financial
+    )
+    print(f"  [free-fallback] text->{free_text}, code->{free_code}, "
+          f"math->{free_math}; high_risk stays {old.high_risk}")
+    return "free_nonhighrisk_premium_highrisk"
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Batch 4 — kNN routing validation harness")
     ap.add_argument("--validation", default="data/processed/validation_set.parquet")
     ap.add_argument("--limit", type=int, default=None, help="cap queries (debug)")
     ap.add_argument("--out", default="artifacts/layer3/validation_report.json")
+    ap.add_argument(
+        "--free-fallback",
+        action="store_true",
+        help="What-if: route non-high-risk off-distribution queries to free "
+             "strong models (high-risk stays premium); measures the cost of the "
+             "premium fallback default. In-memory only.",
+    )
     args = ap.parse_args()
 
     _load_env_keys()
@@ -158,6 +191,10 @@ def main() -> None:
     }
     active_ids = {e.model_id for e in reg.active_models()}
     print(f"registry: {len(active_ids)} active / {len(reg.all_models())} total; {len(free_ids)} free")
+
+    fallback_policy = "registry_default"
+    if args.free_fallback:
+        fallback_policy = _apply_free_fallback(reg, active_ids)
 
     vpath = (REPO_ROOT / args.validation).as_posix()
     rows = duckdb.connect(":memory:").execute(
@@ -208,6 +245,7 @@ def main() -> None:
         "wall_seconds": round(wall, 1),
         "active_models": len(active_ids),
         "free_models": len(free_ids),
+        "fallback_policy": fallback_policy,
     }
     _print_report(report)
 
