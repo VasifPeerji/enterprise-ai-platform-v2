@@ -155,6 +155,19 @@ class ModelRouter:
             except Exception as exc:
                 logger.error("layer3_init_failed_disabling", reason=str(exc))
                 self._layer3_enabled = False
+        # When Layer 3 is actually serving (canary>0) or shadowing, register its
+        # models into the gateway registry up front so EVERY execution path —
+        # fast-path, forced, the canary route — can resolve them by id. The lazy
+        # registration only fired inside _route_via_layer3, so a fast-path or
+        # forced decision that names a Layer 3 model hit ModelNotFoundError.
+        # canary=0 (legacy-only / the existing tests) stays untouched.
+        if self._layer3_enabled and self._knn_router is not None and (
+            self._layer3_canary > 0.0 or self._layer3_shadow
+        ):
+            try:
+                self._ensure_layer3_models_registered()
+            except Exception as exc:
+                logger.error("layer3_eager_register_failed", reason=str(exc))
 
     def route(
         self,

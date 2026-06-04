@@ -157,20 +157,23 @@ class ModelGateway:
         return litellm_params
 
     def _fallback_model_id_for(self, model_def) -> Optional[str]:
-        """Choose a local fallback for free API providers."""
+        """Pick a reliable free cloud model to retry on when a free-API model
+        fails (rate-limit / transient error). Local Ollama is no longer a fallback
+        target — it isn't reliably running and was hard-failing every retry.
+        Returns None when fallback is off, the model is local, or the model is
+        already the fallback target (prevents a self-loop)."""
         if not settings.ENABLE_FREE_API_FALLBACK:
             return None
         if model_def.provider == ModelProvider.LOCAL:
             return None
         if model_def.model_type == ModelType.MULTIMODAL:
-            return "ollama-gemma3-4b"
-        if model_def.routing_tier == ModelRoutingTier.PREMIUM:
-            return "ollama/deepseek-r1:7b"
-        if model_def.routing_tier == ModelRoutingTier.MID:
-            return "ollama-qwen3-8b"
-        if model_def.routing_tier == ModelRoutingTier.CHEAP:
-            return "ollama-llama3.1-8b"
-        return settings.FREE_API_FALLBACK_MODEL_ID
+            fb = "gemini-2.5-flash"
+        else:
+            fb = "llama-3.1-8b-instant-groq"
+        if fb == model_def.model_id:
+            # The model that failed IS the fallback — try a different provider.
+            fb = "qwen-2.5-72b-huggingface"
+        return fb
 
     async def _try_local_fallback(
         self,
@@ -192,7 +195,7 @@ class ModelGateway:
 
         try:
             fallback_request = request.model_copy(update={"model_id": fallback_model_id})
-            return await self.complete(fallback_request)
+            return await self.complete(fallback_request, _allow_fallback=False)
         except Exception as fallback_error:
             logger.error(
                 "free_api_fallback_failed",
@@ -202,12 +205,14 @@ class ModelGateway:
             )
             return None
     
-    async def complete(self, request: LLMRequest) -> LLMResponse:
+    async def complete(self, request: LLMRequest, *, _allow_fallback: bool = True) -> LLMResponse:
         """
         Generate a completion from an LLM.
-        
+
         Args:
             request: LLM request parameters
+            _allow_fallback: internal — False on the fallback retry itself so a
+                failing fallback can't recurse into another fallback.
             
         Returns:
             LLM response with content and metadata
@@ -283,7 +288,7 @@ class ModelGateway:
             )
         
         except litellm.Timeout as e:
-            fallback = await self._try_local_fallback(request, model_def, "timeout")
+            fallback = await self._try_local_fallback(request, model_def, "timeout") if _allow_fallback else None
             if fallback is not None:
                 return fallback
             logger.error(
@@ -294,7 +299,7 @@ class ModelGateway:
             raise ModelTimeoutError(model_def.model_name, timeout=60.0)
         
         except litellm.RateLimitError as e:
-            fallback = await self._try_local_fallback(request, model_def, "rate_limit")
+            fallback = await self._try_local_fallback(request, model_def, "rate_limit") if _allow_fallback else None
             if fallback is not None:
                 return fallback
             logger.error(
@@ -305,7 +310,7 @@ class ModelGateway:
             raise ModelRateLimitError(model_def.model_name)
         
         except Exception as e:
-            fallback = await self._try_local_fallback(request, model_def, type(e).__name__)
+            fallback = await self._try_local_fallback(request, model_def, type(e).__name__) if _allow_fallback else None
             if fallback is not None:
                 return fallback
             logger.error(

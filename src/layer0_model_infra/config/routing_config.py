@@ -44,27 +44,22 @@ class FastPathConfig(BaseModel):
     # Preference chains per bypass category — first available wins
     chat_chain: list[str] = Field(
         default_factory=lambda: [
-            "ollama-phi3-mini",
-            "ollama-llama3.1-8b",
-            "groq-llama-3.1-8b-free",
-            "gemini-2.0-flash-lite-free",
+            "llama-3.1-8b-instant-groq",
+            "llama-3.3-70b-versatile-groq",
         ],
         description="Models for greetings / acknowledgments / farewells (ordered by preference)",
     )
     arithmetic_chain: list[str] = Field(
         default_factory=lambda: [
-            "ollama-phi3-mini",
-            "ollama-llama3.1-8b",
-            "groq-llama-3.1-8b-free",
+            "llama-3.1-8b-instant-groq",
+            "llama-3.3-70b-versatile-groq",
         ],
         description="Models for pure arithmetic queries",
     )
     factual_chain: list[str] = Field(
         default_factory=lambda: [
-            "ollama-llama3.1-8b",
-            "groq-llama-3.1-8b-free",
-            "gemini-2.0-flash-lite-free",
-            "ollama-phi3-mini",
+            "llama-3.1-8b-instant-groq",
+            "llama-3.3-70b-versatile-groq",
         ],
         description="Models for simple factual lookups / definitions",
     )
