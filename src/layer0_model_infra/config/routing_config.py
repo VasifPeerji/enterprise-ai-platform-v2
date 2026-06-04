@@ -42,24 +42,31 @@ class FastPathConfig(BaseModel):
     enabled: bool = Field(default=True, description="Master switch for Layer 0 bypass")
 
     # Preference chains per bypass category — first available wins
+    # Ordered preference: first model_id that exists in the registry AND is_active
+    # wins. The Groq free models (working litellm names) are first so a real
+    # deployment with a GROQ_API_KEY bypasses to a model that actually executes;
+    # ollama-phi3-mini is the always-active last resort (no env-gate) so the path
+    # still resolves when no provider key is present (e.g. unit tests).
     chat_chain: list[str] = Field(
         default_factory=lambda: [
-            "llama-3.1-8b-instant-groq",
-            "llama-3.3-70b-versatile-groq",
+            "groq-llama-3.1-8b-free",
+            "groq-llama-3.3-70b-free",
+            "ollama-phi3-mini",
         ],
         description="Models for greetings / acknowledgments / farewells (ordered by preference)",
     )
     arithmetic_chain: list[str] = Field(
         default_factory=lambda: [
-            "llama-3.1-8b-instant-groq",
-            "llama-3.3-70b-versatile-groq",
+            "groq-llama-3.1-8b-free",
+            "ollama-phi3-mini",
         ],
         description="Models for pure arithmetic queries",
     )
     factual_chain: list[str] = Field(
         default_factory=lambda: [
-            "llama-3.1-8b-instant-groq",
-            "llama-3.3-70b-versatile-groq",
+            "groq-llama-3.1-8b-free",
+            "groq-llama-3.3-70b-free",
+            "ollama-phi3-mini",
         ],
         description="Models for simple factual lookups / definitions",
     )

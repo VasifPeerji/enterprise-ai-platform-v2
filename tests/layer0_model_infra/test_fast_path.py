@@ -245,23 +245,19 @@ class TestDecisionSchema:
 class TestRegistryFallback:
     """When a chain head model is unavailable, the next entry wins."""
 
-    def test_walks_chain_when_head_unavailable(self, fp):
-        from src.layer0_model_infra.registry import get_registry
-        registry = get_registry()
-
-        # Save state, deactivate the chain head, verify fallback wins
+    def test_walks_chain_when_head_unavailable(self, fp, monkeypatch):
+        # The chain head is now an env-gated Groq model. Setting is_active=False
+        # wouldn't stick — get_model re-activates env-gated models from the present
+        # key — so clear GROQ_API_KEY to keep the Groq entries inactive, then verify
+        # Fast Path walks past them to an available entry (ollama-phi3-mini has no
+        # env gate so it stays active).
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
         chain = fp._cfg.chat_chain
         head_id = chain[0]
-        head_model = registry.get_model(head_id)
-        original_active = head_model.is_active
-        try:
-            head_model.is_active = False
-            d = fp.analyze("hello")
-            assert d.should_bypass is True
-            assert d.recommended_model != head_id
-            assert d.recommended_model in chain
-        finally:
-            head_model.is_active = original_active
+        d = fp.analyze("hello")
+        assert d.should_bypass is True
+        assert d.recommended_model != head_id
+        assert d.recommended_model in chain
 
     def test_no_bypass_when_entire_chain_unavailable(self, fp, monkeypatch):
         """When every chain member is unavailable AND the registry's dynamic
