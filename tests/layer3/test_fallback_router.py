@@ -59,41 +59,41 @@ def test_text_modality_uses_text_default(all_keys_set, reset_registry):
 
 def test_code_modality_uses_code_default(all_keys_set, reset_registry):
     decision = _router().route(_features(Modality.CODE), "rid-2", REASON_INSUFFICIENT_NEIGHBORS)
-    assert decision.selected_model == "qwen-2.5-coder-32b-openrouter-free"
+    assert decision.selected_model == "llama-3.3-70b-versatile-groq"
 
 
 def test_math_modality_uses_math_default(all_keys_set, reset_registry):
     decision = _router().route(_features(Modality.MATH), "rid-3", REASON_INSUFFICIENT_NEIGHBORS)
-    assert decision.selected_model == "deepseek-r1-distill-llama-70b-groq"
+    assert decision.selected_model == "llama-3.3-70b-versatile-groq"
 
 
 def test_high_risk_overrides_modality_default(all_keys_set, reset_registry):
     decision = _router().route(
         _features(Modality.TEXT, high_risk=HighRiskDomain.MEDICAL), "rid-4", REASON_INSUFFICIENT_NEIGHBORS
     )
-    assert decision.selected_model == "gemini-1.5-pro"  # high_risk default
+    assert decision.selected_model == "llama-3.3-70b-versatile-groq"  # high_risk default
 
 
-def test_safe_default_policy_free_text_premium_high_risk(all_keys_set, reset_registry):
-    """Policy lock: off-distribution non-high-risk text falls back to a FREE
-    strong model (cost), while medical / legal / financial queries keep a premium
-    default (safety). Guards safe_defaults.text -> free against a silent revert
-    that would route every fallback through a paid model again."""
+def test_safe_default_policy_free_and_capable(all_keys_set, reset_registry):
+    """Policy lock: every safe default resolves to an ACTIVE, free model so a
+    fallback always executes at $0, and the high-risk default is a strong
+    reasoning-capable model (medical / legal / financial get a capable model,
+    not the cheapest). Guards against a future edit repointing a default at a
+    decommissioned or paid model."""
     fb = _router()
     text_default = fb.select_model(_features(Modality.TEXT))
     hr_default = fb.select_model(_features(Modality.TEXT, high_risk=HighRiskDomain.MEDICAL))
     assert text_default is not None and hr_default is not None
-    # non-high-risk text falls back to a free model
-    assert text_default.pricing.input_per_1m_usd == 0.0
-    assert text_default.pricing.output_per_1m_usd == 0.0
-    # high-risk keeps a premium (paid) model
-    assert hr_default.pricing.output_per_1m_usd > 0.0
-    assert hr_default.model_id != text_default.model_id
+    for d in (text_default, hr_default):
+        assert d.is_active
+        assert d.pricing.input_per_1m_usd == 0.0
+        assert d.pricing.output_per_1m_usd == 0.0
+    assert "reasoning" in hr_default.capabilities
 
 
 def test_vision_modality_uses_vision_default(all_keys_set, reset_registry):
     decision = _router().route(_features(Modality.VISION), "rid-5", REASON_UNSUPPORTED_MODALITY)
-    assert decision.selected_model == "gemini-1.5-pro"
+    assert decision.selected_model == "gemini-2.5-flash"
     assert decision.fallback_reason == REASON_UNSUPPORTED_MODALITY
 
 
@@ -146,5 +146,5 @@ def test_select_model_none_when_no_active(no_keys_set, reset_registry):
 def test_select_model_returns_active_entry(all_keys_set, reset_registry):
     entry = _router().select_model(_features(Modality.CODE))
     assert entry is not None
-    assert entry.model_id == "qwen-2.5-coder-32b-openrouter-free"
+    assert entry.model_id == "llama-3.3-70b-versatile-groq"
     assert entry.is_active is True

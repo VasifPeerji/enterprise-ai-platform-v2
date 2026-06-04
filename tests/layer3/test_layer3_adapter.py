@@ -21,25 +21,25 @@ from src.layer0_model_infra.routing.registry_loader import get_layer3_registry
 
 
 def test_pricing_converted_per_1m_to_per_1k(all_keys_set, reset_registry):
-    entry = get_layer3_registry().get("gemini-1.5-pro")  # 1.25 / 5.00 per 1M
+    entry = get_layer3_registry().get("gemini-2.5-flash")  # 0.30 / 2.50 per 1M
     md = registry_entry_to_model_definition(entry)
-    assert md.model_id == "gemini-1.5-pro"
-    assert md.model_name == "gemini/gemini-1.5-pro"  # litellm string for the gateway
+    assert md.model_id == "gemini-2.5-flash"
+    assert md.model_name == "gemini/gemini-2.5-flash"  # litellm string for the gateway
     assert md.provider == ModelProvider.GOOGLE
     assert md.model_type == ModelType.MULTIMODAL
-    assert md.pricing.input_cost_per_1k_tokens == pytest.approx(0.00125)
-    assert md.pricing.output_cost_per_1k_tokens == pytest.approx(0.005)
+    assert md.pricing.input_cost_per_1k_tokens == pytest.approx(0.0003)
+    assert md.pricing.output_cost_per_1k_tokens == pytest.approx(0.0025)
     assert md.max_tokens == entry.context_window
     assert md.is_active is True
 
 
 def test_capabilities_and_flags_mapped(all_keys_set, reset_registry):
     md = registry_entry_to_model_definition(
-        get_layer3_registry().get("qwen-2.5-coder-32b-openrouter-free")
+        get_layer3_registry().get("llama-3.3-70b-versatile-groq")
     )
     assert ModelCapability.CODING in md.capabilities
     assert md.supports_streaming is True
-    assert md.provider == ModelProvider.OPENROUTER
+    assert md.provider == ModelProvider.GROQ
 
 
 def test_register_makes_models_gateway_resolvable(all_keys_set, reset_registry):

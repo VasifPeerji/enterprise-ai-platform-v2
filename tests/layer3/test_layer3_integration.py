@@ -35,7 +35,7 @@ def _l3_decision(model="llama-3.1-8b-instant-groq", source=RoutingSource.KNN_COR
             language="en", modality=Modality.TEXT, high_risk_domain=high_risk,
             estimated_input_tokens=20, estimated_output_tokens=400, char_count=80,
         ),
-        qualifying_models=[model, "gemma2-9b-it-groq"],
+        qualifying_models=[model, "llama-3.3-70b-versatile-groq"],
         feature_cell="text:en:none:normal", quality_floor_base=0.65,
         effective_floor=0.65, latency_ms=42.0,
     )
@@ -95,7 +95,7 @@ def test_full_route_through_layer3(router):
     assert d.confidence_level == "HIGH"
     assert d.triage_result["synthesized"] is True
     assert d.estimated_cost_usd == 0.0
-    assert [m.model_id for m in d.fallback_models] == ["gemma2-9b-it-groq"]
+    assert [m.model_id for m in d.fallback_models] == ["llama-3.3-70b-versatile-groq"]
 
 
 def test_layer3_failure_returns_none_for_legacy_fallthrough(router):
@@ -116,7 +116,7 @@ def test_adapt_carries_audit_trail(router):
     d = router._adapt_layer3_decision(_l3_decision(), md, ma, None, None)
     assert d.pipeline_metadata["layer3_feature_cell"] == "text:en:none:normal"
     assert d.pipeline_metadata["layer3_qualifying_models"] == [
-        "llama-3.1-8b-instant-groq", "gemma2-9b-it-groq"
+        "llama-3.1-8b-instant-groq", "llama-3.3-70b-versatile-groq"
     ]
     assert d.pipeline_metadata["layer3_effective_floor"] == 0.65
     assert d.uncertainty_score["synthesized"] is True

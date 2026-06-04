@@ -36,7 +36,7 @@ from src.layer0_model_infra.routing.registry_loader import (
 def test_loads_bundled_registry(registry_path):
     """The shipped registry.json parses with every entry validating."""
     reg = Layer3Registry(registry_path)
-    assert len(reg.all_models()) >= 20, "expected ~22 models in the bundled registry"
+    assert len(reg.all_models()) >= 10, "expected ~13 models in the bundled registry after the 2026-06 refresh"
     assert reg.safe_defaults is not None
 
 
@@ -181,7 +181,7 @@ def test_p1_net_effect_significant_low_coverage_population(registry_path):
         f"only {low_count}/{total} models tagged 'low'; P1 not applied? "
         f"Expected at least 6 frontier/cheap-paid models to be coverage_quality=low."
     )
-    assert low_count + medium_count >= 12, (
+    assert low_count + medium_count >= 8, (
         f"only {low_count + medium_count}/{total} models tagged low+medium; "
         f"too many models claiming 'full' coverage — likely an honest-tagging regression."
     )

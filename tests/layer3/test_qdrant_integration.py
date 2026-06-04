@@ -186,7 +186,7 @@ def test_question_global_id_format(client, encoder):
         benchmark = qid.split(":", 1)[0]
         assert benchmark in {
             "livebench", "mmlu_pro", "livecodebench", "swe_bench_verified",
-            "gpqa_diamond", "arena_hard", "mt_bench",
+            "gpqa_diamond", "arena_hard", "mt_bench", "wildbench",
         }, f"unknown benchmark prefix in qid: {qid}"
 
 

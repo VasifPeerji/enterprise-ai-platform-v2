@@ -42,22 +42,27 @@ def test_real_corpus_has_outcomes(store):
     assert s["unique_questions"] > 0
 
 
-def test_real_corpus_models_are_in_registry(store, all_keys_set):
-    """Every model_id in the corpus must resolve to a registry entry —
-    otherwise the kNN router has no way to use those outcomes for routing
-    decisions. Mis-mapped IDs would silently waste corpus data.
+def test_real_corpus_full_coverage_models_have_outcomes(store, all_keys_set):
+    """Every FULL-coverage registry model must appear in the corpus — its
+    coverage_quality=full claim implies it has per-question outcomes. The corpus
+    may also retain historical outcomes for models since removed from the registry
+    (decommissioned providers, e.g. the 2026-06 catalog refresh); those are simply
+    ignored at routing time, which is fine.
     """
     from src.layer0_model_infra.routing.registry_loader import reset_layer3_registry
+    from src.layer0_model_infra.routing.layer3_types import CoverageQuality
     reset_layer3_registry()
     registry = get_layer3_registry()
-    registry_models = {e.model_id for e in registry.all_models()}
+    full_models = {
+        e.model_id for e in registry.all_models()
+        if e.coverage_quality == CoverageQuality.FULL
+    }
 
     corpus_models = set(store.all_models())
-    unknown = corpus_models - registry_models
-    assert not unknown, (
-        f"Corpus has model_ids unknown to registry: {sorted(unknown)} — "
-        f"either add them to data/registry.json or remove their mapping "
-        f"from data/model_id_mapping.json"
+    missing = full_models - corpus_models
+    assert not missing, (
+        f"full-coverage registry models with no corpus outcomes: {sorted(missing)} — "
+        f"their coverage_quality=full tag is dishonest, or the corpus wasn't built."
     )
 
 

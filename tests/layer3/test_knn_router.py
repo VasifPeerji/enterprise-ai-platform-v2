@@ -94,7 +94,7 @@ def synthetic_outcomes(tmp_path: Path) -> Path:
     # full-coverage model with 4 outcomes on the neighbor set → uses kNN
     add("llama-3.3-70b-versatile-groq", [(qids[0], 1.0), (qids[1], 1.0), (qids[2], 0.0), (qids[3], 1.0)])
     # full-coverage model with only 2 outcomes → falls to prior
-    add("gemma2-9b-it-groq", [(qids[0], 1.0), (qids[1], 1.0)])
+    add("llama-3.1-8b-instant-groq", [(qids[0], 1.0), (qids[1], 1.0)])
     # low-coverage model with 5 outcomes → STILL prior (coverage_quality=low)
     add("claude-opus-4-5", [(q, 1.0) for q in qids])
 
@@ -179,10 +179,10 @@ def test_predict_falls_to_prior_below_min_outcomes(all_keys_set, reset_registry,
     qualities, confidence, prior_used = router._predict_qualities(feats, neighbors, cell)
 
     # only 2 outcomes → prior
-    assert prior_used["gemma2-9b-it-groq"] is True
-    assert confidence["gemma2-9b-it-groq"] == "low"
-    expected = get_aggregate_scores().prior_quality("gemma2-9b-it-groq", Modality.TEXT)
-    assert qualities["gemma2-9b-it-groq"] == pytest.approx(expected, abs=1e-6)
+    assert prior_used["llama-3.1-8b-instant-groq"] is True
+    assert confidence["llama-3.1-8b-instant-groq"] == "low"
+    expected = get_aggregate_scores().prior_quality("llama-3.1-8b-instant-groq", Modality.TEXT)
+    assert qualities["llama-3.1-8b-instant-groq"] == pytest.approx(expected, abs=1e-6)
 
 
 def test_predict_low_coverage_always_uses_prior(all_keys_set, reset_registry, synthetic_outcomes, tmp_path):
@@ -206,7 +206,7 @@ def test_cost_minimization_picks_cheapest_qualifier(all_keys_set, reset_registry
     feats = _features(Modality.TEXT)
     qualities = {
         "llama-3.1-8b-instant-groq": 0.70,    # free
-        "gemini-1.5-pro": 0.90,               # paid
+        "gemini-2.5-flash": 0.90,               # paid
         "gpt-4o": 0.95,                       # paid, pricier
     }
     confidence = {k: "high" for k in qualities}
@@ -219,10 +219,10 @@ def test_cost_minimization_picks_cheapest_qualifier(all_keys_set, reset_registry
 def test_below_floor_models_excluded(all_keys_set, reset_registry, tmp_path):
     router = _router(tmp_path)
     feats = _features(Modality.TEXT)
-    qualities = {"llama-3.1-8b-instant-groq": 0.50, "gemini-1.5-pro": 0.90}  # 0.50 < 0.65
+    qualities = {"llama-3.1-8b-instant-groq": 0.50, "gemini-2.5-flash": 0.90}  # 0.50 < 0.65
     confidence = {k: "high" for k in qualities}
     decision = router._choose("q", feats, qualities, confidence, [], "rid", make_feature_cell(feats))
-    assert decision.selected_model == "gemini-1.5-pro"
+    assert decision.selected_model == "gemini-2.5-flash"
     assert "llama-3.1-8b-instant-groq" not in decision.qualifying_models
 
 
@@ -252,14 +252,14 @@ def test_high_risk_raises_floor(all_keys_set, reset_registry, tmp_path):
     router = _router(tmp_path)
     feats = _features(Modality.TEXT, high_risk=HighRiskDomain.MEDICAL)  # base floor 0.75
     # llama-3.1-8b is full-coverage → effective floor is the 0.75 base; 0.70 misses it.
-    # gemini-1.5-pro is low-coverage → effective floor 0.75 + 0.10 penalty = 0.85, so it
+    # gemini-2.5-flash is low-coverage → effective floor 0.75 + 0.10 penalty = 0.85, so it
     # needs 0.90 to qualify (a re-tag to medium/full would only lower that bar).
-    qualities = {"llama-3.1-8b-instant-groq": 0.70, "gemini-1.5-pro": 0.90}
+    qualities = {"llama-3.1-8b-instant-groq": 0.70, "gemini-2.5-flash": 0.90}
     confidence = {k: "high" for k in qualities}
     decision = router._choose("q", feats, qualities, confidence, [], "rid", make_feature_cell(feats))
     assert decision.quality_floor_base == 0.75
     assert "llama-3.1-8b-instant-groq" not in decision.qualifying_models  # 0.70 < 0.75
-    assert decision.selected_model == "gemini-1.5-pro"
+    assert decision.selected_model == "gemini-2.5-flash"
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +271,7 @@ def test_exploration_forces_borderline_model(all_keys_set, reset_registry, tmp_p
     # rng.random()=0.0 → always explore. 0.62 is within [floor-band, floor) = [0.60, 0.65).
     router = _router(tmp_path, rng=_SeqRng([0.0]))
     feats = _features(Modality.TEXT)
-    qualities = {"llama-3.1-8b-instant-groq": 0.62, "gemini-1.5-pro": 0.90}
+    qualities = {"llama-3.1-8b-instant-groq": 0.62, "gemini-2.5-flash": 0.90}
     confidence = {k: "high" for k in qualities}
     decision = router._choose("q", feats, qualities, confidence, [], "rid", make_feature_cell(feats))
     assert decision.source == RoutingSource.EXPLORATION
@@ -280,12 +280,13 @@ def test_exploration_forces_borderline_model(all_keys_set, reset_registry, tmp_p
 
 
 def test_warmup_does_not_fire_for_established_models(all_keys_set, reset_registry, tmp_path):
-    # All registry models were added 2026-04-01 (well past max_age_days), so even
-    # when the dice say "warm up" the pool is empty → normal cost-min.
+    # Both models here were added 2026-04-01 (well past max_age_days), so even
+    # when the dice say "warm up" the warmup pool is empty → normal cost-min.
+    # gpt-4o is paid, so the free llama stays cheapest.
     # randoms: skip exploration (0.99), would-fire warmup (0.0).
     router = _router(tmp_path, rng=_SeqRng([0.99, 0.0]))
     feats = _features(Modality.TEXT)
-    qualities = {"llama-3.1-8b-instant-groq": 0.80, "gemini-1.5-pro": 0.90}
+    qualities = {"llama-3.1-8b-instant-groq": 0.80, "gpt-4o": 0.95}
     confidence = {k: "high" for k in qualities}
     decision = router._choose("q", feats, qualities, confidence, [], "rid", make_feature_cell(feats))
     assert decision.source == RoutingSource.KNN_CORPUS
@@ -461,7 +462,7 @@ def test_cache_skips_inactive_cached_model(only_groq_set, reset_registry, tmp_pa
     cache = VerdictCache(enable_semantic_tier=False)
     seed = RoutingDecision(
         request_id="seed", timestamp=datetime.now(timezone.utc),
-        selected_model="gemini-1.5-pro",  # inactive when only GROQ is set
+        selected_model="gemini-2.5-flash",  # inactive when only GROQ is set
         source=RoutingSource.KNN_CORPUS, predicted_quality=0.9, estimated_cost_usd=0.0,
         features=_features(),
     )
@@ -479,11 +480,11 @@ def test_context_window_excludes_too_small_models(all_keys_set, reset_registry, 
         language="en", modality=Modality.TEXT,
         estimated_input_tokens=500_000, estimated_output_tokens=400, char_count=100,
     )
-    qualities = {"gemma2-9b-it-groq": 0.9, "gemini-1.5-pro": 0.9}  # 8k ctx vs 2M ctx
+    qualities = {"llama-3.1-8b-instant-groq": 0.9, "gemini-2.5-flash": 0.9}  # 8k ctx vs 2M ctx
     confidence = {k: "high" for k in qualities}
     d = router._choose("q", feats, qualities, confidence, [], "rid", make_feature_cell(feats))
-    assert "gemma2-9b-it-groq" not in d.qualifying_models
-    assert d.selected_model == "gemini-1.5-pro"
+    assert "llama-3.1-8b-instant-groq" not in d.qualifying_models
+    assert d.selected_model == "gemini-2.5-flash"
 
 
 def test_cost_min_skips_rate_limited_model(all_keys_set, reset_registry, tmp_path):
