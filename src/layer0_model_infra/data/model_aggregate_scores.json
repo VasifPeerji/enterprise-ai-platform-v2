@@ -3,29 +3,29 @@
     "schema_version": "1.0",
     "purpose": "Per-model aggregate benchmark scores used by the prior_quality() function in routing/aggregate_scores.py. Consumed whenever a model has fewer than the minimum number of per-question kNN outcomes (coverage_quality='low' OR neighbor outcomes < 3). Scores are normalised to [0, 1] regardless of the benchmark's native scale.",
     "sources": {
-      "humaneval": "https://github.com/openai/human-eval — pass@1",
-      "humaneval_plus": "https://github.com/evalplus/evalplus — pass@1",
-      "mbpp": "https://huggingface.co/datasets/mbpp — pass@1",
-      "swe_bench_verified": "https://www.swebench.com/ — verified split",
-      "livecodebench": "https://livecodebench.github.io/ — pass@1 average across 4 cutoffs",
-      "mmlu": "https://huggingface.co/datasets/cais/mmlu — 5-shot accuracy",
-      "mmlu_pro": "https://huggingface.co/datasets/TIGER-Lab/MMLU-Pro — accuracy",
-      "gpqa_diamond": "https://huggingface.co/datasets/Idavidrein/gpqa — pass rate",
-      "math_hard": "https://github.com/openai/prm800k — accuracy on hard split",
-      "gsm8k": "https://huggingface.co/datasets/gsm8k — accuracy",
-      "bbh": "https://github.com/suzgunmirac/BIG-Bench-Hard — average accuracy",
-      "ifeval": "https://huggingface.co/datasets/google/IFEval — instruction-following score",
-      "livebench_coding": "https://livebench.ai — coding subset, average",
-      "livebench_reasoning": "https://livebench.ai — reasoning subset, average",
-      "mmmu": "https://mmmu-benchmark.github.io/ — multimodal accuracy",
-      "mathvista": "https://mathvista.github.io/ — multimodal math accuracy",
-      "arena_elo_normalised": "https://lmarena.ai — Arena Elo normalised to [0, 1] via (elo - 1000) / 500, clamped"
+      "humaneval": "https://github.com/openai/human-eval \u2014 pass@1",
+      "humaneval_plus": "https://github.com/evalplus/evalplus \u2014 pass@1",
+      "mbpp": "https://huggingface.co/datasets/mbpp \u2014 pass@1",
+      "swe_bench_verified": "https://www.swebench.com/ \u2014 verified split",
+      "livecodebench": "https://livecodebench.github.io/ \u2014 pass@1 average across 4 cutoffs",
+      "mmlu": "https://huggingface.co/datasets/cais/mmlu \u2014 5-shot accuracy",
+      "mmlu_pro": "https://huggingface.co/datasets/TIGER-Lab/MMLU-Pro \u2014 accuracy",
+      "gpqa_diamond": "https://huggingface.co/datasets/Idavidrein/gpqa \u2014 pass rate",
+      "math_hard": "https://github.com/openai/prm800k \u2014 accuracy on hard split",
+      "gsm8k": "https://huggingface.co/datasets/gsm8k \u2014 accuracy",
+      "bbh": "https://github.com/suzgunmirac/BIG-Bench-Hard \u2014 average accuracy",
+      "ifeval": "https://huggingface.co/datasets/google/IFEval \u2014 instruction-following score",
+      "livebench_coding": "https://livebench.ai \u2014 coding subset, average",
+      "livebench_reasoning": "https://livebench.ai \u2014 reasoning subset, average",
+      "mmmu": "https://mmmu-benchmark.github.io/ \u2014 multimodal accuracy",
+      "mathvista": "https://mathvista.github.io/ \u2014 multimodal math accuracy",
+      "arena_elo_normalised": "https://lmarena.ai \u2014 Arena Elo normalised to [0, 1] via (elo - 1000) / 500, clamped"
     },
-    "missing_value_policy": "If a benchmark is absent for a model, the prior_quality() function simply omits it from the weighted average — the model is not penalised for lacking a score, but its weighted sum normalises against the benchmarks that ARE present.",
-    "last_refresh": "2026-05-21",
-    "refresh_cadence": "monthly via scripts/build_aggregate_scores.py (to be added in a later batch)"
+    "missing_value_policy": "If a benchmark is absent for a model, the prior_quality() function simply omits it from the weighted average \u2014 the model is not penalised for lacking a score, but its weighted sum normalises against the benchmarks that ARE present.",
+    "last_refresh": "2026-06-04",
+    "refresh_cadence": "monthly via scripts/build_aggregate_scores.py (to be added in a later batch)",
+    "estimate_note": "gpt-oss-120b/20b, qwen3-32b, llama-4-scout-17b and gemini-2.5-flash/-lite scores added 2026-06-04 are published-benchmark ESTIMATES (no per-question corpus outcomes yet); flag for verification against Artificial Analysis / the official cards."
   },
-
   "models": {
     "llama-3.3-70b-versatile-groq": {
       "humaneval": 0.88,
@@ -34,7 +34,7 @@
       "livecodebench": 0.62,
       "mmlu": 0.86,
       "mmlu_pro": 0.69,
-      "gpqa_diamond": 0.50,
+      "gpqa_diamond": 0.5,
       "math_hard": 0.49,
       "gsm8k": 0.94,
       "bbh": 0.82,
@@ -50,20 +50,20 @@
       "livecodebench": 0.32,
       "mmlu": 0.73,
       "mmlu_pro": 0.48,
-      "gpqa_diamond": 0.30,
-      "math_hard": 0.30,
+      "gpqa_diamond": 0.3,
+      "math_hard": 0.3,
       "gsm8k": 0.84,
       "bbh": 0.65,
-      "ifeval": 0.80,
-      "livebench_coding": 0.30,
+      "ifeval": 0.8,
+      "livebench_coding": 0.3,
       "livebench_reasoning": 0.32,
-      "arena_elo_normalised": 0.70
+      "arena_elo_normalised": 0.7
     },
     "deepseek-r1-distill-llama-70b-groq": {
       "humaneval": 0.91,
       "humaneval_plus": 0.85,
       "mbpp": 0.87,
-      "livecodebench": 0.70,
+      "livecodebench": 0.7,
       "mmlu": 0.88,
       "mmlu_pro": 0.72,
       "gpqa_diamond": 0.65,
@@ -72,7 +72,7 @@
       "bbh": 0.84,
       "ifeval": 0.88,
       "livebench_coding": 0.65,
-      "livebench_reasoning": 0.70,
+      "livebench_reasoning": 0.7,
       "arena_elo_normalised": 0.86
     },
     "qwen-qwq-32b-groq": {
@@ -101,9 +101,8 @@
       "ifeval": 0.74,
       "arena_elo_normalised": 0.75
     },
-
     "deepseek-v3-openrouter-free": {
-      "humaneval": 0.90,
+      "humaneval": 0.9,
       "humaneval_plus": 0.84,
       "mbpp": 0.86,
       "livecodebench": 0.68,
@@ -121,11 +120,11 @@
     "qwen-2.5-coder-32b-openrouter-free": {
       "humaneval": 0.92,
       "humaneval_plus": 0.86,
-      "mbpp": 0.90,
+      "mbpp": 0.9,
       "livecodebench": 0.72,
       "mmlu": 0.79,
       "mmlu_pro": 0.61,
-      "math_hard": 0.50,
+      "math_hard": 0.5,
       "gsm8k": 0.86,
       "bbh": 0.75,
       "livebench_coding": 0.68,
@@ -138,7 +137,7 @@
       "livecodebench": 0.62,
       "mmlu": 0.86,
       "mmlu_pro": 0.69,
-      "gpqa_diamond": 0.50,
+      "gpqa_diamond": 0.5,
       "math_hard": 0.49,
       "gsm8k": 0.94,
       "bbh": 0.82,
@@ -172,7 +171,6 @@
       "mathvista": 0.58,
       "arena_elo_normalised": 0.87
     },
-
     "gemini-2.0-flash": {
       "humaneval": 0.89,
       "humaneval_plus": 0.83,
@@ -187,9 +185,9 @@
       "ifeval": 0.88,
       "livebench_coding": 0.59,
       "livebench_reasoning": 0.65,
-      "mmmu": 0.70,
+      "mmmu": 0.7,
       "mathvista": 0.74,
-      "arena_elo_normalised": 0.90
+      "arena_elo_normalised": 0.9
     },
     "gemini-1.5-flash": {
       "humaneval": 0.74,
@@ -215,13 +213,12 @@
       "gpqa_diamond": 0.59,
       "math_hard": 0.67,
       "gsm8k": 0.91,
-      "bbh": 0.80,
+      "bbh": 0.8,
       "ifeval": 0.88,
       "mmmu": 0.68,
       "mathvista": 0.63,
       "arena_elo_normalised": 0.88
     },
-
     "command-r-cohere": {
       "mmlu": 0.68,
       "mmlu_pro": 0.46,
@@ -235,50 +232,48 @@
     "command-r-plus-cohere": {
       "mmlu": 0.76,
       "mmlu_pro": 0.55,
-      "gpqa_diamond": 0.40,
+      "gpqa_diamond": 0.4,
       "math_hard": 0.45,
       "gsm8k": 0.83,
       "bbh": 0.71,
       "ifeval": 0.83,
       "arena_elo_normalised": 0.83
     },
-
     "qwen-2.5-72b-huggingface": {
       "humaneval": 0.86,
       "humaneval_plus": 0.79,
       "mbpp": 0.83,
-      "livecodebench": 0.60,
+      "livecodebench": 0.6,
       "mmlu": 0.84,
       "mmlu_pro": 0.71,
       "gpqa_diamond": 0.49,
       "math_hard": 0.62,
       "gsm8k": 0.92,
-      "bbh": 0.80,
+      "bbh": 0.8,
       "ifeval": 0.85,
       "livebench_coding": 0.58,
       "livebench_reasoning": 0.62,
       "arena_elo_normalised": 0.85
     },
-
     "gpt-4o-mini": {
       "humaneval": 0.87,
       "mbpp": 0.85,
       "livecodebench": 0.55,
       "mmlu": 0.82,
       "mmlu_pro": 0.63,
-      "gpqa_diamond": 0.40,
-      "math_hard": 0.70,
+      "gpqa_diamond": 0.4,
+      "math_hard": 0.7,
       "gsm8k": 0.93,
       "bbh": 0.78,
       "ifeval": 0.87,
       "livebench_coding": 0.55,
       "livebench_reasoning": 0.55,
-      "mmmu": 0.60,
+      "mmmu": 0.6,
       "mathvista": 0.56,
       "arena_elo_normalised": 0.85
     },
     "gpt-4o": {
-      "humaneval": 0.90,
+      "humaneval": 0.9,
       "mbpp": 0.87,
       "livecodebench": 0.65,
       "mmlu": 0.88,
@@ -292,9 +287,8 @@
       "livebench_reasoning": 0.66,
       "mmmu": 0.69,
       "mathvista": 0.64,
-      "arena_elo_normalised": 0.90
+      "arena_elo_normalised": 0.9
     },
-
     "claude-3-5-haiku": {
       "humaneval": 0.88,
       "mbpp": 0.83,
@@ -346,15 +340,125 @@
       "mmlu_pro": 0.86,
       "gpqa_diamond": 0.69,
       "math_hard": 0.86,
-      "bbh": 0.90,
+      "bbh": 0.9,
       "ifeval": 0.93,
-      "livebench_coding": 0.80,
+      "livebench_coding": 0.8,
       "livebench_reasoning": 0.81,
       "arena_elo_normalised": 0.95
     },
-    "nemotron-70b-huggingface": {"mmlu_pro": 0.49, "arena_elo_normalised": 0.85, "ifeval": 0.87, "bbh": 0.78},
-    "qwen-2.5-32b-huggingface": {"mmlu_pro": 0.57, "arena_elo_normalised": 0.84, "humaneval": 0.88, "math_hard": 0.83, "gpqa_diamond": 0.49},
-    "mistral-small-2409-openrouter": {"mmlu_pro": 0.41, "arena_elo_normalised": 0.76, "humaneval": 0.80},
-    "kimi-k2-openrouter-free": {"mmlu_pro": 0.69, "swe_bench_verified": 0.77, "livecodebench": 0.65, "humaneval": 0.92, "arena_elo_normalised": 0.90, "gpqa_diamond": 0.60}
+    "nemotron-70b-huggingface": {
+      "mmlu_pro": 0.49,
+      "arena_elo_normalised": 0.85,
+      "ifeval": 0.87,
+      "bbh": 0.78
+    },
+    "qwen-2.5-32b-huggingface": {
+      "mmlu_pro": 0.57,
+      "arena_elo_normalised": 0.84,
+      "humaneval": 0.88,
+      "math_hard": 0.83,
+      "gpqa_diamond": 0.49
+    },
+    "mistral-small-2409-openrouter": {
+      "mmlu_pro": 0.41,
+      "arena_elo_normalised": 0.76,
+      "humaneval": 0.8
+    },
+    "kimi-k2-openrouter-free": {
+      "mmlu_pro": 0.69,
+      "swe_bench_verified": 0.77,
+      "livecodebench": 0.65,
+      "humaneval": 0.92,
+      "arena_elo_normalised": 0.9,
+      "gpqa_diamond": 0.6
+    },
+    "gpt-oss-120b-groq": {
+      "mmlu_pro": 0.8,
+      "gpqa_diamond": 0.72,
+      "math_hard": 0.7,
+      "gsm8k": 0.96,
+      "bbh": 0.85,
+      "ifeval": 0.9,
+      "humaneval": 0.9,
+      "humaneval_plus": 0.84,
+      "mbpp": 0.86,
+      "livecodebench": 0.66,
+      "livebench_coding": 0.62,
+      "livebench_reasoning": 0.7,
+      "arena_elo_normalised": 0.9
+    },
+    "gpt-oss-20b-groq": {
+      "mmlu_pro": 0.68,
+      "gpqa_diamond": 0.56,
+      "math_hard": 0.58,
+      "gsm8k": 0.9,
+      "bbh": 0.74,
+      "ifeval": 0.86,
+      "humaneval": 0.82,
+      "humaneval_plus": 0.75,
+      "mbpp": 0.78,
+      "livecodebench": 0.5,
+      "livebench_coding": 0.48,
+      "livebench_reasoning": 0.56,
+      "arena_elo_normalised": 0.82
+    },
+    "qwen3-32b-groq": {
+      "mmlu_pro": 0.76,
+      "gpqa_diamond": 0.66,
+      "math_hard": 0.72,
+      "gsm8k": 0.95,
+      "bbh": 0.82,
+      "ifeval": 0.85,
+      "humaneval": 0.86,
+      "humaneval_plus": 0.8,
+      "mbpp": 0.83,
+      "livecodebench": 0.6,
+      "livebench_coding": 0.58,
+      "livebench_reasoning": 0.66,
+      "arena_elo_normalised": 0.86
+    },
+    "llama-4-scout-17b-groq": {
+      "mmlu_pro": 0.74,
+      "gpqa_diamond": 0.6,
+      "math_hard": 0.55,
+      "gsm8k": 0.92,
+      "bbh": 0.8,
+      "ifeval": 0.88,
+      "humaneval": 0.84,
+      "humaneval_plus": 0.78,
+      "mbpp": 0.81,
+      "livecodebench": 0.55,
+      "livebench_coding": 0.52,
+      "livebench_reasoning": 0.62,
+      "arena_elo_normalised": 0.87
+    },
+    "gemini-2.5-flash": {
+      "mmlu_pro": 0.8,
+      "gpqa_diamond": 0.68,
+      "math_hard": 0.72,
+      "gsm8k": 0.94,
+      "bbh": 0.84,
+      "ifeval": 0.9,
+      "humaneval": 0.88,
+      "livecodebench": 0.64,
+      "livebench_reasoning": 0.7,
+      "mmmu": 0.72,
+      "mathvista": 0.68,
+      "arena_elo_normalised": 0.9
+    },
+    "gemini-2.5-flash-lite": {
+      "mmlu_pro": 0.72,
+      "gpqa_diamond": 0.58,
+      "math_hard": 0.6,
+      "gsm8k": 0.9,
+      "bbh": 0.78,
+      "ifeval": 0.86,
+      "humaneval": 0.82,
+      "livecodebench": 0.52,
+      "livebench_reasoning": 0.6,
+      "mmmu": 0.64,
+      "mathvista": 0.6,
+      "arena_elo_normalised": 0.85
+    }
   }
 }
