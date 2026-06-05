@@ -414,7 +414,20 @@ class KnnRouter:
     # ------------------------------------------------------------------
 
     def _base_floor(self, features: QueryFeatures) -> float:
-        return self._floor_high_risk if features.high_risk_domain is not None else self._floor_default
+        base = (
+            self._floor_high_risk
+            if features.high_risk_domain is not None
+            else self._floor_default
+        )
+        # Hard/complex queries demand higher predicted quality: a model that's
+        # only good on average shouldn't qualify, so the bar rises toward the
+        # strongest models (where Claude wins complex coding). The difficulty
+        # signal is a coarse hint, so the bump is modest and capped.
+        difficulty = getattr(features.difficulty_signal, "value", str(features.difficulty_signal))
+        if difficulty == "hard":
+            qf = self._config.quality_floor
+            base = min(base + qf.hard_difficulty_penalty, qf.floor_ceiling)
+        return base
 
     def _effective_floor(self, model, base_floor: float) -> float:
         if model.coverage_quality == CoverageQuality.LOW:

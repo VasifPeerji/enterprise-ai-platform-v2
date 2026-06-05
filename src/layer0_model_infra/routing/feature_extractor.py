@@ -253,6 +253,17 @@ _HARD_DIFFICULTY_MARKERS = [
                r"fault[- ]tolerant|multi[- ]tenant|production[- ]grade)", re.IGNORECASE),
     re.compile(r"\b(?:novel|original|new)\s+(?:algorithm|architecture|approach|framework)\b", re.IGNORECASE),
     re.compile(r"\b(?:p\s*vs\s*np|riemann|np[- ]hard|np[- ]complete)\b", re.IGNORECASE),
+    # Complex software builds — a whole app / site / system / service, or a
+    # full-stack / multi-component build. Claude is the strongest at these, so
+    # flagging them HARD lets the elevated quality floor route them to it.
+    re.compile(
+        r"\b(?:build|create|design|develop|implement|make|write|code|program)\s+"
+        r"(?:[\w][\w-]*\s+){0,5}?"  # determiner + adjectives, e.g. "a complete full-stack e-commerce web"
+        r"(?:app|application|web\s*app|web\s*site|website|platform|system|service|"
+        r"dashboard|backend|front[- ]?end|game|clone|micro[- ]?services?|pipeline|"
+        r"software|tool|bot|engine|database|api)\b",
+        re.IGNORECASE,
+    ),
 ]
 
 

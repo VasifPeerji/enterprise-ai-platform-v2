@@ -387,6 +387,17 @@ class Layer3QualityFloorConfig(BaseModel):
                     "coverage_quality=low. Prevents frontier models from "
                     "winning on inflated aggregate priors.",
     )
+    hard_difficulty_penalty: float = Field(
+        default=0.10,
+        ge=0.0,
+        le=0.30,
+        description="Added to the base floor when the query reads as HARD "
+                    "(complex coding like building a whole app, proofs, system "
+                    "design, long multi-part tasks). Raises the bar so a model "
+                    "that's only good on average no longer qualifies and the "
+                    "strongest models win — which is where Claude takes complex "
+                    "coding. Capped at floor_ceiling.",
+    )
     floor_ceiling: float = Field(
         default=0.95,
         ge=0.5,

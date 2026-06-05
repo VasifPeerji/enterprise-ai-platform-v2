@@ -27,6 +27,7 @@ from src.layer0_model_infra.routing.knn_router import (
     make_feature_cell,
 )
 from src.layer0_model_infra.routing.layer3_types import (
+    DifficultySignal,
     HighRiskDomain,
     Modality,
     QueryFeatures,
@@ -266,6 +267,30 @@ def test_high_risk_raises_floor(all_keys_set, reset_registry, tmp_path):
     assert decision.quality_floor_base == 0.75
     assert "llama-3.1-8b-instant-groq" not in decision.qualifying_models  # 0.70 < 0.75
     assert decision.selected_model == "gemini-2.5-flash"
+
+
+def test_hard_difficulty_raises_floor(all_keys_set, reset_registry, tmp_path):
+    # A HARD query (complex coding, system design, proofs) lifts the base floor,
+    # so a model that only clears the default 0.65 no longer qualifies — the bar
+    # rises toward the strongest models (which is where Claude wins on code).
+    router = _router(tmp_path)
+    normal = _features(Modality.CODE)
+    hard = QueryFeatures(
+        language="en", modality=Modality.CODE, high_risk_domain=None,
+        estimated_input_tokens=50, estimated_output_tokens=500,
+        difficulty_signal=DifficultySignal.HARD, char_count=120,
+    )
+    assert router._base_floor(normal) == pytest.approx(0.65)
+    assert router._base_floor(hard) == pytest.approx(0.75)  # 0.65 + 0.10 hard bump
+    # llama-3.3-70b (0.70) clears the normal floor; on a HARD code task the bar
+    # rises so it no longer qualifies and only Claude does.
+    qualities = {"llama-3.3-70b-versatile-groq": 0.70, "claude-opus-4-5": 0.90}
+    confidence = {k: "high" for k in qualities}
+    d_normal = router._choose("q", normal, qualities, confidence, [], "rid", make_feature_cell(normal))
+    d_hard = router._choose("q", hard, qualities, confidence, [], "rid", make_feature_cell(hard))
+    assert d_normal.selected_model == "llama-3.3-70b-versatile-groq"  # cheapest qualifier
+    assert "llama-3.3-70b-versatile-groq" not in d_hard.qualifying_models  # excluded by hard floor
+    assert d_hard.selected_model == "claude-opus-4-5"  # only model clearing the hard bar
 
 
 # ---------------------------------------------------------------------------
