@@ -34,6 +34,7 @@ without a live encoder or Qdrant; production wiring uses the module singletons.
 from __future__ import annotations
 
 import random
+import re
 import threading
 import time
 import uuid
@@ -69,6 +70,10 @@ logger = get_logger(__name__)
 # Vision / multimodal queries are routed to Stage D before any search, since a
 # kNN hit would necessarily be a different-modality question.
 _CORPUS_MODALITIES = frozenset({Modality.TEXT, Modality.CODE, Modality.MATH})
+
+# Param-count proxy (the "<N>b" in a model name) used to break cost ties among
+# equally-priced (free) models — see KnnRouter._model_compute_cost.
+_MODEL_SIZE_RE = re.compile(r"(\d+(?:\.\d+)?)\s*b\b", re.IGNORECASE)
 
 
 def _as_modality(value) -> Modality:
@@ -423,6 +428,27 @@ class KnnRouter:
             features.estimated_input_tokens, features.estimated_output_tokens
         )
 
+    def _model_compute_cost(self, model_id: str) -> float:
+        """Compute-cost proxy (≈ params in billions) for breaking cost ties.
+        When several models cost the same USD — the all-free pool, where dollar
+        cost is 0 for everyone — "cheapest" should mean the SMALLEST model that
+        still clears the floor (cheaper compute, lower latency), not the biggest
+        free one. Parsed from the model name; 'lite/nano/mini' and 'flash/haiku/
+        small' get small defaults and unknown frontier names a large one."""
+        try:
+            entry = self.registry.get(model_id)
+        except KeyError:
+            return 100.0
+        name = f"{entry.model_id} {entry.litellm_model_name}".lower()
+        m = _MODEL_SIZE_RE.search(name)
+        if m:
+            return float(m.group(1))
+        if any(k in name for k in ("lite", "nano", "mini")):
+            return 8.0
+        if any(k in name for k in ("flash", "haiku", "small")):
+            return 15.0
+        return 150.0  # unknown / frontier name → treat as expensive compute
+
     def _is_in_warmup(self, model, now: Optional[datetime] = None) -> bool:
         """A model is in warmup until it ages past max_age_days OR accumulates
         min_observations_to_exit calibration observations — whichever first."""
@@ -498,9 +524,17 @@ class KnnRouter:
             if pool:
                 best_q = max(qualities[mid] for mid in pool)
                 contenders = [mid for mid in pool if qualities[mid] >= best_q - 1e-9]
-                selected = min(contenders, key=lambda mid: self._estimate_cost(mid, features))
+                selected = min(
+                    contenders,
+                    key=lambda mid: (self._estimate_cost(mid, features), self._model_compute_cost(mid)),
+                )
                 order = sorted(
-                    pool, key=lambda mid: (self._estimate_cost(mid, features), -qualities[mid])
+                    pool,
+                    key=lambda mid: (
+                        self._estimate_cost(mid, features),
+                        self._model_compute_cost(mid),
+                        -qualities[mid],
+                    ),
                 )
                 return self._build_decision(
                     selected=selected, source=base_source, features=features,
@@ -514,7 +548,11 @@ class KnnRouter:
 
         candidates_sorted = sorted(
             qualifying,
-            key=lambda mid: (self._estimate_cost(mid, features), -qualities[mid]),
+            key=lambda mid: (
+                self._estimate_cost(mid, features),
+                self._model_compute_cost(mid),
+                -qualities[mid],
+            ),
         )
 
         # P2/P4 — exploration + warmup are LEARNING mechanisms: only meaningful
