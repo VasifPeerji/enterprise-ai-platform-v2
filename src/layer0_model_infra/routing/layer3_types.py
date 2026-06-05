@@ -28,7 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # Schema versioning
 # ---------------------------------------------------------------------------
 
-LAYER3_SCHEMA_VERSION = "1.0.0"
+LAYER3_SCHEMA_VERSION = "1.1.0"
 
 
 # ---------------------------------------------------------------------------
@@ -280,6 +280,7 @@ class RoutingSource(str, Enum):
     """
     CACHE_HIT = "cache_hit"
     KNN_CORPUS = "knn_corpus"
+    PRIOR = "prior"              # benchmark aggregate-prior selection (no kNN neighbors) — still data-driven, NOT a hard-coded default
     FALLBACK = "fallback"
     EXPLORATION = "exploration"  # ε-exploration of borderline models (P2)
     WARMUP = "warmup"            # Forced selection of newly-registered model (P4)

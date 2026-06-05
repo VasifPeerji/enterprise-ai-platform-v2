@@ -347,10 +347,15 @@ class KnnRouter:
         feature_cell: str,
     ) -> tuple[dict[str, float], dict[str, str], dict[str, bool]]:
         """Return (qualities, confidence, prior_used) for every active model."""
-        active = self.registry.active_models()
-        active_ids = [m.model_id for m in active]
+        # Consider the FULL catalog (active + inactive) so the decision is
+        # benchmark-driven across every registered model — including premium
+        # models without a key. When a keyless model wins, execution falls back
+        # to a free model (gateway fallback); the DECISION still reflects the
+        # benchmark-optimal pick.
+        models = self.registry.all_models()
+        model_ids = [m.model_id for m in models]
         qids = [n.payload["question_global_id"] for n in neighbors]
-        lookup = self.outcome_store.lookup_for_all_models(qids, active_ids)
+        lookup = self.outcome_store.lookup_for_all_models(qids, model_ids)
 
         knn_cfg = self._config.knn
         query_len = features.char_count or 0
@@ -369,7 +374,7 @@ class KnnRouter:
         confidence: dict[str, str] = {}
         prior_used: dict[str, bool] = {}
 
-        for model in active:
+        for model in models:
             mid = model.model_id
             model_outcomes = lookup.get(mid, {})
             pairs = [(adj, model_outcomes[qid]) for qid, adj in neighbor_sims if qid in model_outcomes]
@@ -446,11 +451,18 @@ class KnnRouter:
         neighbors: list[Any],
         request_id: str,
         feature_cell: str,
+        *,
+        knn_grounded: bool = True,
     ) -> RoutingDecision:
         base_floor = self._base_floor(features)
+        # KNN_CORPUS when the prediction is backed by per-question neighbor
+        # outcomes; PRIOR when it's the benchmark aggregate prior (no neighbors).
+        # Both are benchmark-DATA-driven — neither is a hard-coded default.
+        base_source = RoutingSource.KNN_CORPUS if knn_grounded else RoutingSource.PRIOR
 
         effective_floors: dict[str, float] = {}
-        qualifying: dict[str, float] = {}
+        eligible: list[str] = []           # passed the context-window check
+        qualifying: dict[str, float] = {}  # cleared the floor and not cooling down
         any_cleared_floor = False
         for mid, q in qualities.items():
             try:
@@ -461,68 +473,98 @@ class KnnRouter:
             # the query; exclude it before it can win on cost.
             if model.context_window < features.estimated_input_tokens:
                 continue
+            eligible.append(mid)
             floor = self._effective_floor(model, base_floor)
             effective_floors[mid] = floor
             if q >= floor:
                 any_cleared_floor = True
                 # M4 — skip models that just rate-limited (429); they clear the
-                # floor but can't actually serve the request right now.
+                # floor but can't serve right now. (Inactive models are never
+                # cooling — they simply fall back at execution time.)
                 if not self.cooldown.is_cooling_down(mid):
                     qualifying[mid] = q
 
         if not qualifying:
-            # Distinguish "nothing was good enough" from "everything good is
-            # temporarily rate-limited" so escalation/telemetry can react.
-            reason = REASON_ALL_RATE_LIMITED if any_cleared_floor else REASON_NO_MODEL_ABOVE_FLOOR
-            return self.fallback.route(features, request_id, reason, query=query)
+            # Floor-clearers exist but every one is rate-limited right now →
+            # genuinely unavailable; fall back rather than hammer a cooling model.
+            if any_cleared_floor:
+                return self.fallback.route(
+                    features, request_id, REASON_ALL_RATE_LIMITED, query=query
+                )
+            # Nothing cleared the floor: stay benchmark-driven — route to the
+            # highest-predicted NON-cooling model (cheapest among ties) rather
+            # than a hard-coded safe default. Layer 7/8 are the downstream net.
+            pool = [mid for mid in eligible if not self.cooldown.is_cooling_down(mid)]
+            if pool:
+                best_q = max(qualities[mid] for mid in pool)
+                contenders = [mid for mid in pool if qualities[mid] >= best_q - 1e-9]
+                selected = min(contenders, key=lambda mid: self._estimate_cost(mid, features))
+                order = sorted(
+                    pool, key=lambda mid: (self._estimate_cost(mid, features), -qualities[mid])
+                )
+                return self._build_decision(
+                    selected=selected, source=base_source, features=features,
+                    qualities=qualities, confidence=confidence, candidates_sorted=order,
+                    effective_floors=effective_floors, base_floor=base_floor,
+                    feature_cell=feature_cell, neighbors=neighbors, request_id=request_id,
+                )
+            return self.fallback.route(
+                features, request_id, REASON_NO_MODEL_ABOVE_FLOOR, query=query
+            )
 
         candidates_sorted = sorted(
             qualifying,
             key=lambda mid: (self._estimate_cost(mid, features), -qualities[mid]),
         )
 
-        # P2 — ε-exploration of borderline models (just below the floor) that
-        # haven't yet accumulated enough calibration observations.
-        if self._rng.random() < self._config.exploration.rate:
-            band = self._config.exploration.borderline_band
-            max_obs = self._config.exploration.max_observations_for_borderline
-            borderline = sorted(
-                mid for mid, q in qualities.items()
-                if mid in effective_floors
-                and (effective_floors[mid] - band) <= q < effective_floors[mid]
-                and self.calibration.observations(mid, feature_cell) < max_obs
-                and not self.cooldown.is_cooling_down(mid)
+        # P2/P4 — exploration + warmup are LEARNING mechanisms: only meaningful
+        # for grounded routing over executable (active) models. Skip them on the
+        # prior-only path and never force an inactive (keyless) model.
+        if knn_grounded:
+            active_ids = {m.model_id for m in self.registry.active_models()}
+
+            # P2 — ε-exploration of borderline models (just below the floor) that
+            # haven't yet accumulated enough calibration observations.
+            if self._rng.random() < self._config.exploration.rate:
+                band = self._config.exploration.borderline_band
+                max_obs = self._config.exploration.max_observations_for_borderline
+                borderline = sorted(
+                    mid for mid, q in qualities.items()
+                    if mid in effective_floors and mid in active_ids
+                    and (effective_floors[mid] - band) <= q < effective_floors[mid]
+                    and self.calibration.observations(mid, feature_cell) < max_obs
+                    and not self.cooldown.is_cooling_down(mid)
+                )
+                if borderline:
+                    selected = self._rng.choice(borderline)
+                    logger.info("layer3_exploration_route", model_id=selected, feature_cell=feature_cell)
+                    return self._build_decision(
+                        selected=selected, source=RoutingSource.EXPLORATION, features=features,
+                        qualities=qualities, confidence=confidence, candidates_sorted=candidates_sorted,
+                        effective_floors=effective_floors, base_floor=base_floor,
+                        feature_cell=feature_cell, neighbors=neighbors, request_id=request_id,
+                    )
+
+            # P4 — warmup forcing, restricted to qualifying ACTIVE models.
+            warmup_pool = sorted(
+                (m for m in self.registry.active_models()
+                 if m.model_id in qualifying and self._is_in_warmup(m)),
+                key=lambda m: m.model_id,
             )
-            if borderline:
-                selected = self._rng.choice(borderline)
-                logger.info("layer3_exploration_route", model_id=selected, feature_cell=feature_cell)
+            if warmup_pool and self._rng.random() < self._config.warmup.forced_selection_rate:
+                forced = self._rng.choice(warmup_pool)
+                logger.info("layer3_warmup_route", model_id=forced.model_id, feature_cell=feature_cell)
                 return self._build_decision(
-                    selected=selected, source=RoutingSource.EXPLORATION, features=features,
+                    selected=forced.model_id, source=RoutingSource.WARMUP, features=features,
                     qualities=qualities, confidence=confidence, candidates_sorted=candidates_sorted,
                     effective_floors=effective_floors, base_floor=base_floor,
                     feature_cell=feature_cell, neighbors=neighbors, request_id=request_id,
                 )
 
-        # P4 — warmup forcing, restricted to qualifying models (no user impact).
-        warmup_pool = sorted(
-            (m for m in self.registry.active_models()
-             if m.model_id in qualifying and self._is_in_warmup(m)),
-            key=lambda m: m.model_id,
-        )
-        if warmup_pool and self._rng.random() < self._config.warmup.forced_selection_rate:
-            forced = self._rng.choice(warmup_pool)
-            logger.info("layer3_warmup_route", model_id=forced.model_id, feature_cell=feature_cell)
-            return self._build_decision(
-                selected=forced.model_id, source=RoutingSource.WARMUP, features=features,
-                qualities=qualities, confidence=confidence, candidates_sorted=candidates_sorted,
-                effective_floors=effective_floors, base_floor=base_floor,
-                feature_cell=feature_cell, neighbors=neighbors, request_id=request_id,
-            )
-
         # Cost minimization inside the qualifying set (the anti-over-routing core).
         selected = candidates_sorted[0]
         return self._build_decision(
-            selected=selected, source=RoutingSource.KNN_CORPUS, features=features,
+            selected=selected, source=base_source, features=features,
             qualities=qualities, confidence=confidence, candidates_sorted=candidates_sorted,
             effective_floors=effective_floors, base_floor=base_floor,
             feature_cell=feature_cell, neighbors=neighbors, request_id=request_id,
@@ -659,13 +701,25 @@ class KnnRouter:
                 )
                 decision = self.fallback.route(features, request_id, REASON_SEARCH_ERROR, query=query)
             else:
+                feature_cell = make_feature_cell(features)
                 if len(neighbors) < self._config.knn.min_neighbors_for_trust:
-                    decision = self.fallback.route(features, request_id, REASON_INSUFFICIENT_NEIGHBORS, query=query)
-                else:
-                    feature_cell = make_feature_cell(features)
-                    qualities, confidence, _prior = self._predict_qualities(features, neighbors, feature_cell)
+                    # No per-question corpus evidence for THIS query — but still
+                    # route by benchmark DATA (aggregate priors over the full
+                    # catalog), not a hard-coded default. Source = PRIOR.
+                    qualities, confidence, _prior = self._predict_qualities(
+                        features, [], feature_cell
+                    )
                     decision = self._choose(
-                        query, features, qualities, confidence, neighbors, request_id, feature_cell
+                        query, features, qualities, confidence, [], request_id,
+                        feature_cell, knn_grounded=False,
+                    )
+                else:
+                    qualities, confidence, _prior = self._predict_qualities(
+                        features, neighbors, feature_cell
+                    )
+                    decision = self._choose(
+                        query, features, qualities, confidence, neighbors, request_id,
+                        feature_cell, knn_grounded=True,
                     )
 
         decision.latency_ms = (time.monotonic() - t0) * 1000.0

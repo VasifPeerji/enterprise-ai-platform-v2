@@ -238,14 +238,20 @@ def test_low_coverage_penalty_blocks_frontier_on_prior(all_keys_set, reset_regis
     assert decision.selected_model == "llama-3.1-8b-instant-groq"
 
 
-def test_no_qualifier_falls_back(all_keys_set, reset_registry, tmp_path):
+def test_no_qualifier_routes_best_effort(all_keys_set, reset_registry, tmp_path):
+    # Nothing clears the floor — but the router stays benchmark-driven: it routes
+    # to the best-predicted model (the data picks it), NOT a hard-coded default.
+    # The decision still records the pick was below its effective floor, and
+    # Layer 7/8 (quality eval + escalation) remain the downstream safety net.
     router = _router(tmp_path)
     feats = _features(Modality.TEXT)
-    qualities = {"claude-opus-4-5": 0.70}  # below penalized floor 0.75, nothing else
+    qualities = {"claude-opus-4-5": 0.70}  # below penalized floor 0.75
     confidence = {"claude-opus-4-5": "low"}
     decision = router._choose("q", feats, qualities, confidence, [], "rid", make_feature_cell(feats))
-    assert decision.source == RoutingSource.FALLBACK
-    assert decision.fallback_reason == "no_model_above_floor"
+    assert decision.source == RoutingSource.KNN_CORPUS
+    assert decision.selected_model == "claude-opus-4-5"
+    assert decision.predicted_quality == pytest.approx(0.70)
+    assert decision.effective_floor == 0.75
 
 
 def test_high_risk_raises_floor(all_keys_set, reset_registry, tmp_path):
@@ -350,7 +356,7 @@ def test_route_end_to_end_real(all_keys_set, reset_registry):
     reg = get_layer3_registry()
     assert reg.has(decision.selected_model)
     assert decision.source in {
-        RoutingSource.KNN_CORPUS, RoutingSource.EXPLORATION,
+        RoutingSource.KNN_CORPUS, RoutingSource.PRIOR, RoutingSource.EXPLORATION,
         RoutingSource.WARMUP, RoutingSource.FALLBACK,
     }
     assert decision.latency_ms > 0
