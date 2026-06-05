@@ -73,8 +73,8 @@ DEFAULT_MODELS = [
     "qwen3-32b-groq",
     "llama-4-scout-17b-groq",
 ]
-JUDGE_ID = "gpt-oss-120b-groq"
-JUDGE_ALT = "llama-3.3-70b-versatile-groq"  # used when grading the judge's own answers
+JUDGE_ID = "llama-3.3-70b-versatile-groq"   # primary judge: dense 70B, far higher Groq rpm/TPM than the 120B MoE preview
+JUDGE_ALT = "gpt-oss-120b-groq"             # used only when grading the primary judge's own answers
 
 _REG = get_layer3_registry()
 def _llname(mid: str) -> str:
@@ -139,8 +139,8 @@ def _grade(judge_llname: str, q: str, a: str, checklist: list[str]) -> float | N
         return 0.0
     n = len(checklist)
     items = "\n".join(f"{i+1}. {c}" for i, c in enumerate(checklist))
-    out = _complete(judge_llname, _JUDGE_PROMPT.format(q=q[:6000], a=a[:7000], c=items, n=n),
-                    temperature=0.0, max_tokens=2200)
+    out = _complete(judge_llname, _JUDGE_PROMPT.format(q=q[:6000], a=a[:5000], c=items, n=n),
+                    temperature=0.0, max_tokens=1000)
     if out is None:
         return None
     cands: list[list[bool]] = []
