@@ -384,10 +384,13 @@ class KnnRouter:
             model_outcomes = lookup.get(mid, {})
             pairs = [(adj, model_outcomes[qid]) for qid, adj in neighbor_sims if qid in model_outcomes]
 
-            use_prior = (
-                len(pairs) < knn_cfg.min_outcomes_per_model
-                or model.coverage_quality == CoverageQuality.LOW
-            )
+            # Use real per-question neighbour outcomes whenever we have enough of
+            # them (>= min_outcomes), EVEN for low-coverage models. The +0.10
+            # low-coverage floor penalty (applied later) is the safety for those
+            # — not a blanket prior fallback. This is what lets freshly-generated
+            # conversational outcomes actually drive routing instead of being
+            # ignored because the model's *global* coverage is still low.
+            use_prior = len(pairs) < knn_cfg.min_outcomes_per_model
             if use_prior:
                 raw = self.aggregate_scores.prior_quality(mid, features.modality)
                 conf = "low"

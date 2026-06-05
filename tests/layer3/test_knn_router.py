@@ -186,15 +186,20 @@ def test_predict_falls_to_prior_below_min_outcomes(all_keys_set, reset_registry,
     assert qualities["llama-3.1-8b-instant-groq"] == pytest.approx(expected, abs=1e-6)
 
 
-def test_predict_low_coverage_always_uses_prior(all_keys_set, reset_registry, synthetic_outcomes, tmp_path):
+def test_predict_low_coverage_uses_knn_when_grounded(all_keys_set, reset_registry, synthetic_outcomes, tmp_path):
+    # A low-coverage model now USES its per-question neighbour outcomes when it
+    # has enough of them (>= min_outcomes) — this is what lets generated
+    # conversational outcomes drive routing. The +0.10 low-coverage floor penalty
+    # (not a prior fallback) is the safety for low-coverage models.
     router = _router(tmp_path, outcomes=synthetic_outcomes)
     feats = _features(Modality.TEXT)
     neighbors = _neighbors(["livebench:n1", "livebench:n2", "livebench:n3", "livebench:n4", "livebench:n5"])
     cell = make_feature_cell(feats)
     qualities, confidence, prior_used = router._predict_qualities(feats, neighbors, cell)
 
-    # claude-opus-4-5 has 5 outcomes but coverage_quality=low → prior, not kNN
-    assert prior_used["claude-opus-4-5"] is True
+    # claude-opus-4-5 has 5 neighbour outcomes → kNN now (not prior)
+    assert prior_used["claude-opus-4-5"] is False
+    assert confidence["claude-opus-4-5"] == "high"
 
 
 # ---------------------------------------------------------------------------
