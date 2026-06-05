@@ -449,6 +449,13 @@ class KnnRouter:
             return 15.0
         return 150.0  # unknown / frontier name → treat as expensive compute
 
+    @staticmethod
+    def _supports_vision(model) -> bool:
+        """Whether a model can actually serve an image/multimodal query."""
+        return "vision" in getattr(model, "capabilities", []) or getattr(
+            model, "model_type", "text"
+        ) in {"multimodal", "vision"}
+
     def _is_in_warmup(self, model, now: Optional[datetime] = None) -> bool:
         """A model is in warmup until it ages past max_age_days OR accumulates
         min_observations_to_exit calibration observations — whichever first."""
@@ -494,6 +501,13 @@ class KnnRouter:
             try:
                 model = self.registry.get(mid)
             except KeyError:
+                continue
+            # Vision / multimodal queries need a vision-capable model — a text
+            # model can't serve them however high its text prior.
+            if (
+                _as_modality(features.modality) not in _CORPUS_MODALITIES
+                and not self._supports_vision(model)
+            ):
                 continue
             # S3 — a model whose context window can't hold the input can't serve
             # the query; exclude it before it can win on cost.
@@ -724,8 +738,15 @@ class KnnRouter:
         if force_model_id is not None:
             decision = self._forced_decision(force_model_id, features, request_id)
         elif _as_modality(features.modality) not in _CORPUS_MODALITIES:
-            # Vision / multimodal — no benchmark coverage; go straight to Stage D.
-            decision = self.fallback.route(features, request_id, REASON_UNSUPPORTED_MODALITY, query=query)
+            # Vision / multimodal — no corpus neighbours, but still route by
+            # benchmark DATA (vision priors: MMMU / MathVista) over the
+            # vision-capable models, not a hard-coded default.
+            feature_cell = make_feature_cell(features)
+            qualities, confidence, _p = self._predict_qualities(features, [], feature_cell)
+            decision = self._choose(
+                query, features, qualities, confidence, [], request_id,
+                feature_cell, knn_grounded=False,
+            )
         else:
             # Stage C — encode + ANN search. Any encoder/Qdrant failure must
             # degrade to Stage D rather than crash routing (S2).

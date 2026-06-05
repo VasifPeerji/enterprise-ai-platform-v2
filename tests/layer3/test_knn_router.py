@@ -315,9 +315,10 @@ def test_is_in_warmup_logic(all_keys_set, reset_registry, tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_vision_modality_routes_to_fallback_without_search(all_keys_set, reset_registry, tmp_path):
-    # No encoder/qdrant injected → if route() tried to search it would crash.
-    # Vision must short-circuit to fallback first.
+def test_vision_modality_routes_by_prior_over_vision_models(all_keys_set, reset_registry, tmp_path):
+    # No encoder/qdrant injected → vision must NOT search the (text/code/math)
+    # corpus. It routes by benchmark vision-priors (MMMU/MathVista) over
+    # vision-capable models, not a hard-coded default.
     router = _router(tmp_path)
     # Force the extractor to report VISION by passing a layer1-like object.
     analysis = SimpleNamespace(
@@ -325,8 +326,9 @@ def test_vision_modality_routes_to_fallback_without_search(all_keys_set, reset_r
         requires_vision=True, requires_audio=False, requires_code_model=False, token_count=20,
     )
     decision = router.route("what is in this picture?", layer1_analysis=analysis)
-    assert decision.source == RoutingSource.FALLBACK
-    assert decision.fallback_reason == "unsupported_modality_no_coverage"
+    assert decision.source == RoutingSource.PRIOR
+    entry = get_layer3_registry().get(decision.selected_model)
+    assert "vision" in entry.capabilities or entry.model_type in {"multimodal", "vision"}
     assert decision.latency_ms >= 0
 
 
