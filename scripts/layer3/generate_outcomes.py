@@ -36,9 +36,23 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from dotenv import dotenv_values
-for _k, _v in dotenv_values(REPO_ROOT / ".env").items():
+_ENVVALS = dotenv_values(REPO_ROOT / ".env")
+for _k, _v in _ENVVALS.items():
     if _k.endswith("_API_KEY") and _v:
         os.environ.setdefault(_k, _v.strip())
+
+# Collect ALL Groq keys (GROQ_API_KEY, GROQ_API_KEY_2, GROQ_API_KEY_3, ...) so a
+# token-heavy batch can spread load across separate free accounts and stop
+# tripping one key's per-minute (TPM/RPM) limits. With N keys the per-call key is
+# round-robined and the throttle loosens; with 1 key it stays slow-but-safe.
+import itertools  # noqa: E402
+_GROQ_KEYS: list[str] = []
+for _k in list(os.environ) + list(_ENVVALS):
+    if _k.upper().startswith("GROQ_API_KEY"):  # GROQ_API_KEY, GROQ_API_KEY2/3/4, GROQ_API_KEY_2, ...
+        _v = os.environ.get(_k) or _ENVVALS.get(_k)
+        if _v and _v.strip() not in _GROQ_KEYS:
+            _GROQ_KEYS.append(_v.strip())
+_groq_cycle = itertools.cycle(_GROQ_KEYS) if _GROQ_KEYS else None
 
 import litellm  # noqa: E402
 import pandas as pd  # noqa: E402
@@ -66,8 +80,10 @@ _REG = get_layer3_registry()
 def _llname(mid: str) -> str:
     return _REG.get(mid).litellm_model_name
 
-# --- global throttle: stay under Groq free-tier 30 rpm across ALL calls ---
-_MIN_INTERVAL = 2.2
+# --- global throttle: pace each Groq key to ~one call / 5s (TPM-safe for the
+#     token-heavy judge prompts); loosen as more keys are added. 1 key -> 5s,
+#     3 keys -> ~1.7s, 6 keys -> ~0.8s. ---
+_MIN_INTERVAL = max(0.8, 5.0 / max(1, len(_GROQ_KEYS)))
 _last = [0.0]
 _stats = {"calls": 0, "rate_limited": 0, "parse_fail": 0}
 
@@ -82,12 +98,16 @@ def _throttle() -> None:
 def _complete(model: str, prompt: str, *, temperature: float, max_tokens: int, retries: int = 5) -> str | None:
     for attempt in range(retries):
         _throttle()
+        # Round-robin Groq keys so the load spreads across accounts.
+        kwargs = {}
+        if model.startswith("groq/") and _groq_cycle is not None:
+            kwargs["api_key"] = next(_groq_cycle)
         try:
             _stats["calls"] += 1
             r = litellm.completion(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
-                temperature=temperature, max_tokens=max_tokens,
+                temperature=temperature, max_tokens=max_tokens, **kwargs,
             )
             return (r.choices[0].message.content or "").strip()
         except litellm.RateLimitError:
@@ -169,7 +189,8 @@ def main() -> int:
         rows = pd.read_parquet(OUT).to_dict("records")
         done = {(r["model_id"], r["question_global_id"]) for r in rows}
     print(f"grounding {len(models)} models x {len(tasks)} tasks "
-          f"({len(done)} pairs already done) -> {OUT.name}", flush=True)
+          f"({len(done)} pairs already done); {len(_GROQ_KEYS)} Groq key(s), "
+          f"throttle {_MIN_INTERVAL:.1f}s -> {OUT.name}", flush=True)
 
     now = datetime.now(timezone.utc)
     for ti, t in enumerate(tasks):
