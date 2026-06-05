@@ -20,7 +20,7 @@ ELITE ROUTING PIPELINE:
 """
 
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -97,6 +97,12 @@ class RoutingDecision(BaseModel):
         default=None,
         description="Benchmark router advisory signal (quality/cost optimised)",
     )
+
+    # Raw Layer 3 decision (when the kNN router served this query), stashed so
+    # the orchestrator can feed it to calibration_store.update() after Layer 7.
+    # Excluded from serialization — it's an internal handle for the learning
+    # loop, not part of the telemetry/wire contract.
+    layer3_raw_decision: Optional[Any] = Field(default=None, exclude=True)
 
 
 class EliteRoutingResult(BaseModel):
@@ -1224,6 +1230,7 @@ class ModelRouter:
 
         return RoutingDecision(
             selected_model=model_def,
+            layer3_raw_decision=l3,
             fallback_models=fallback_models,
             modality_analysis=modality_analysis.model_dump(),
             triage_result=triage_result,

@@ -253,7 +253,8 @@ class EliteExecutionOrchestrator:
         final_quality = 0.0
         final_reasoning = ""
         passed = False
-        
+        l3_first_quality = None  # observed quality of the Layer-3-selected model (attempt 1)
+
         # Track models used for feedback
         models_tried = []
         
@@ -324,7 +325,12 @@ class EliteExecutionOrchestrator:
                     passed = True
                     
                     logger.info("quality_check_skipped", reason="domain_policy_allows", domain=domain)
-                
+
+                # First attempt ran the Layer-3-selected model — capture its
+                # observed quality for the calibration EMA (online learning).
+                if attempts == 1:
+                    l3_first_quality = final_quality
+
                 if passed:
                     logger.info("quality_check_passed", score=final_quality)
                     break
@@ -449,6 +455,22 @@ class EliteExecutionOrchestrator:
                  intent=decision.triage_result.get("intent", ""),
                  domain=decision.triage_result.get("domain", ""),
              )
+
+        # Layer 3 online calibration (the learning loop): fold the first-attempt
+        # observed quality into the EMA for the kNN-predicted (model, feature_cell).
+        # update() no-ops unless the decision came from the kNN corpus path.
+        l3_raw = getattr(decision, "layer3_raw_decision", None)
+        if l3_raw is not None and l3_first_quality is not None:
+            try:
+                from src.layer0_model_infra.routing.calibration_store import get_calibration_store
+                if get_calibration_store().update(l3_raw, l3_first_quality):
+                    logger.info(
+                        "layer3_calibration_updated",
+                        model_id=l3_raw.selected_model,
+                        observed_quality=round(l3_first_quality, 3),
+                    )
+            except Exception as e:
+                logger.warning("layer3_calibration_update_failed", error=str(e))
 
         return ExecutionResult(
             content=final_response.content if final_response else "Error: Execution failed",

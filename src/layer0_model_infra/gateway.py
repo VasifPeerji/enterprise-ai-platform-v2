@@ -299,6 +299,14 @@ class ModelGateway:
             raise ModelTimeoutError(model_def.model_name, timeout=60.0)
         
         except litellm.RateLimitError as e:
+            # Mark the model as cooling down so Layer 3 stops selecting it until
+            # the limit clears (the kNN cost-min checks is_cooling_down). Best
+            # effort — a cooldown bookkeeping failure must never break the call.
+            try:
+                from src.layer0_model_infra.routing.rate_limit_cooldown import get_rate_limit_cooldown
+                get_rate_limit_cooldown().mark(request.model_id)
+            except Exception:
+                pass
             fallback = await self._try_local_fallback(request, model_def, "rate_limit") if _allow_fallback else None
             if fallback is not None:
                 return fallback
