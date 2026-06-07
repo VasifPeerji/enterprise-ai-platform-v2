@@ -54,6 +54,16 @@ for _k in list(os.environ) + list(_ENVVALS):
             _GROQ_KEYS.append(_v.strip())
 _groq_cycle = itertools.cycle(_GROQ_KEYS) if _GROQ_KEYS else None
 
+# Cerebras keys (CEREBRAS_API_KEY / CEREBRAS_API_KEY2..) — the grader runs here
+# because Cerebras' free tier has far higher tokens-per-minute headroom than Groq.
+_CEREBRAS_KEYS: list[str] = []
+for _k in list(os.environ) + list(_ENVVALS):
+    if _k.upper().startswith("CEREBRAS_API_KEY"):
+        _v = os.environ.get(_k) or _ENVVALS.get(_k)
+        if _v and _v.strip() not in _CEREBRAS_KEYS:
+            _CEREBRAS_KEYS.append(_v.strip())
+_cerebras_cycle = itertools.cycle(_CEREBRAS_KEYS) if _CEREBRAS_KEYS else None
+
 import litellm  # noqa: E402
 import pandas as pd  # noqa: E402
 
@@ -73,17 +83,21 @@ DEFAULT_MODELS = [
     "qwen3-32b-groq",
     "llama-4-scout-17b-groq",
 ]
-JUDGE_ID = "llama-3.3-70b-versatile-groq"   # primary judge: dense 70B, far higher Groq rpm/TPM than the 120B MoE preview
-JUDGE_ALT = "gpt-oss-120b-groq"             # used only when grading the primary judge's own answers
+# Grader on CEREBRAS (high TPM) so token-heavy grading doesn't bottleneck on Groq.
+# gpt-oss-120b is the strongest free judge (the bake-off pick); when grading the
+# groq gpt-oss-120b answer we swap to a Groq llama judge so no model grades itself.
+JUDGE_LLNAME = "cerebras/gpt-oss-120b"
+JUDGE_ALT_LLNAME = "groq/llama-3.3-70b-versatile"
+SELF_GRADE_MODEL_ID = "gpt-oss-120b-groq"   # generated model whose weights == the judge
 
 _REG = get_layer3_registry()
 def _llname(mid: str) -> str:
     return _REG.get(mid).litellm_model_name
 
-# --- global throttle: pace each Groq key to ~one call / 5s (TPM-safe for the
-#     token-heavy judge prompts); loosen as more keys are added. 1 key -> 5s,
-#     3 keys -> ~1.7s, 6 keys -> ~0.8s. ---
-_MIN_INTERVAL = max(0.8, 5.0 / max(1, len(_GROQ_KEYS)))
+# --- global throttle: with grading moved to Cerebras, generation (Groq) and
+#     grading (Cerebras) each see only ~half the calls across their 4 keys, so we
+#     can pace much faster without tripping either provider's per-minute limits. ---
+_MIN_INTERVAL = max(0.8, 3.0 / max(1, len(_GROQ_KEYS)))
 _last = [0.0]
 _stats = {"calls": 0, "rate_limited": 0, "parse_fail": 0}
 
@@ -98,9 +112,11 @@ def _throttle() -> None:
 def _complete(model: str, prompt: str, *, temperature: float, max_tokens: int, retries: int = 5) -> str | None:
     for attempt in range(retries):
         _throttle()
-        # Round-robin Groq keys so the load spreads across accounts.
+        # Round-robin keys per provider so load spreads across accounts.
         kwargs = {}
-        if model.startswith("groq/") and _groq_cycle is not None:
+        if model.startswith("cerebras/") and _cerebras_cycle is not None:
+            kwargs["api_key"] = next(_cerebras_cycle)
+        elif model.startswith("groq/") and _groq_cycle is not None:
             kwargs["api_key"] = next(_groq_cycle)
         try:
             _stats["calls"] += 1
@@ -189,8 +205,8 @@ def main() -> int:
         rows = pd.read_parquet(OUT).to_dict("records")
         done = {(r["model_id"], r["question_global_id"]) for r in rows}
     print(f"grounding {len(models)} models x {len(tasks)} tasks "
-          f"({len(done)} pairs already done); {len(_GROQ_KEYS)} Groq key(s), "
-          f"throttle {_MIN_INTERVAL:.1f}s -> {OUT.name}", flush=True)
+          f"({len(done)} pairs done); {len(_GROQ_KEYS)} Groq + {len(_CEREBRAS_KEYS)} Cerebras key(s), "
+          f"judge={JUDGE_LLNAME}, throttle {_MIN_INTERVAL:.1f}s -> {OUT.name}", flush=True)
 
     now = datetime.now(timezone.utc)
     for ti, t in enumerate(tasks):
@@ -200,8 +216,8 @@ def main() -> int:
             if (mid, qid) in done:
                 continue
             ans = _complete(_llname(mid), t["q"], temperature=0.7, max_tokens=args.gen_tokens)
-            judge_id = JUDGE_ALT if mid == JUDGE_ID else JUDGE_ID
-            score = _grade(_llname(judge_id), t["q"], ans or "", t["checklist"]) if ans is not None else None
+            judge_llname = JUDGE_ALT_LLNAME if mid == SELF_GRADE_MODEL_ID else JUDGE_LLNAME
+            score = _grade(judge_llname, t["q"], ans or "", t["checklist"]) if ans is not None else None
             if score is not None:
                 rows.append({
                     "question_global_id": qid, "model_id": mid, "outcome": float(score),
