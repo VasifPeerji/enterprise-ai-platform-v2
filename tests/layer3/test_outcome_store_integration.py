@@ -82,9 +82,13 @@ def test_real_corpus_coverage_by_source(store):
     benchmark harvest; LiveBench and SWE-bench are smaller secondary sources."""
     by_source = store.coverage_by_source()
     sources = {row["source_url"]: row["n"] for row in by_source}
-    # Every source must be a real URL (HF dataset / leaderboard / SWE-bench repo).
+    # Every source is either a real URL (HF dataset / leaderboard / SWE-bench repo)
+    # or an in-house provenance tag for outcomes we generated ourselves — the
+    # conversational checklist-judge grounding writes 'generated:checklist-judge-v1'.
     for url in sources:
-        assert url.startswith("https://"), f"non-URL source: {url!r}"
+        assert url.startswith("https://") or url.startswith("generated:"), (
+            f"unrecognised source: {url!r}"
+        )
     total = sum(sources.values())
     # MMLU-Pro (harvested from the Open LLM Leaderboard) dominates the corpus.
     mmlu_rows = sum(n for url, n in sources.items() if "open-llm-leaderboard" in url.lower())
