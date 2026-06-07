@@ -144,7 +144,7 @@ class Settings(BaseSettings):
     # internal numeric thresholds live in routing_config.Layer3Config).
     LAYER3_ENABLED: bool = True
     LAYER3_SHADOW_MODE: bool = False
-    LAYER3_CANARY_FRACTION: float = 0.0
+    LAYER3_CANARY_FRACTION: float = 1.0  # active: kNN serves all traffic (was 0.0 / dormant)
     LAYER3_QUALITY_FLOOR_DEFAULT: Optional[float] = None  # None = use config default
     LAYER3_QUALITY_FLOOR_HIGH_RISK: Optional[float] = None
     LAYER3_ENCODER_DEVICE: Literal["cuda", "cpu", "auto"] = "auto"

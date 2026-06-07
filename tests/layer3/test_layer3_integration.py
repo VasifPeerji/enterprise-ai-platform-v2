@@ -62,6 +62,11 @@ def router():
     from src.layer0_model_infra.router import ModelRouter
     r = ModelRouter()
     r.registry = ModelRegistry()   # isolate Layer 3 registration from the global registry
+    # The kNN router is active by default now, so __init__ already registered the
+    # Layer 3 models into the previous registry; re-register them into this fresh
+    # isolated one so model resolution still finds them.
+    r._layer3_models_registered = False
+    r._ensure_layer3_models_registered()
     r._layer3_canary = 1.0
     yield r
 
