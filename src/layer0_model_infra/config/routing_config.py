@@ -418,20 +418,29 @@ class Layer3KnnConfig(BaseModel):
                     "neighbor at all.",
     )
     min_neighbors_for_trust: int = Field(
-        default=3,
+        default=1,
         description="Below this many neighbors above min_similarity, fall to "
-                    "Stage D (off-distribution). Lowered from 5 to 3 after live "
-                    "measurement showed the stricter gate discarding genuinely "
-                    "on-distribution queries — including ones with a near-exact "
-                    "(cosine ≈ 1.0) corpus match but only 1-2 close runners-up. "
-                    "Rigorous calibration of this and min_similarity is Batch 4 "
-                    "(validation harness over the 650 locked queries).",
+                    "Stage D (off-distribution). Lowered from 5 to 3, then to 1 "
+                    "after live measurement: conversational (WildBench) queries "
+                    "are diverse enough that most find only their own near-exact "
+                    "(cosine = 1.0) self-match plus zero to one runners-up, so a "
+                    "gate of 3 diverted them to the flat prior and the "
+                    "per-question grounding never reached the decision. A single "
+                    "cosine = 1.0 match is the strongest signal available, not "
+                    "noise, so it should keep the query on the kNN path. Dense "
+                    "academic queries already clear any gate, so this only "
+                    "changes the sparse-neighbor (conversational) case.",
     )
     min_outcomes_per_model: int = Field(
-        default=3,
+        default=1,
         description="A model needs at least this many neighbor outcomes to "
                     "use the kNN-weighted prediction; otherwise the aggregate "
-                    "prior takes over.",
+                    "prior takes over. Set to 1 so a single near-exact "
+                    "self-match outcome is used instead of the flat academic "
+                    "prior: that one outcome is the measured ground truth for "
+                    "that exact query, which is what lets the conversational "
+                    "grounding actually drive routing. Pairs with "
+                    "min_neighbors_for_trust = 1.",
     )
 
     filter_by_modality: bool = Field(

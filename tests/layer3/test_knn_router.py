@@ -94,9 +94,10 @@ def synthetic_outcomes(tmp_path: Path) -> Path:
 
     # full-coverage model with 4 outcomes on the neighbor set → uses kNN
     add("llama-3.3-70b-versatile-groq", [(qids[0], 1.0), (qids[1], 1.0), (qids[2], 0.0), (qids[3], 1.0)])
-    # full-coverage model with only 2 outcomes → falls to prior
+    # full-coverage model with 2 outcomes → uses kNN now (>= min_outcomes=1)
     add("llama-3.1-8b-instant-groq", [(qids[0], 1.0), (qids[1], 1.0)])
-    # low-coverage model with 5 outcomes → STILL prior (coverage_quality=low)
+    # low-coverage model with 5 outcomes → uses kNN when grounded; the +0.10
+    # low-coverage floor penalty is the safety, not a prior fallback
     add("claude-opus-4-5", [(q, 1.0) for q in qids])
 
     table = pa.table(
@@ -179,11 +180,19 @@ def test_predict_falls_to_prior_below_min_outcomes(all_keys_set, reset_registry,
     cell = make_feature_cell(feats)
     qualities, confidence, prior_used = router._predict_qualities(feats, neighbors, cell)
 
-    # only 2 outcomes → prior
-    assert prior_used["llama-3.1-8b-instant-groq"] is True
-    assert confidence["llama-3.1-8b-instant-groq"] == "low"
-    expected = get_aggregate_scores().prior_quality("llama-3.1-8b-instant-groq", Modality.TEXT)
-    assert qualities["llama-3.1-8b-instant-groq"] == pytest.approx(expected, abs=1e-6)
+    # With min_outcomes_per_model = 1, "below the threshold" means a model with NO
+    # outcome on the neighbour set. qwen-2.5-72b has none here → aggregate prior.
+    no_outcome = "qwen-2.5-72b-huggingface"
+    assert prior_used[no_outcome] is True
+    assert confidence[no_outcome] == "low"
+    expected = get_aggregate_scores().prior_quality(no_outcome, Modality.TEXT)
+    assert qualities[no_outcome] == pytest.approx(expected, abs=1e-6)
+
+    # llama-3.1-8b has 2 outcomes, which now COUNT (>= 1) and drive a kNN
+    # prediction instead of being discarded — the whole point of the lowered gate,
+    # so a single near-exact conversational self-match can decide the route.
+    assert prior_used["llama-3.1-8b-instant-groq"] is False
+    assert confidence["llama-3.1-8b-instant-groq"] == "high"
 
 
 def test_predict_low_coverage_uses_knn_when_grounded(all_keys_set, reset_registry, synthetic_outcomes, tmp_path):
