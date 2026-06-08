@@ -28,7 +28,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 # Schema versioning
 # ---------------------------------------------------------------------------
 
-LAYER3_SCHEMA_VERSION = "1.1.0"
+LAYER3_SCHEMA_VERSION = "1.2.0"
 
 
 # ---------------------------------------------------------------------------
@@ -317,6 +317,20 @@ class RoutingDecision(BaseModel):
                     "and fallbacks (off-distribution, prediction not meaningful).",
     )
     prediction_confidence: Literal["high", "low"] = "low"
+    prediction_confidence_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Calibrated 0-1 confidence in the selected model's quality "
+                    "prediction, from neighbour coverage / agreement / proximity. "
+                    "Low confidence drives risk-aware escalation and is the signal "
+                    "Layer 8 (escalation) and Layer 9 (observability) consume.",
+    )
+    uncertainty_escalated: bool = Field(
+        default=False,
+        description="True when the cheapest qualifying model was low-confidence "
+                    "and the router escalated to a stronger qualifier instead.",
+    )
 
     # ── Cost ─────────────────────────────────────────────────────────────
     estimated_cost_usd: float = Field(..., ge=0.0)

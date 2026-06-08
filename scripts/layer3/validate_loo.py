@@ -83,11 +83,11 @@ def main() -> int:
         cell = make_feature_cell(feats)
         nbrs = search_excl(emb, qid)
         if len(nbrs) >= r._config.knn.min_neighbors_for_trust:
-            quals, conf, _ = r._predict_qualities(feats, nbrs, cell)
-            d = r._choose(text, feats, quals, conf, nbrs, "loo", cell, knn_grounded=True)
+            quals, conf, _, cs = r._predict_qualities(feats, nbrs, cell)
+            d = r._choose(text, feats, quals, conf, nbrs, "loo", cell, knn_grounded=True, confidence_scores=cs)
         else:
-            quals, conf, _ = r._predict_qualities(feats, [], cell)
-            d = r._choose(text, feats, quals, conf, [], "loo", cell, knn_grounded=False)
+            quals, conf, _, cs = r._predict_qualities(feats, [], cell)
+            d = r._choose(text, feats, quals, conf, [], "loo", cell, knn_grounded=False, confidence_scores=cs)
         m = d.selected_model
         if m in grounded and not pd.isna(piv.loc[qid, m]):
             rs, pr = float(piv.loc[qid, m]), False

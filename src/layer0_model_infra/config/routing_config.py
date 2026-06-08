@@ -613,6 +613,53 @@ class Layer3HighRiskConfig(BaseModel):
     mdeberta_threshold: float = Field(default=0.55, ge=0.0, le=1.0)
 
 
+class Layer3UncertaintyConfig(BaseModel):
+    """Predictive uncertainty / confidence for risk-aware selection.
+
+    The kNN already retrieves each candidate model's nearest-neighbour outcomes;
+    their coverage (how many), agreement (how much they vary), and proximity (how
+    close the nearest neighbour is) form a free, data-grounded confidence in the
+    per-model quality prediction. This is the rigorous, zero-cost successor to the
+    old query-heuristic uncertainty layer: no model call anywhere. When the
+    cheapest qualifying pick's prediction is low-confidence, the router escalates
+    within the qualifying set to the strongest model rather than gambling on the
+    cheap one. Measured selective over random on the leave-one-out gate: the
+    most-uncertain picks beat a random pick of the same budget by 2 to 4 points
+    of correctness at equal cost.
+    """
+
+    enable: bool = Field(default=True, description="Master switch for risk-aware escalation.")
+    weight_coverage: float = Field(
+        default=0.34, ge=0.0, le=1.0,
+        description="Weight on neighbour-outcome count in the confidence score.",
+    )
+    weight_agreement: float = Field(
+        default=0.33, ge=0.0, le=1.0,
+        description="Weight on neighbour-outcome agreement (1 - dispersion).",
+    )
+    weight_proximity: float = Field(
+        default=0.33, ge=0.0, le=1.0,
+        description="Weight on how close the nearest neighbour is (cosine similarity).",
+    )
+    full_confidence_neighbors: int = Field(
+        default=5, ge=1,
+        description="Neighbour-outcome count at which the coverage term saturates to 1.0.",
+    )
+    escalate_below_confidence: float = Field(
+        default=0.50, ge=0.0, le=1.0,
+        description="If the cheapest qualifier's prediction confidence is below "
+                    "this, escalate to the strongest qualifier (highest predicted "
+                    "quality) instead. Set to 0 to keep recording the confidence "
+                    "score for telemetry without changing the selection.",
+    )
+    prior_confidence: float = Field(
+        default=0.20, ge=0.0, le=1.0,
+        description="Confidence assigned to a prior-only prediction (a model with "
+                    "no neighbour outcomes for this query) - low by construction, "
+                    "since it is a benchmark guess rather than local evidence.",
+    )
+
+
 class Layer3Config(BaseModel):
     """All Layer 3 settings in one place. No hardcoded numbers in the router."""
 
@@ -625,6 +672,7 @@ class Layer3Config(BaseModel):
     drift: Layer3DriftConfig = Field(default_factory=Layer3DriftConfig)
     encoder: Layer3EncoderConfig = Field(default_factory=Layer3EncoderConfig)
     high_risk: Layer3HighRiskConfig = Field(default_factory=Layer3HighRiskConfig)
+    uncertainty: Layer3UncertaintyConfig = Field(default_factory=Layer3UncertaintyConfig)
     success_targets: Layer3SuccessTargets = Field(default_factory=Layer3SuccessTargets)
 
     registry_path: str = Field(

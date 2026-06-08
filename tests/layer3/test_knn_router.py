@@ -165,7 +165,7 @@ def test_predict_uses_knn_when_enough_outcomes(all_keys_set, reset_registry, syn
     neighbors = _neighbors(qids)
     cell = make_feature_cell(feats)
 
-    qualities, confidence, prior_used = router._predict_qualities(feats, neighbors, cell)
+    qualities, confidence, prior_used, _conf = router._predict_qualities(feats, neighbors, cell)
 
     # 4 equal-similarity outcomes [1,1,0,1] → weighted mean 0.75
     assert qualities["llama-3.3-70b-versatile-groq"] == pytest.approx(0.75, abs=1e-3)
@@ -178,7 +178,7 @@ def test_predict_falls_to_prior_below_min_outcomes(all_keys_set, reset_registry,
     feats = _features(Modality.TEXT)
     neighbors = _neighbors(["livebench:n1", "livebench:n2", "livebench:n3", "livebench:n4", "livebench:n5"])
     cell = make_feature_cell(feats)
-    qualities, confidence, prior_used = router._predict_qualities(feats, neighbors, cell)
+    qualities, confidence, prior_used, _conf = router._predict_qualities(feats, neighbors, cell)
 
     # With min_outcomes_per_model = 1, "below the threshold" means a model with NO
     # outcome on the neighbour set. qwen-2.5-72b has none here → aggregate prior.
@@ -204,7 +204,7 @@ def test_predict_low_coverage_uses_knn_when_grounded(all_keys_set, reset_registr
     feats = _features(Modality.TEXT)
     neighbors = _neighbors(["livebench:n1", "livebench:n2", "livebench:n3", "livebench:n4", "livebench:n5"])
     cell = make_feature_cell(feats)
-    qualities, confidence, prior_used = router._predict_qualities(feats, neighbors, cell)
+    qualities, confidence, prior_used, _conf = router._predict_qualities(feats, neighbors, cell)
 
     # claude-opus-4-5 has 5 neighbour outcomes → kNN now (not prior)
     assert prior_used["claude-opus-4-5"] is False
@@ -229,6 +229,40 @@ def test_cost_minimization_picks_cheapest_qualifier(all_keys_set, reset_registry
     assert decision.source == RoutingSource.KNN_CORPUS
     assert decision.selected_model == "llama-3.1-8b-instant-groq"  # cheapest above floor
     assert set(decision.qualifying_models) == set(qualities)       # all cleared 0.65
+
+
+def test_uncertainty_escalates_low_confidence_cheap_pick(all_keys_set, reset_registry, tmp_path):
+    # The cheapest qualifier clears the floor but its prediction is low-confidence
+    # (sparse / disagreeing / far neighbours); a stronger qualifier exists. Risk-aware
+    # selection escalates to it rather than gambling on the cheap pick.
+    router = _router(tmp_path)
+    feats = _features(Modality.TEXT)
+    qualities = {"llama-3.1-8b-instant-groq": 0.70, "gpt-oss-120b-groq": 0.82}
+    confidence = {k: "high" for k in qualities}
+    conf_scores = {"llama-3.1-8b-instant-groq": 0.20, "gpt-oss-120b-groq": 0.90}
+    decision = router._choose(
+        "q", feats, qualities, confidence, [], "rid", make_feature_cell(feats),
+        confidence_scores=conf_scores,
+    )
+    assert decision.uncertainty_escalated is True
+    assert decision.selected_model == "gpt-oss-120b-groq"          # strongest qualifier
+    assert decision.prediction_confidence_score == pytest.approx(0.90)
+
+
+def test_uncertainty_keeps_confident_cheap_pick(all_keys_set, reset_registry, tmp_path):
+    # Same set, but the cheap pick is high-confidence → no escalation, cheapest wins.
+    router = _router(tmp_path)
+    feats = _features(Modality.TEXT)
+    qualities = {"llama-3.1-8b-instant-groq": 0.70, "gpt-oss-120b-groq": 0.82}
+    confidence = {k: "high" for k in qualities}
+    conf_scores = {"llama-3.1-8b-instant-groq": 0.85, "gpt-oss-120b-groq": 0.90}
+    decision = router._choose(
+        "q", feats, qualities, confidence, [], "rid", make_feature_cell(feats),
+        confidence_scores=conf_scores,
+    )
+    assert decision.uncertainty_escalated is False
+    assert decision.selected_model == "llama-3.1-8b-instant-groq"   # cheapest kept
+    assert decision.prediction_confidence_score == pytest.approx(0.85)
 
 
 def test_below_floor_models_excluded(all_keys_set, reset_registry, tmp_path):

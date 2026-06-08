@@ -350,8 +350,12 @@ class KnnRouter:
         features: QueryFeatures,
         neighbors: list[Any],
         feature_cell: str,
-    ) -> tuple[dict[str, float], dict[str, str], dict[str, bool]]:
-        """Return (qualities, confidence, prior_used) for every active model."""
+    ) -> tuple[dict[str, float], dict[str, str], dict[str, bool], dict[str, float]]:
+        """Return (qualities, confidence, prior_used, confidence_scores) for every
+        model. confidence_scores is a 0-1 calibrated confidence in each per-model
+        prediction, built from the neighbours the kNN already fetched (coverage +
+        agreement + proximity). It is the free, data-grounded signal the risk-aware
+        selector uses to escalate an uncertain cheap pick — no model call."""
         # Consider the FULL catalog (active + inactive) so the decision is
         # benchmark-driven across every registered model — including premium
         # models without a key. When a keyless model wins, execution falls back
@@ -363,6 +367,7 @@ class KnnRouter:
         lookup = self.outcome_store.lookup_for_all_models(qids, model_ids)
 
         knn_cfg = self._config.knn
+        unc_cfg = self._config.uncertainty
         query_len = features.char_count or 0
         # Pre-compute the length-adjusted similarity for each neighbor once.
         neighbor_sims: list[tuple[str, float]] = []
@@ -375,9 +380,18 @@ class KnnRouter:
             )
             neighbor_sims.append((qid, adj))
 
+        # Query-level proximity: how close the single nearest neighbour is, scaled
+        # above the search threshold so it spans 0-1. Shared across all models.
+        top_sim = max((float(n.score) for n in neighbors), default=0.0)
+        prox_denom = max(1e-9, 1.0 - knn_cfg.min_similarity)
+        proximity = max(0.0, min(1.0, (top_sim - knn_cfg.min_similarity) / prox_denom))
+        wsum = (unc_cfg.weight_coverage + unc_cfg.weight_agreement
+                + unc_cfg.weight_proximity) or 1.0
+
         qualities: dict[str, float] = {}
         confidence: dict[str, str] = {}
         prior_used: dict[str, bool] = {}
+        confidence_scores: dict[str, float] = {}
 
         for model in models:
             mid = model.model_id
@@ -390,27 +404,35 @@ class KnnRouter:
             # — not a blanket prior fallback. This is what lets freshly-generated
             # conversational outcomes actually drive routing instead of being
             # ignored because the model's *global* coverage is still low.
-            use_prior = len(pairs) < knn_cfg.min_outcomes_per_model
-            if use_prior:
+            sim_sum = sum(s for s, _ in pairs)
+            if len(pairs) < knn_cfg.min_outcomes_per_model or sim_sum <= 0:
+                # Prior-only: a benchmark guess with no local evidence, so the
+                # prediction is low-confidence by construction.
                 raw = self.aggregate_scores.prior_quality(mid, features.modality)
-                conf = "low"
+                confidence[mid] = "low"
                 prior_used[mid] = True
+                conf_score = unc_cfg.prior_confidence
             else:
-                sim_sum = sum(s for s, _ in pairs)
-                if sim_sum > 0:
-                    raw = sum(s * o for s, o in pairs) / sim_sum
-                    conf = "high"
-                    prior_used[mid] = False
-                else:  # degenerate (all-zero adjusted sims) — fall to prior
-                    raw = self.aggregate_scores.prior_quality(mid, features.modality)
-                    conf = "low"
-                    prior_used[mid] = True
+                raw = sum(s * o for s, o in pairs) / sim_sum
+                confidence[mid] = "high"
+                prior_used[mid] = False
+                # Confidence from the neighbours: more outcomes (coverage), tighter
+                # agreement (low dispersion), and a closer nearest neighbour all
+                # raise it. Every term is free — already computed for the average.
+                coverage = min(len(pairs) / unc_cfg.full_confidence_neighbors, 1.0)
+                variance = sum(s * (o - raw) ** 2 for s, o in pairs) / sim_sum
+                agreement = max(0.0, 1.0 - 2.0 * (variance ** 0.5))
+                conf_score = (
+                    unc_cfg.weight_coverage * coverage
+                    + unc_cfg.weight_agreement * agreement
+                    + unc_cfg.weight_proximity * proximity
+                ) / wsum
 
             multiplier = self.calibration.get_multiplier(mid, feature_cell)
             qualities[mid] = max(0.0, min(1.0, raw * multiplier))
-            confidence[mid] = conf
+            confidence_scores[mid] = max(0.0, min(1.0, conf_score))
 
-        return qualities, confidence, prior_used
+        return qualities, confidence, prior_used, confidence_scores
 
     # ------------------------------------------------------------------
     # Floors / cost / warmup
@@ -502,7 +524,9 @@ class KnnRouter:
         feature_cell: str,
         *,
         knn_grounded: bool = True,
+        confidence_scores: Optional[dict[str, float]] = None,
     ) -> RoutingDecision:
+        confidence_scores = confidence_scores or {}
         base_floor = self._base_floor(features)
         # KNN_CORPUS when the prediction is backed by per-question neighbor
         # outcomes; PRIOR when it's the benchmark aggregate prior (no neighbors).
@@ -571,6 +595,7 @@ class KnnRouter:
                     qualities=qualities, confidence=confidence, candidates_sorted=order,
                     effective_floors=effective_floors, base_floor=base_floor,
                     feature_cell=feature_cell, neighbors=neighbors, request_id=request_id,
+                    confidence_score=confidence_scores.get(selected),
                 )
             return self.fallback.route(
                 features, request_id, REASON_NO_MODEL_ABOVE_FLOOR, query=query
@@ -611,6 +636,7 @@ class KnnRouter:
                         qualities=qualities, confidence=confidence, candidates_sorted=candidates_sorted,
                         effective_floors=effective_floors, base_floor=base_floor,
                         feature_cell=feature_cell, neighbors=neighbors, request_id=request_id,
+                        confidence_score=confidence_scores.get(selected),
                     )
 
             # P4 — warmup forcing, restricted to qualifying ACTIVE models.
@@ -627,15 +653,42 @@ class KnnRouter:
                     qualities=qualities, confidence=confidence, candidates_sorted=candidates_sorted,
                     effective_floors=effective_floors, base_floor=base_floor,
                     feature_cell=feature_cell, neighbors=neighbors, request_id=request_id,
+                    confidence_score=confidence_scores.get(forced.model_id),
                 )
 
-        # Cost minimization inside the qualifying set (the anti-over-routing core).
+        # Cost minimization inside the qualifying set (the anti-over-routing core),
+        # then risk-aware escalation: if the cheapest qualifier's prediction is
+        # low-confidence (few / disagreeing / far neighbours), don't gamble on the
+        # cheap pick — escalate to the strongest qualifier (highest predicted
+        # quality). The confidence comes free from the neighbours; measured
+        # selective over a random escalation of the same budget.
         selected = candidates_sorted[0]
+        escalated = False
+        unc = self._config.uncertainty
+        if (
+            unc.enable
+            and unc.escalate_below_confidence > 0.0
+            and len(candidates_sorted) > 1
+            and confidence_scores.get(selected, 1.0) < unc.escalate_below_confidence
+        ):
+            # Escalate to the strongest EXECUTABLE (active) qualifier: routing an
+            # uncertain query to a keyless model would just fall back to a free one
+            # and deliver no upgrade, so the safety escalation must target a model
+            # that actually runs, and only when it is genuinely stronger.
+            active_qualifiers = [
+                mid for mid in candidates_sorted if self.registry.get(mid).is_active
+            ]
+            if active_qualifiers:
+                strongest = max(active_qualifiers, key=lambda mid: qualities.get(mid, 0.0))
+                if qualities.get(strongest, 0.0) > qualities.get(selected, 0.0):
+                    selected = strongest
+                    escalated = True
         return self._build_decision(
             selected=selected, source=base_source, features=features,
             qualities=qualities, confidence=confidence, candidates_sorted=candidates_sorted,
             effective_floors=effective_floors, base_floor=base_floor,
             feature_cell=feature_cell, neighbors=neighbors, request_id=request_id,
+            confidence_score=confidence_scores.get(selected), escalated=escalated,
         )
 
     def _build_decision(
@@ -652,6 +705,8 @@ class KnnRouter:
         feature_cell: str,
         neighbors: list[Any],
         request_id: str,
+        confidence_score: Optional[float] = None,
+        escalated: bool = False,
     ) -> RoutingDecision:
         return RoutingDecision(
             request_id=request_id,
@@ -660,6 +715,8 @@ class KnnRouter:
             source=source,
             predicted_quality=qualities.get(selected),
             prediction_confidence=confidence.get(selected, "low"),
+            prediction_confidence_score=confidence_score,
+            uncertainty_escalated=escalated,
             estimated_cost_usd=self._estimate_cost(selected, features),
             quality_floor_base=base_floor,
             effective_floor=effective_floors.get(selected),
@@ -758,10 +815,10 @@ class KnnRouter:
             # benchmark DATA (vision priors: MMMU / MathVista) over the
             # vision-capable models, not a hard-coded default.
             feature_cell = make_feature_cell(features)
-            qualities, confidence, _p = self._predict_qualities(features, [], feature_cell)
+            qualities, confidence, _p, conf_scores = self._predict_qualities(features, [], feature_cell)
             decision = self._choose(
                 query, features, qualities, confidence, [], request_id,
-                feature_cell, knn_grounded=False,
+                feature_cell, knn_grounded=False, confidence_scores=conf_scores,
             )
         else:
             # Stage C — encode + ANN search. Any encoder/Qdrant failure must
@@ -781,20 +838,20 @@ class KnnRouter:
                     # No per-question corpus evidence for THIS query — but still
                     # route by benchmark DATA (aggregate priors over the full
                     # catalog), not a hard-coded default. Source = PRIOR.
-                    qualities, confidence, _prior = self._predict_qualities(
+                    qualities, confidence, _prior, conf_scores = self._predict_qualities(
                         features, [], feature_cell
                     )
                     decision = self._choose(
                         query, features, qualities, confidence, [], request_id,
-                        feature_cell, knn_grounded=False,
+                        feature_cell, knn_grounded=False, confidence_scores=conf_scores,
                     )
                 else:
-                    qualities, confidence, _prior = self._predict_qualities(
+                    qualities, confidence, _prior, conf_scores = self._predict_qualities(
                         features, neighbors, feature_cell
                     )
                     decision = self._choose(
                         query, features, qualities, confidence, neighbors, request_id,
-                        feature_cell, knn_grounded=True,
+                        feature_cell, knn_grounded=True, confidence_scores=conf_scores,
                     )
 
         decision.latency_ms = (time.monotonic() - t0) * 1000.0
