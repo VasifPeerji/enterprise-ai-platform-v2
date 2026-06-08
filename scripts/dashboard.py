@@ -1063,6 +1063,106 @@ def render_ab_compare(fp, gate):
 
 
 # ============================================================================
+# Layer 9 — Telemetry & Drift Observability
+# ============================================================================
+
+def render_layer_9_observability():
+    st.subheader("Layer 9 — Telemetry & Drift Observability")
+    st.caption(
+        "Live view of the in-process routing telemetry buffer and the Layer 3 "
+        "prediction-drift detector. The buffer fills as you route queries on the "
+        "Layer 3 / Pipeline / Corpus pages (same process), so route a few first."
+    )
+    from src.layer0_model_infra.routing.telemetry import TelemetryLogger
+    from src.layer0_model_infra.routing.drift_detector import get_drift_detector
+
+    with TelemetryLogger._lock:
+        buf = list(TelemetryLogger._buffer)
+    stats = TelemetryLogger.get_buffer_stats()
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Buffered events", stats.get("buffer_size", 0))
+    c2.metric("Escalation rate", f"{stats.get('escalation_rate', 0):.0%}" if buf else "—")
+    c3.metric("Avg quality", f"{stats.get('avg_quality', 0):.3f}" if buf else "—")
+    c4.metric("Avg latency", f"{stats.get('avg_latency_ms', 0):.0f} ms" if buf else "—")
+
+    if not buf:
+        st.info(
+            "Telemetry buffer is empty. Route a few queries on the **Layer 3 — manual**, "
+            "**Pipeline**, or **Corpus runner — Layer 3** pages (this same process), then "
+            "return here. In production the buffer fills from live traffic and is also "
+            "persisted to the routing_telemetry table for offline analysis."
+        )
+        return
+
+    df = pd.DataFrame([{
+        "request_id": t.request_id,
+        "selected_model": t.selected_model_id,
+        "routing_source": t.routing_source or "(n/a)",
+        "predicted_quality": round(t.predicted_quality, 3),
+        "prediction_confidence": round(t.prediction_confidence_score, 3),
+        "uncertainty_escalated": t.uncertainty_escalated,
+        "domain": t.domain,
+        "cost_usd": round(t.cost_usd, 6),
+        "latency_ms": round(t.latency_ms, 1),
+    } for t in buf])
+
+    st.markdown("##### Routing-source distribution")
+    src = df["routing_source"].value_counts().reset_index()
+    src.columns = ["routing_source", "count"]
+    fig = px.bar(src, x="routing_source", y="count", color="routing_source",
+                 color_discrete_sequence=px.colors.qualitative.Set2)
+    fig.update_layout(height=280, showlegend=False, margin=dict(t=20, b=20))
+    st.plotly_chart(fig, use_container_width=True)
+
+    cc1, cc2 = st.columns(2)
+    with cc1:
+        st.markdown("##### Predicted-quality distribution")
+        kn = df[df["routing_source"] != "(n/a)"]
+        if not kn.empty:
+            figq = px.histogram(kn, x="predicted_quality", nbins=20,
+                                color_discrete_sequence=["#3b82f6"])
+            figq.update_layout(height=260, showlegend=False, margin=dict(t=20, b=20))
+            st.plotly_chart(figq, use_container_width=True)
+        else:
+            st.caption("No Layer 3 predicted-quality yet (only fast-path / cache routes buffered).")
+    with cc2:
+        st.markdown("##### Uncertainty escalation")
+        st.metric("Risk-aware escalation rate", f"{df['uncertainty_escalated'].mean():.0%}")
+        st.caption(
+            "Share of Layer 3 routes where neighbour-confidence was low enough to "
+            "escalate to a stronger executable model instead of the cheapest pick."
+        )
+
+    st.markdown("##### Layer 3 prediction-drift scan")
+    st.caption(
+        "Per model, compares the recent vs an earlier reference window of predicted "
+        "quality (KL divergence). A halt-level shift freezes that model's online "
+        "calibration so the EMA stops chasing a non-stationary signal. Needs ~40+ "
+        "events per model to act."
+    )
+    if st.button("Run drift scan", type="primary", key="l9_drift"):
+        results = get_drift_detector().scan(buf, freeze_on_halt=False)
+        if not results:
+            st.info("Not enough events per model yet (need ~40+ per model). Route more queries.")
+        else:
+            drows = [{
+                "model_id": r.model_id, "kl_divergence": round(r.kl_divergence, 4),
+                "level": r.level, "n_reference": r.n_reference, "n_recent": r.n_recent,
+            } for r in results]
+
+            def _hl(row):
+                c = {"halt": "#fef2f2", "warn": "#fffbeb", "info": "#eff6ff"}.get(row["level"], "")
+                return [f"background-color: {c}"] * len(row) if c else [""] * len(row)
+
+            st.dataframe(pd.DataFrame(drows).style.apply(_hl, axis=1),
+                         use_container_width=True, hide_index=True)
+
+    st.markdown("##### Recent telemetry events")
+    st.dataframe(df.tail(50), use_container_width=True, height=320)
+
+
+# ============================================================================
 # About / Help
 # ============================================================================
 
@@ -1077,7 +1177,8 @@ the same call paths as production, so what you see here is what real users get.
 - ✅ **Layer 1 — Modality Gate** ([report](../docs/layers/LAYER_1_REPORT.md))
 - ✅ **Layer 2 — Semantic Memory** ([report](../docs/layers/LAYER_2_REPORT.md))
 - ✅ **Layer 3 — Benchmark kNN Router** (new design; replaces the legacy fast-triage / uncertainty / bandit)
-- ⏳ Layers 4-9
+- ✅ **Layer 9 — Telemetry & Drift** (observability page: routing-source mix, predicted-quality, prediction-drift scan)
+- ⏳ Layers 4-8
 
 **Layer 3 note:** the kNN router needs Qdrant up (the `layer3_benchmark_corpus`
 collection) and loads a sentence-transformer encoder — the first L3 route warms
@@ -1126,6 +1227,7 @@ def main():
             "Corpus runner — Layer 1",
             "Corpus runner — Layer 3",
             "A/B compare",
+            "Layer 9 — Observability",
         ],
         index=1,
     )
@@ -1165,6 +1267,8 @@ def main():
         render_layer_3_corpus(get_knn_router(), get_question_text_lookup())
     elif page == "A/B compare":
         render_ab_compare(fp, gate)
+    elif page == "Layer 9 — Observability":
+        render_layer_9_observability()
 
 
 if __name__ == "__main__":

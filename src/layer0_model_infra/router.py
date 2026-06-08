@@ -714,6 +714,7 @@ class ModelRouter:
         """Fire-and-forget telemetry log (Layer 9)."""
         try:
             triage = decision.triage_result or {}
+            l3 = getattr(decision, "layer3_raw_decision", None)
             telemetry = RoutingTelemetry(
                 request_id=request_id,
                 selected_model_id=decision.selected_model.model_id,
@@ -742,6 +743,10 @@ class ModelRouter:
                 classification_entropy=decision.uncertainty_score.get("classification_entropy", 0.0),
                 instruction_conflict_score=decision.uncertainty_score.get("instruction_conflict_score", 0.0),
                 cross_domain_score=decision.uncertainty_score.get("cross_domain_score", 0.0),
+                routing_source=(getattr(getattr(l3, "source", None), "value", "") if l3 is not None else ""),
+                predicted_quality=(l3.predicted_quality if (l3 is not None and l3.predicted_quality is not None) else 0.0),
+                prediction_confidence_score=((getattr(l3, "prediction_confidence_score", None) or 0.0) if l3 is not None else 0.0),
+                uncertainty_escalated=(bool(getattr(l3, "uncertainty_escalated", False)) if l3 is not None else False),
             )
             TelemetryLogger.log_async(telemetry)
         except Exception as e:

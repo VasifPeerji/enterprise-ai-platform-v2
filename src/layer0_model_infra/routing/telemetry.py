@@ -158,6 +158,8 @@ class TelemetryLogger:
             buf_size = len(cls._buffer)
         if buf_size % 100 == 0:
             cls.recalibrate_triage()
+        if buf_size % 200 == 0:
+            cls.run_drift_scan()
 
     @classmethod
     def _write_to_db(cls, t: RoutingTelemetry) -> None:
@@ -188,6 +190,10 @@ class TelemetryLogger:
                     novelty_score=t.novelty_score,
                     user_tier=t.user_tier,
                     budget_remaining=t.budget_remaining,
+                    routing_source=t.routing_source,
+                    predicted_quality=t.predicted_quality,
+                    prediction_confidence_score=t.prediction_confidence_score,
+                    uncertainty_escalated=t.uncertainty_escalated,
                 )
                 session.add(record)
                 session.commit()
@@ -249,6 +255,36 @@ class TelemetryLogger:
                 avg_cost_usd=round(avg_cost, 6),
                 avg_latency_ms=round(avg_latency, 2),
             )
+
+    @classmethod
+    def run_drift_scan(cls) -> list:
+        """Layer 9 drift scan over the buffered telemetry. Groups records by the
+        routed model, compares each model's recent vs reference predicted-quality
+        distribution (KL divergence), and freezes that model's calibration on a
+        halt-level shift. Pure statistics over numbers the router already
+        produced; never blocks the request path."""
+        with cls._lock:
+            snapshot = list(cls._buffer)
+        if not snapshot:
+            return []
+        try:
+            from src.layer0_model_infra.routing.drift_detector import get_drift_detector
+            results = get_drift_detector().scan(snapshot)
+            flagged = [r for r in results if r.level in ("info", "warn", "halt")]
+            if flagged:
+                logger.info(
+                    "layer3_drift_scan",
+                    models_scanned=len(results),
+                    flagged=[
+                        {"model": r.model_id, "level": r.level,
+                         "kl": round(r.kl_divergence, 4), "frozen": r.frozen}
+                        for r in flagged
+                    ],
+                )
+            return results
+        except Exception as e:
+            logger.error("layer3_drift_scan_failed", error=str(e))
+            return []
 
     @classmethod
     def update_semantic_memory_entries(cls) -> None:
