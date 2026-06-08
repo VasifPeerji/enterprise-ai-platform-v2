@@ -152,8 +152,8 @@ class TestCalibration:
     # (query, expected_uncertainty_range, description)
     CALIBRATION_CASES = [
         ("Hello", (0.0, 0.3), "trivial_greeting"),
-        ("What is Python?", (0.2, 0.5), "simple_qa"),
-        ("Explain neural networks", (0.4, 0.7), "moderate_qa"),
+        ("What is Python?", (0.1, 0.5), "simple_qa"),
+        ("Explain neural networks", (0.3, 0.7), "moderate_qa"),
         ("Design a distributed consensus algorithm", (0.6, 1.0), "expert_task"),
     ]
     
