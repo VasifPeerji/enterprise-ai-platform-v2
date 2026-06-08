@@ -233,8 +233,8 @@ appendonly.aof
 # ==========================================
 # AI & ML
 # ==========================================
-# Model weights
-models/
+# Model weights (root-level ML artifacts only; src/database/models/ is DB source code, not weights)
+/models/
 *.h5
 *.pkl
 *.joblib
