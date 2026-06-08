@@ -65,6 +65,12 @@ class RoutingTelemetry:
     confidence_level: str = ""
     novelty_score: float = 0.0
 
+    # ── Layer 3 routing signals (observability + drift detection) ──────────
+    routing_source: str = ""                    # KNN_CORPUS / PRIOR / FALLBACK / ...
+    predicted_quality: float = 0.0              # Layer 3's predicted quality for the pick
+    prediction_confidence_score: float = 0.0    # neighbour-derived confidence (0-1)
+    uncertainty_escalated: bool = False         # risk-aware escalation fired
+
     # User context
     user_tier: str = "standard"
     budget_remaining: float = 1.0
