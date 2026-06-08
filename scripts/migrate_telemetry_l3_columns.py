@@ -13,9 +13,14 @@ Run:
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 
 from dotenv import dotenv_values
 from sqlalchemy import inspect, text
+
+# Repo root on sys.path so `src` imports when run as `python scripts/migrate_...py`.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Make the DB URL from .env visible to the app's Settings in this standalone run.
 for _k, _v in dotenv_values(".env").items():
