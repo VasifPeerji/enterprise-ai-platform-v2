@@ -192,6 +192,56 @@ class EscalationEngine:
         )
         return path
 
+    def path_from_qualifiers(
+        self,
+        qualifying_models: list[str],
+        selected_model_id: str,
+        cooldown=None,
+    ) -> EscalationPath:
+        """Build the escalation ladder from Layer 3's cost-sorted qualifying_models
+        instead of a fresh registry scan.
+
+        The list is cheapest-correct first, so the ladder starts at the model Layer 3
+        actually picked and climbs to the more-expensive qualifiers that can still
+        run: active (escalating to a keyless model would only fall back to a free one
+        and gain nothing) and not currently rate-limited (cooldown). It never
+        escalates DOWNWARD to a cheaper qualifier. Falls back to the legacy registry
+        scan if none of the qualifiers resolve.
+        """
+        ladder: list[ModelDefinition] = []
+        started = False
+        for mid in qualifying_models:
+            if not started:
+                if mid == selected_model_id:
+                    started = True
+                else:
+                    continue  # cheaper than the pick — never escalate downward
+            try:
+                model = registry.get_model(mid)
+            except Exception:
+                continue
+            if mid != selected_model_id:
+                # Escalation TARGETS must actually run and not be cooling down.
+                if not getattr(model, "is_active", True):
+                    continue
+                if cooldown is not None and cooldown.is_cooling_down(mid):
+                    continue
+            ladder.append(model)
+            if len(ladder) >= self.max_levels:
+                break
+
+        if not ladder:
+            return self.create_escalation_path(selected_model_id)
+
+        path = EscalationPath(models=ladder, current_level=0, max_attempts=len(ladder))
+        logger.info(
+            "escalation_path_from_qualifiers",
+            selected=selected_model_id,
+            levels=len(ladder),
+            models=[m.model_id for m in ladder],
+        )
+        return path
+
     def should_escalate(
         self,
         quality_score: float,

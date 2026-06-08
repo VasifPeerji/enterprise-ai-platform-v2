@@ -239,11 +239,24 @@ class EliteExecutionOrchestrator:
         # ----------------------------------------------------
         
         escalation_engine = get_escalation_engine()
-        escalation_path = escalation_engine.create_escalation_path(
-            initial_model_id=decision.selected_model.model_id,
-            requires_vision=decision.modality_analysis.get("requires_vision", False),
-            requires_code=decision.modality_analysis.get("requires_code_model", False),
-        )
+        # Layer 8: when Layer 3 routed this query, escalate along ITS cost-sorted
+        # qualifying set (cheapest-correct first) rather than a fresh registry scan,
+        # skipping any qualifier that just rate-limited. Falls back to the legacy
+        # path builder for legacy-pipeline decisions.
+        l3_raw = getattr(decision, "layer3_raw_decision", None)
+        if l3_raw is not None and getattr(l3_raw, "qualifying_models", None):
+            from src.layer0_model_infra.routing.rate_limit_cooldown import get_rate_limit_cooldown
+            escalation_path = escalation_engine.path_from_qualifiers(
+                qualifying_models=l3_raw.qualifying_models,
+                selected_model_id=decision.selected_model.model_id,
+                cooldown=get_rate_limit_cooldown(),
+            )
+        else:
+            escalation_path = escalation_engine.create_escalation_path(
+                initial_model_id=decision.selected_model.model_id,
+                requires_vision=decision.modality_analysis.get("requires_vision", False),
+                requires_code=decision.modality_analysis.get("requires_code_model", False),
+            )
         current_model = escalation_path.current_model
 
         attempts = 0
