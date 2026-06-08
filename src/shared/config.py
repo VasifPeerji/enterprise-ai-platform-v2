@@ -142,9 +142,11 @@ class Settings(BaseSettings):
 
     # Layer 3 — Benchmark-driven kNN router (env-overridable surface only;
     # internal numeric thresholds live in routing_config.Layer3Config).
+    # The kNN router is the production router. LAYER3_ENABLED is a kill switch /
+    # demo toggle (off => routing degrades to a safe-default model). The old
+    # canary-fraction + shadow-mode migration flags were retired once the legacy
+    # L3-L5 pipeline was decommissioned (archived under routing/legacy/).
     LAYER3_ENABLED: bool = True
-    LAYER3_SHADOW_MODE: bool = False
-    LAYER3_CANARY_FRACTION: float = 1.0  # active: kNN serves all traffic (was 0.0 / dormant)
     LAYER3_QUALITY_FLOOR_DEFAULT: Optional[float] = None  # None = use config default
     LAYER3_QUALITY_FLOOR_HIGH_RISK: Optional[float] = None
     LAYER3_ENCODER_DEVICE: Literal["cuda", "cpu", "auto"] = "auto"

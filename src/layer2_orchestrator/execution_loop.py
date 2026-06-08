@@ -8,7 +8,7 @@ This component implements the ELITE EXECUTION LOOP:
 1. Call Router (Plan)
 2. Fast Path Check (Short-circuit)
 3. Execution Loop (Try -> Check -> Escalate)
-4. Feedback Loop (Update Bandit & Memory)
+4. Feedback Loop (Update Memory & Layer 3 calibration)
 """
 
 import time
@@ -18,7 +18,6 @@ from pydantic import BaseModel, Field
 
 from src.layer0_model_infra.gateway import get_gateway, LLMRequest
 from src.layer0_model_infra.router import get_router, RoutingDecision
-from src.layer0_model_infra.routing.bandit_router import get_bandit_router, BanditContext
 from src.layer0_model_infra.routing.escalation_engine import get_escalation_engine
 from src.layer0_model_infra.routing.semantic_memory import get_semantic_memory
 from src.layer0_model_infra.routing.quality_evaluator import get_quality_evaluator
@@ -48,7 +47,7 @@ class EliteExecutionOrchestrator:
     Orchestrates the execution of a request through the Elite 9-Layer Pipeline.
     
     Handles:
-    - Routing (Layer 0-5)
+    - Routing (Layer 0-3 kNN router)
     - Execution (Gateway)
     - Quality Check (Layer 7)
     - Auto-Escalation (Layer 8)
@@ -58,7 +57,6 @@ class EliteExecutionOrchestrator:
     def __init__(self):
         self.router = get_router()
         self.gateway = get_gateway()
-        self.bandit = get_bandit_router()
         self.memory = get_semantic_memory()
         self.quality_evaluator = get_quality_evaluator()
         
@@ -191,18 +189,6 @@ class EliteExecutionOrchestrator:
             
             # Skip main execution loop, return TTC result
             total_latency = (time.time() - start_time) * 1000
-            
-            # Update Bandit with TTC result
-            if decision.bandit_context:
-                ctx = BanditContext(**decision.bandit_context)
-                self.bandit.update_reward(
-                    context=ctx,
-                    model_id=decision.selected_model.model_id,
-                    quality_score=ttc_result.best_quality,
-                    cost=0.0,  # Approximation
-                    escalated=False,
-                    latency_ms=total_latency
-                )
             
             # Record in memory
             if ttc_result.best_quality > 0.7:
@@ -427,37 +413,6 @@ class EliteExecutionOrchestrator:
             cost_usd=total_cost
         )
         
-        # Update Bandit (Async in prod)
-        if decision.bandit_context: 
-            # Reconstruct context
-            # In a real app, use the Pydantic object
-            ctx = BanditContext(**decision.bandit_context)
-            
-            # Calculate reward
-            # If we escalated, the first model gets a penalty!
-            # The final model gets the reward.
-            
-            # A. Penalize the failures
-            for i, failed_model_id in enumerate(models_tried[:-1]):
-                self.bandit.update_reward(
-                    context=ctx,
-                    model_id=failed_model_id,
-                    quality_score=0.0, # Failed quality check
-                    cost=0.0, # We paid cost but got 0 value? Or assume sunk cost. 
-                              # Bandit `update_reward` handles cost penalty internally.
-                    escalated=True
-                )
-            
-            # B. Reward the winner (or final attempt)
-            self.bandit.update_reward(
-                context=ctx,
-                model_id=models_tried[-1],
-                quality_score=final_quality,
-                cost=final_response.cost_usd if final_response else 0.0,
-                escalated=(len(models_tried) > 1),
-                latency_ms=total_latency
-            )
-
         # Update Memory
         if passed and final_response:
              self.memory.record(

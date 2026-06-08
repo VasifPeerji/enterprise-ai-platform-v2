@@ -67,7 +67,6 @@ def router():
     # isolated one so model resolution still finds them.
     r._layer3_models_registered = False
     r._ensure_layer3_models_registered()
-    r._layer3_canary = 1.0
     yield r
 
     if saved is None:
@@ -77,20 +76,8 @@ def router():
     registry_loader.reset_layer3_registry()
 
 
-def test_use_layer3_canary_split(router):
-    router._layer3_canary = 0.0
-    assert router._use_layer3("req-a") is False     # wired but inactive
-    router._layer3_canary = 1.0
-    assert router._use_layer3("req-a") is True
-    router._layer3_canary = 0.5
-    # stable per request_id (no flip on retry)
-    assert router._use_layer3("req-x") == router._use_layer3("req-x")
-    router._layer3_canary = 1.0
-
-
 def test_full_route_through_layer3(router):
     router._knn_router = _FakeKnn(decision=_l3_decision())
-    router._layer3_canary = 1.0
     d = router.route("explain optimistic vs pessimistic locking in databases in detail")
     assert d.pipeline_metadata["router"] == "layer3_knn"
     assert d.selected_model.model_id == "llama-3.1-8b-instant-groq"
@@ -103,12 +90,12 @@ def test_full_route_through_layer3(router):
     assert [m.model_id for m in d.fallback_models] == ["llama-3.3-70b-versatile-groq"]
 
 
-def test_layer3_failure_returns_none_for_legacy_fallthrough(router):
+def test_layer3_failure_returns_none_for_safe_default_fallthrough(router):
     router._knn_router = _FakeKnn(raises=True)
     from src.layer0_model_infra.routing.modality_gate import get_modality_gate
     ma = get_modality_gate().analyze("a normal query about something")
     # _route_via_layer3 swallows the failure and returns None so route() can
-    # fall through to the legacy pipeline.
+    # fall through to the safe-default decision.
     assert router._route_via_layer3("a normal query", ma, None, None, "r1") is None
     router._knn_router = _FakeKnn(decision=_l3_decision())
 

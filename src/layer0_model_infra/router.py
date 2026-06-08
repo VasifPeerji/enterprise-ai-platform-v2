@@ -10,9 +10,11 @@ ELITE ROUTING PIPELINE:
   Layer 1:  Modality Gate    → Detect capabilities required
   Layer 1.5: Input Signals   → Extract difficulty signals from query structure
   Layer 2:  Semantic Memory  → Cache lookup (short-circuit on hit)
-  Layer 3:  Fast Triage      → Intent / domain / complexity classification
-  Layer 4:  Uncertainty      → Calibrated uncertainty estimation
-  Layer 5:  Bandit Router    → Thompson Sampling model selection
+  Layer 3:  kNN Router       → benchmark-driven model selection. Replaced the
+            legacy Fast Triage / Uncertainty / Bandit chain (now archived under
+            routing/legacy/). Self-sufficient: encoder/Qdrant failures degrade to
+            its own prior-based fallback. The LAYER3_ENABLED kill switch drops
+            routing to a minimal safe-default model.
   Layer 6:  Test-Time Compute→ Best-of-N for moderate-uncertainty queries
   Layer 7:  Quality Evaluation → Output validation (silent failure detection)
   Layer 8:  Auto-Escalation  → Retry with better model on quality failure
@@ -24,33 +26,25 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from src.layer0_model_infra.config.routing_config import get_routing_config
 from src.layer0_model_infra.models import (
-    ModelCapability,
     ModelDefinition,
     ModelProvider,
-    ModelRoutingTier,
     ModelType,
 )
 from src.layer0_model_infra.registry import get_registry
-from src.layer0_model_infra.routing.bandit_router import BanditContext, get_bandit_router
 from src.layer0_model_infra.routing.escalation_engine import get_escalation_engine
 from src.layer0_model_infra.routing.fast_path import get_fast_path
-from src.layer0_model_infra.routing.fast_triage import get_triage_classifier
 from src.layer0_model_infra.routing.input_signals import get_input_extractor
 from src.layer0_model_infra.routing.modality_gate import get_modality_gate
 from src.layer0_model_infra.routing.quality_evaluator import get_quality_evaluator
 from src.layer0_model_infra.routing.semantic_memory import get_semantic_memory
 from src.layer0_model_infra.routing.telemetry import RoutingTelemetry, TelemetryLogger
-from src.layer0_model_infra.routing.uncertainty_estimator import get_uncertainty_estimator
-from src.layer0_model_infra.routing.benchmark_router import get_benchmark_router
 from src.shared.config import get_settings
 from src.shared.errors import ModelNotFoundError
 from src.shared.logger import get_logger
 
 logger = get_logger(__name__)
 settings = get_settings()
-routing_config = get_routing_config()
 
 
 # ---------------------------------------------------------------------------
@@ -134,46 +128,30 @@ class ModelRouter:
         self.modality_gate = get_modality_gate()              # Layer 1
         self.input_extractor = get_input_extractor()          # Layer 1.5
         self.semantic_memory = get_semantic_memory()           # Layer 2
-        self.triage_classifier = get_triage_classifier()      # Layer 3
-        self.uncertainty_estimator = get_uncertainty_estimator()  # Layer 4
-        self.bandit_router = get_bandit_router()              # Layer 5
         self.quality_evaluator = get_quality_evaluator()      # Layer 7
         self.escalation_engine = get_escalation_engine()      # Layer 8
-        self.benchmark_router = get_benchmark_router()        # Benchmark advisor
 
-        # ── NEW Layer 3 (benchmark-driven kNN router), behind feature flags ──
-        # LAYER3_ENABLED is the master switch; LAYER3_CANARY_FRACTION is the share
-        # of live traffic routed through it (0.0 = wired but inactive — the safe
-        # default, so legacy behaviour is unchanged until you dial it up; 1.0 =
-        # full). SHADOW runs it alongside the legacy path for comparison with no
-        # user impact. Layer 3 models are registered into the gateway registry
-        # LAZILY (first real Layer 3 route) so canary=0.0 leaves the legacy
-        # candidate pool — and the legacy tests — untouched.
+        # ── Layer 3 (benchmark-driven kNN router) — the production router ──
+        # The legacy migration scaffolding (canary fraction + shadow mode) was
+        # retired once the kNN router fully replaced the legacy L3-L5 pipeline:
+        # with no second router to split against or shadow-compare, those knobs
+        # were meaningless. LAYER3_ENABLED remains as a single kill switch / demo
+        # toggle — off degrades routing to a minimal safe-default model; on (the
+        # default) the kNN router serves every non-trivial query. Its models are
+        # registered into the gateway registry up front so every execution path
+        # (fast-path, forced, kNN) can resolve them by id.
         self._layer3_enabled = bool(settings.LAYER3_ENABLED)
-        self._layer3_shadow = bool(settings.LAYER3_SHADOW_MODE)
-        self._layer3_canary = float(settings.LAYER3_CANARY_FRACTION or 0.0)
         self._layer3_models_registered = False
         self._knn_router = None
         if self._layer3_enabled:
             try:
                 from src.layer0_model_infra.routing.knn_router import get_knn_router
                 self._knn_router = get_knn_router()
+                self._ensure_layer3_models_registered()
             except Exception as exc:
                 logger.error("layer3_init_failed_disabling", reason=str(exc))
                 self._layer3_enabled = False
-        # When Layer 3 is actually serving (canary>0) or shadowing, register its
-        # models into the gateway registry up front so EVERY execution path —
-        # fast-path, forced, the canary route — can resolve them by id. The lazy
-        # registration only fired inside _route_via_layer3, so a fast-path or
-        # forced decision that names a Layer 3 model hit ModelNotFoundError.
-        # canary=0 (legacy-only / the existing tests) stays untouched.
-        if self._layer3_enabled and self._knn_router is not None and (
-            self._layer3_canary > 0.0 or self._layer3_shadow
-        ):
-            try:
-                self._ensure_layer3_models_registered()
-            except Exception as exc:
-                logger.error("layer3_eager_register_failed", reason=str(exc))
+                self._knn_router = None
 
     def route(
         self,
@@ -339,9 +317,14 @@ class ModelRouter:
             return decision
 
         # =======================================================
-        # NEW LAYER 3: benchmark-driven kNN router (replaces legacy L3-L5)
+        # LAYER 3: benchmark-driven kNN router — the production router.
+        # It is self-sufficient: encoder/Qdrant failures degrade to its own
+        # prior-based Stage-D fallback internally, so it returns a valid decision
+        # in every normal case. _route_via_layer3 only returns None if the router
+        # raised unexpectedly; that case and the LAYER3_ENABLED kill switch both
+        # fall through to the minimal safe-default below.
         # =======================================================
-        if self._layer3_enabled and not self._layer3_shadow and self._use_layer3(request_id):
+        if self._layer3_enabled and self._knn_router is not None:
             l3_decision = self._route_via_layer3(
                 query, modality_analysis, input_signals, memory_result, request_id
             )
@@ -352,230 +335,20 @@ class ModelRouter:
                     novelty_score=memory_result.novelty_score, query=query,
                 )
                 return l3_decision
-            # kNN router unavailable/failed → fall through to the legacy pipeline.
 
         # =======================================================
-        # LAYER 3: FAST TRIAGE
+        # SAFE DEFAULT: kNN disabled (kill switch) or it crashed unexpectedly.
+        # Route to a strong free default instead of the retired legacy pipeline.
         # =======================================================
-        triage_result = self.triage_classifier.classify(query, input_signals=input_signals)
-        logger.debug(
-            "layer3_fast_triage",
-            intent=triage_result.intent,
-            domain=triage_result.domain,
-            complexity=triage_result.complexity_band,
-            confidence=triage_result.confidence,
+        decision = self._create_safe_default_decision(
+            query, modality_analysis, input_signals, memory_result
         )
-
-        # =======================================================
-        # LAYER 4: UNCERTAINTY ESTIMATION
-        # Context-Aware: compute token density from conversational history
-        # =======================================================
-        ctx_token_density = self._compute_ctx_token_density(history)
-
-        uncertainty_score = self.uncertainty_estimator.estimate(
-            query=query,
-            classifier_confidence=triage_result.confidence,
-            query_length=len(query.split()),
-            novelty_score=memory_result.novelty_score,
-            input_signals=input_signals.model_dump(),
-            user_tier=user_tier,
-            ctx_token_density=ctx_token_density,
-        )
-        logger.debug(
-            "layer4_uncertainty",
-            total=uncertainty_score.total_uncertainty,
-            confidence=uncertainty_score.confidence_level,
-            tier=user_tier,
-            ctx_density=ctx_token_density,
-        )
-
-        # =======================================================
-        # LAYER 5: BANDIT-BASED MODEL SELECTION
-        # =======================================================
-        required_type = self._determine_model_type(modality_analysis)
-        target_tier, routing_policy_reason = self._determine_target_tier(
-            triage_result=triage_result,
-            uncertainty_score=uncertainty_score.total_uncertainty,
-            uncertainty_details=uncertainty_score,
-            input_signals=input_signals,
-            modality_analysis=modality_analysis,
-            user_tier=user_tier,
-            budget_remaining=budget_remaining,
-        )
-        candidates = self._get_candidate_models(
-            model_type=required_type,
-            modality_analysis=modality_analysis,
-            triage_result=triage_result,
-            uncertainty_score=uncertainty_score.total_uncertainty,
-            input_signals=input_signals,
-            target_tier=target_tier,
-        )
-
-        if not candidates:
-            raise ModelNotFoundError(f"No models found for type={required_type}")
-
-        bandit_context = BanditContext(
-            intent=triage_result.intent,
-            domain=triage_result.domain,
-            complexity_band=triage_result.complexity_band,
-            uncertainty_score=uncertainty_score.total_uncertainty,
-            has_vision=modality_analysis.requires_vision,
-            has_code=modality_analysis.requires_code_model,
-            input_difficulty=input_signals.overall_difficulty,
-            has_multi_part=input_signals.has_multi_part,
-            has_constraints=input_signals.has_constraints,
-            user_tier=user_tier,
-            budget_remaining=budget_remaining,
-            session_escalation_count=session_escalation_count,
-            session_complexity_avg=session_complexity_avg,
-        )
-
-        candidate_ids = [m.model_id for m in candidates]
-        selected_model_id = self.bandit_router.select_model(
-            context=bandit_context,
-            available_models=candidate_ids,
-            registry=self.registry,
-        )
-        selected_model = self.registry.get_model(selected_model_id)
-
-        logger.info(
-            "layer5_bandit_selection",
-            selected_model=selected_model_id,
-            uncertainty=uncertainty_score.total_uncertainty,
-        )
-
-        # =======================================================
-        # BUILD ROUTING DECISION
-        # =======================================================
-        fallback_models = [m for m in candidates if m.model_id != selected_model_id][:2]
-        estimated_cost = self._estimate_cost(selected_model, triage_result.complexity_band.value)
-        routing_reasoning = self._generate_elite_reasoning(
-            modality_analysis, triage_result, uncertainty_score, selected_model
-        )
-        escalation_path = self.escalation_engine.create_escalation_path(
-            initial_model_id=selected_model_id,
-            requires_vision=modality_analysis.requires_vision,
-            requires_code=modality_analysis.requires_code_model,
-        )
-
-        # =======================================================
-        # BENCHMARK ADVISOR: Quality/cost-optimised recommendation
-        # =======================================================
-        try:
-            rubric_for_bench = {
-                "task_count": triage_result.complexity_rubric.get("task_count", 0.5),
-                "domain_depth": triage_result.complexity_rubric.get("domain_depth", 0.5),
-                "reasoning_hops": triage_result.complexity_rubric.get("reasoning_hops", 0.5),
-                "output_structure": triage_result.complexity_rubric.get("output_structure", 0.5),
-                "knowledge_breadth": triage_result.complexity_rubric.get("knowledge_breadth", 0.5),
-                "raw_score": triage_result.complexity_raw_score,
-            }
-
-            bench_result = self.benchmark_router.recommend(
-                query,
-                rubric=rubric_for_bench,
-                available_model_ids=[m.model_id for m in candidates],
-                complexity_band=triage_result.complexity_band.value,
-            )
-            benchmark_rec = {
-                "model_id": bench_result.recommended_model_id,
-                "quality": bench_result.quality_score,
-                "cost": bench_result.cost_per_1k,
-                "value": bench_result.value_score,
-                "tier": bench_result.tier,
-                "method": bench_result.method,
-            }
-        except Exception as exc:
-            logger.debug("benchmark_router_skipped", error=str(exc))
-            benchmark_rec = None
-
-        decision = RoutingDecision(
-            selected_model=selected_model,
-            fallback_models=fallback_models,
-            modality_analysis=modality_analysis.model_dump(),
-            triage_result=triage_result.model_dump(),
-            uncertainty_score=uncertainty_score.model_dump(),
-            bandit_context=bandit_context.model_dump(),
-            routing_reasoning=routing_reasoning,
-            estimated_cost_usd=estimated_cost,
-            confidence_level=uncertainty_score.confidence_level,
-            escalation_path_available=escalation_path.can_escalate,
-            escalation_levels=len(escalation_path.models),
-            benchmark_recommendation=benchmark_rec,
-            pipeline_metadata={
-                "user_tier": user_tier,
-                "budget_remaining": budget_remaining,
-                "ctx_token_density": ctx_token_density,
-                "novelty_score": memory_result.novelty_score,
-                "session_escalation_count": session_escalation_count,
-                "task_type": input_signals.task_type.value,
-                "instruction_count": input_signals.instruction_count,
-                "multi_intent_score": input_signals.multi_intent_score,
-                "reasoning_depth": input_signals.reasoning_depth,
-                "attachments_count": attachments_count,
-                "target_tier": target_tier,
-                "routing_policy_reason": routing_policy_reason,
-                "candidate_model_ids": [m.model_id for m in candidates],
-                "benchmark_model_id": benchmark_rec["model_id"] if benchmark_rec else None,
-            },
-        )
-
-        # =======================================================
-        # LAYER 9: ASYNC TELEMETRY
-        # =======================================================
         self._emit_telemetry(
-            request_id=request_id,
-            decision=decision,
-            user_tier=user_tier,
+            request_id=request_id, decision=decision, user_tier=user_tier,
             budget_remaining=budget_remaining,
-            novelty_score=memory_result.novelty_score,
-            uncertainty_score=uncertainty_score.total_uncertainty,
-            confidence_level=uncertainty_score.confidence_level,
-            query=query,
+            novelty_score=memory_result.novelty_score, query=query,
         )
-
-        logger.info(
-            "elite_routing_completed",
-            selected_model=selected_model_id,
-            confidence=uncertainty_score.confidence_level,
-            estimated_cost=estimated_cost,
-        )
-
-        if self._layer3_enabled and self._layer3_shadow:
-            self._shadow_compare_layer3(query, modality_analysis, input_signals, request_id, decision)
-
         return decision
-
-    # ------------------------------------------------------------------
-    # Context-Aware Routing Helper (Section 4.3)
-    # ------------------------------------------------------------------
-
-    def _compute_ctx_token_density(
-        self, history: Optional[list[dict]]
-    ) -> Optional[float]:
-        """
-        Compute conversational context token density from history.
-
-        Density = total_history_tokens / 4096 (a reasonable context window).
-        Returns None if no history provided (no adjustment applied).
-
-        Per Section 4.3: "Recent dialogue turns are aggregated, and contextual
-        token density is measured. When the cumulative context exceeds predefined
-        thresholds, complexity estimates are adjusted accordingly."
-        """
-        if not history:
-            return None
-
-        total_tokens = 0
-        for turn in history:
-            content = turn.get("content", "") or ""
-            # Rough approximation: 4 chars ≈ 1 token
-            total_tokens += len(content) // 4
-
-        # Normalise against a 4 096-token context window
-        density = min(total_tokens / 4096, 1.0)
-        logger.debug("ctx_token_density", total_tokens=total_tokens, density=round(density, 4))
-        return density
 
     # ------------------------------------------------------------------
     # Helper: create forced decision
@@ -584,21 +357,115 @@ class ModelRouter:
     def _create_forced_decision(self, model: ModelDefinition, query: str) -> RoutingDecision:
         """Create decision for forced model selection (still runs analysis for logging)."""
         modality_analysis = self.modality_gate.analyze(query, False, False, 0)
-        input_signals = self.input_extractor.extract(query)
-        triage_result = self.triage_classifier.classify(query, input_signals=input_signals)
-        uncertainty_score = self.uncertainty_estimator.estimate(query)
+        neutral_triage = {
+            "intent": "qa", "domain": "general", "complexity_band": "moderate",
+            "confidence": 1.0,
+            "ambiguity": {"is_multi_intent": False, "is_vague": False, "is_underspecified": False},
+            "task_type": "qa", "instruction_count": 1, "prompt_length": len(query),
+            "reasoning": "Model explicitly forced by user",
+            "complexity_raw_score": 0.5,
+            "complexity_rubric": {
+                "raw_score": 0.5, "task_count": 0.5, "domain_depth": 0.5,
+                "reasoning_hops": 0.5, "output_structure": 0.5, "knowledge_breadth": 0.5,
+            },
+            "synthesized": True, "synthesis_reason": "forced_model",
+        }
+        neutral_uncertainty = {
+            "total_uncertainty": 0.0, "confidence_level": "N/A",
+            "synthesized": True, "synthesis_reason": "forced_model",
+        }
 
         return RoutingDecision(
             selected_model=model,
             fallback_models=[],
             modality_analysis=modality_analysis.model_dump(),
-            triage_result=triage_result.model_dump(),
-            uncertainty_score=uncertainty_score.model_dump(),
+            triage_result=neutral_triage,
+            uncertainty_score=neutral_uncertainty,
             routing_reasoning="Model explicitly forced by user",
             estimated_cost_usd=0.0,
             confidence_level="N/A",
             escalation_path_available=False,
             escalation_levels=0,
+        )
+
+    # ------------------------------------------------------------------
+    # Helper: create safe-default decision (Layer 3 kill switch / crash net)
+    # ------------------------------------------------------------------
+
+    def _create_safe_default_decision(
+        self, query, modality_analysis, input_signals, memory_result
+    ) -> RoutingDecision:
+        """Minimal last-resort decision, used only when the kNN router is off via
+        the LAYER3_ENABLED kill switch or crashed unexpectedly. Routes to the
+        strongest active free text model (a reliable default) and synthesizes the
+        neutral triage / uncertainty metadata that telemetry + the orchestrator
+        expect. The retired legacy triage/uncertainty/bandit pipeline previously
+        filled this role; the kNN router's own prior-based fallback already covers
+        the common infra-failure case, so this only fires in genuinely degraded
+        conditions.
+        """
+        text_models = self.registry.list_models(model_type=ModelType.TEXT, only_active=True)
+        if not text_models:
+            raise ModelNotFoundError("No active text model available for safe-default routing")
+
+        import re
+        free_providers = {
+            ModelProvider.GOOGLE, ModelProvider.GROQ, ModelProvider.OPENROUTER,
+            ModelProvider.HUGGINGFACE, ModelProvider.COHERE,
+        }
+
+        def _size_b(m: ModelDefinition) -> float:
+            match = re.search(r'(\d+(?:\.\d+)?)\s*[bB]', m.model_name or "")
+            return float(match.group(1)) if match else 0.0
+
+        # Prefer a free-API provider, then the largest (strongest) model.
+        preferred = [m for m in text_models if m.provider in free_providers] or text_models
+        model = max(preferred, key=_size_b)
+
+        neutral_triage = {
+            "intent": "qa", "domain": "general", "complexity_band": "moderate",
+            "confidence": 0.5,
+            "ambiguity": {"is_multi_intent": False, "is_vague": False, "is_underspecified": False},
+            "task_type": "qa", "instruction_count": 1, "prompt_length": len(query),
+            "reasoning": "Safe-default routing (Layer 3 kNN router disabled or unavailable)",
+            "complexity_raw_score": 0.5,
+            "complexity_rubric": {
+                "raw_score": 0.5, "task_count": 0.5, "domain_depth": 0.5,
+                "reasoning_hops": 0.5, "output_structure": 0.5, "knowledge_breadth": 0.5,
+            },
+            "synthesized": True, "synthesis_reason": "safe_default",
+        }
+        neutral_uncertainty = {
+            "total_uncertainty": 0.5, "confidence_level": "MEDIUM",
+            "cross_domain_score": 0.0, "classification_entropy": 0.0,
+            "instruction_conflict_score": 0.0,
+            "synthesized": True, "synthesis_reason": "safe_default",
+        }
+
+        return RoutingDecision(
+            selected_model=model,
+            fallback_models=[],
+            modality_analysis=modality_analysis.model_dump(),
+            triage_result=neutral_triage,
+            uncertainty_score=neutral_uncertainty,
+            routing_reasoning=(
+                "Safe-default routing: the Layer 3 kNN router is disabled "
+                "(LAYER3_ENABLED=false) or unavailable; routed to the strongest "
+                f"active free model ({model.model_id})."
+            ),
+            estimated_cost_usd=self._estimate_cost(model, "moderate"),
+            confidence_level="MEDIUM",
+            escalation_path_available=False,
+            escalation_levels=0,
+            pipeline_metadata={
+                "router": "safe_default",
+                "reason": "layer3_disabled_or_unavailable",
+                "novelty_score": getattr(memory_result, "novelty_score", 0.0),
+                "task_type": getattr(getattr(input_signals, "task_type", None), "value", "qa"),
+                "layers_skipped": [
+                    "fast_triage", "uncertainty_estimator", "bandit_router",
+                ],
+            },
         )
 
     # ------------------------------------------------------------------
@@ -814,243 +681,6 @@ class ModelRouter:
     # Helper utilities
     # ------------------------------------------------------------------
 
-    def _determine_model_type(self, modality_analysis) -> ModelType:
-        if modality_analysis.requires_vision:
-            return ModelType.MULTIMODAL
-        if modality_analysis.requires_audio:
-            return ModelType.AUDIO
-        return ModelType.TEXT
-
-    def _get_candidate_models(
-        self,
-        model_type: ModelType,
-        modality_analysis,
-        triage_result,
-        uncertainty_score: float,
-        input_signals,
-        target_tier: str,
-    ) -> list[ModelDefinition]:
-        candidates = self.registry.list_models(model_type=model_type, only_active=True)
-        candidates = self._filter_candidates_for_capabilities(candidates, modality_analysis, input_signals)
-        candidates = self._filter_candidates_for_tier(candidates, target_tier)
-        candidates = self._prefer_free_api_candidates(candidates)
-        candidates.sort(
-            key=lambda m: self._candidate_sort_key(m, triage_result, uncertainty_score)
-        )
-        return candidates
-
-    def _determine_target_tier(
-        self,
-        triage_result,
-        uncertainty_score: float,
-        uncertainty_details,
-        input_signals,
-        modality_analysis,
-        user_tier: str,
-        budget_remaining: float,
-    ) -> tuple[str, str]:
-        """
-        Determine target model tier using classifier as primary signal.
-
-        Priority order:
-          1. Vision / domain safety / cross-domain → premium (hard rules)
-          2. Classifier complexity_band + raw_score → primary routing
-          3. Low confidence / boundary proximity → conservative escalation
-          4. input_signals → tie-breaker for moderate queries only
-        """
-        domain = triage_result.domain.value
-        complexity = triage_result.complexity_band.value
-        raw_score = getattr(triage_result, "complexity_raw_score", 0.5)
-        complexity_conf = triage_result.confidence
-        thresholds = routing_config.complexity_thresholds
-
-        # ══════════════════════════════════════════════════════════
-        # HARD RULES — always premium (unchanged)
-        # ══════════════════════════════════════════════════════════
-        if modality_analysis.requires_vision:
-            return "premium", "vision requests use safest multimodal tier"
-        if domain in {"medical", "legal"}:
-            return "premium", "high-risk domain always gets premium"
-        if uncertainty_details.cross_domain_score >= 0.35:
-            return "premium", "cross-domain query gets premium"
-        if uncertainty_score >= 0.7:
-            return "premium", "high total uncertainty gets premium"
-
-        # ══════════════════════════════════════════════════════════
-        # CLASSIFIER AS PRIMARY SIGNAL
-        # ══════════════════════════════════════════════════════════
-        if complexity == "expert":
-            return "premium", "expert complexity → strongest tier"
-        if complexity == "complex":
-            return "premium", "complex query → premium tier"
-        if complexity == "trivial":
-            return "cheap", "trivial query → cost-efficient routing"
-        if complexity == "simple":
-            return "cheap", "simple query → cost-efficient routing"
-
-        # ══════════════════════════════════════════════════════════
-        # MODERATE — apply conservative escalation + tie-breakers
-        # ══════════════════════════════════════════════════════════
-
-        # Low confidence escalation: if classifier isn't confident, go higher
-        if complexity_conf < thresholds.min_confidence_for_trust:
-            return "mid", f"moderate query with low confidence ({complexity_conf:.2f}) → mid tier"
-
-        # Boundary proximity escalation: near moderate-complex threshold
-        dist_to_complex = abs(raw_score - thresholds.moderate_complex)
-        if dist_to_complex < thresholds.boundary_margin:
-            return "mid", f"raw_score {raw_score:.2f} near complex boundary → mid tier"
-
-        # ── Tie-breakers (input_signals) — only for confident moderate ──
-        if input_signals.numerical_reasoning_flag and domain == "science":
-            return "mid", "science numerical reasoning (tie-breaker) → mid"
-        if input_signals.code_generation_flag and input_signals.has_constraints:
-            return "mid", "constrained code generation (tie-breaker) → mid"
-        if input_signals.reasoning_depth >= 0.55:
-            return "mid", "deep reasoning (tie-breaker) → mid"
-
-        # Domain-sensitive moderate: tech/business/education
-        if domain in {"tech", "business", "education"}:
-            return "mid", "domain-sensitive moderate → mid"
-
-        # Premium users get safer routing for moderate
-        if user_tier == "premium":
-            return "mid", "premium user moderate → mid"
-
-        return "cheap", "confident moderate query → cost-efficient routing"
-
-    def _filter_candidates_for_capabilities(
-        self,
-        candidates: list[ModelDefinition],
-        modality_analysis,
-        input_signals,
-    ) -> list[ModelDefinition]:
-        filtered = candidates
-        if modality_analysis.requires_code_model or input_signals.code_generation_flag:
-            coding = [m for m in filtered if m.supports_capability(ModelCapability.CODING)]
-            if coding:
-                filtered = coding
-        if input_signals.reasoning_depth >= 0.45 or input_signals.numerical_reasoning_flag:
-            reasoning = [m for m in filtered if m.supports_capability(ModelCapability.REASONING)]
-            if reasoning:
-                filtered = reasoning
-        return filtered
-
-    def _prefer_free_api_candidates(
-        self,
-        candidates: list[ModelDefinition],
-    ) -> list[ModelDefinition]:
-        """Prefer configured free API providers and keep Ollama for gateway fallback."""
-        if not settings.PREFER_FREE_API_PROVIDERS or not candidates:
-            return candidates
-
-        free_api_providers = {
-            ModelProvider.GOOGLE,
-            ModelProvider.GROQ,
-            ModelProvider.OPENROUTER,
-            ModelProvider.HUGGINGFACE,
-            ModelProvider.COHERE,
-        }
-        preferred = [m for m in candidates if m.provider in free_api_providers]
-        if preferred:
-            return preferred
-        return candidates
-
-    def _filter_candidates_for_tier(
-        self,
-        candidates: list[ModelDefinition],
-        target_tier: str,
-    ) -> list[ModelDefinition]:
-        if not candidates:
-            return candidates
-
-        explicit_tier_matches = [
-            m for m in candidates
-            if m.routing_tier and m.routing_tier.value == target_tier
-        ]
-        if explicit_tier_matches:
-            return explicit_tier_matches
-
-        def is_local(model: ModelDefinition) -> bool:
-            return model.provider.value == "local"
-
-        def get_model_size_b(model: ModelDefinition) -> float:
-            import re
-            match = re.search(r'(\d+(?:\.\d+)?)[bB]', model.model_name)
-            if match:
-                return float(match.group(1))
-            return 0.0
-
-        def is_premium(m: ModelDefinition) -> bool:
-            if m.pricing.output_cost_per_1k_tokens >= 0.015:
-                return True
-            if is_local(m) and get_model_size_b(m) >= 30.0:
-                return True
-            return False
-
-        def is_mid(m: ModelDefinition) -> bool:
-            if 0.0 < m.pricing.output_cost_per_1k_tokens < 0.015:
-                return True
-            if is_local(m):
-                size = get_model_size_b(m)
-                if 10.0 <= size < 30.0:
-                    return True
-            return False
-
-        def is_cheap(m: ModelDefinition) -> bool:
-            if is_local(m) and get_model_size_b(m) < 10.0:
-                return True
-            if m.pricing.output_cost_per_1k_tokens < 0.001:
-                return True
-            return False
-
-        if target_tier == "cheap":
-            filtered = [m for m in candidates if is_cheap(m)]
-            return filtered or candidates
-        if target_tier == "mid":
-            filtered = [m for m in candidates if is_mid(m)]
-            return filtered or candidates
-        if target_tier == "premium":
-            filtered = [m for m in candidates if is_premium(m)]
-            return filtered or candidates
-            
-        return candidates
-
-    def _prioritize_safer_models(
-        self,
-        candidates: list[ModelDefinition],
-        triage_result,
-        uncertainty_score: float,
-    ) -> list[ModelDefinition]:
-        if not candidates:
-            return candidates
-
-        domain = triage_result.domain.value
-        if domain in {"medical", "legal"} or uncertainty_score >= 0.7:
-            candidates = sorted(
-                candidates,
-                key=lambda m: (
-                    not m.supports_capability(ModelCapability.REASONING),
-                    m.pricing.input_cost_per_1k_tokens + m.pricing.output_cost_per_1k_tokens,
-                ),
-            )
-        return candidates
-
-    def _candidate_sort_key(
-        self,
-        model: ModelDefinition,
-        triage_result,
-        uncertainty_score: float,
-    ) -> tuple[float, float]:
-        domain = triage_result.domain.value
-        safety_bias = 0.0
-        if domain in {"medical", "legal"} or uncertainty_score >= 0.7:
-            safety_bias = 0.0 if model.supports_capability(ModelCapability.REASONING) else 1.0
-        return (
-            safety_bias,
-            model.pricing.input_cost_per_1k_tokens + model.pricing.output_cost_per_1k_tokens,
-        )
-
     def _estimate_cost(self, model: ModelDefinition, complexity: str) -> float:
         token_estimates = {
             "trivial":  (20,  30),
@@ -1061,26 +691,6 @@ class ModelRouter:
         }
         input_tokens, output_tokens = token_estimates.get(complexity, (100, 200))
         return model.calculate_cost(input_tokens, output_tokens)
-
-    def _generate_elite_reasoning(
-        self,
-        modality_analysis,
-        triage_result,
-        uncertainty_score,
-        selected_model: ModelDefinition,
-    ) -> str:
-        parts = [
-            f"Modality: {modality_analysis.primary_modality}",
-            f"Intent: {triage_result.intent.value} | Domain: {triage_result.domain.value}",
-            f"Complexity: {triage_result.complexity_band.value} | Uncertainty: {uncertainty_score.confidence_level}",
-            f"Selected: {selected_model.display_name} "
-            f"(${selected_model.pricing.input_cost_per_1k_tokens + selected_model.pricing.output_cost_per_1k_tokens:.4f}/1K tokens)",
-        ]
-        if uncertainty_score.total_uncertainty > 0.6:
-            parts.append("HIGH uncertainty → safer model chosen")
-        elif uncertainty_score.total_uncertainty < 0.3:
-            parts.append("HIGH confidence → cost-optimized model")
-        return " | ".join(parts)
 
     # ------------------------------------------------------------------
     # Layer 9: Telemetry emission
@@ -1143,22 +753,10 @@ class ModelRouter:
 
     _DIFFICULTY_TO_BAND = {"trivial": "trivial", "normal": "moderate", "hard": "complex"}
 
-    def _use_layer3(self, request_id: str) -> bool:
-        """Deterministic canary split: 0.0 = never (wired but inactive), 1.0 =
-        always, otherwise that share of traffic — stable per request_id so a
-        request doesn't flip routers on retry."""
-        if self._knn_router is None:
-            return False
-        if self._layer3_canary >= 1.0:
-            return True
-        if self._layer3_canary <= 0.0:
-            return False
-        return (hash(request_id) % 10_000) / 10_000.0 < self._layer3_canary
-
     def _ensure_layer3_models_registered(self) -> None:
-        """Register Layer 3 models into the gateway registry the first time we
-        actually route through Layer 3, so the default canary=0.0 leaves the
-        legacy candidate pool (and legacy tests) untouched."""
+        """Register Layer 3 models into the gateway registry so every execution
+        path can resolve them by id. Idempotent — called once at router init
+        when Layer 3 is enabled."""
         if self._layer3_models_registered:
             return
         from src.layer0_model_infra.routing.layer3_adapter import register_layer3_models
@@ -1167,8 +765,8 @@ class ModelRouter:
         self._layer3_models_registered = True
 
     def _route_via_layer3(self, query, modality_analysis, input_signals, memory_result, request_id):
-        """Run the kNN router and adapt its decision to the legacy schema.
-        Returns None on any failure so route() falls back to the legacy pipeline."""
+        """Run the kNN router and adapt its decision to the RoutingDecision schema.
+        Returns None on any failure so route() falls back to the safe-default."""
         try:
             self._ensure_layer3_models_registered()
             l3 = self._knn_router.route(
@@ -1261,23 +859,6 @@ class ModelRouter:
                 "task_type": getattr(getattr(input_signals, "task_type", None), "value", "qa"),
             },
         )
-
-    def _shadow_compare_layer3(self, query, modality_analysis, input_signals, request_id, legacy_decision):
-        """Shadow mode: run the kNN router alongside the served legacy decision
-        and log the comparison. Never affects what's returned."""
-        try:
-            l3 = self._knn_router.route(query, layer1_analysis=modality_analysis, request_id=request_id)
-            logger.info(
-                "layer3_shadow_compare",
-                legacy_model=legacy_decision.selected_model.model_id,
-                layer3_model=l3.selected_model, layer3_source=l3.source.value,
-                agree=(legacy_decision.selected_model.model_id == l3.selected_model),
-                legacy_cost_usd=round(legacy_decision.estimated_cost_usd, 6),
-                layer3_cost_usd=round(l3.estimated_cost_usd, 6),
-                layer3_predicted_quality=l3.predicted_quality, request_id=request_id,
-            )
-        except Exception as exc:
-            logger.warning("layer3_shadow_failed", reason=str(exc))
 
 
 # ---------------------------------------------------------------------------
