@@ -32,7 +32,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 from src.layer0_model_infra.registry import get_registry
-from src.layer0_model_infra.routing.complexity_classifier import (
+from src.layer0_model_infra.routing.legacy.complexity_classifier import (
     _RUBRIC_WEIGHTS,
     _SYSTEM_PROMPT,
     VALID_BANDS,

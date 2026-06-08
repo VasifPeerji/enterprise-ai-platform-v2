@@ -1,5 +1,5 @@
 """
-📁 File: src/layer0_model_infra/routing/fast_triage.py
+📁 File: src/layer0_model_infra/routing/legacy/fast_triage.py
 Layer: Layer 0 - Routing Pipeline (Step 3)
 Purpose: Fast intent/domain/complexity classification
 Depends on: src/layer0_model_infra/config
@@ -16,7 +16,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from src.layer0_model_infra.config.routing_config import get_routing_config
-from src.layer0_model_infra.routing.complexity_classifier import get_complexity_classifier
+from src.layer0_model_infra.routing.legacy.complexity_classifier import get_complexity_classifier
 from src.layer0_model_infra.routing.fast_path import FastPathCategory, get_fast_path
 from src.layer0_model_infra.routing.input_signals import InputSignals, get_input_extractor
 from src.shared.logger import get_logger

@@ -8,7 +8,7 @@ Target Metrics:
 """
 
 import pytest
-from src.layer0_model_infra.routing.fast_triage import get_triage_classifier
+from src.layer0_model_infra.routing.legacy.fast_triage import get_triage_classifier
 
 
 @pytest.fixture

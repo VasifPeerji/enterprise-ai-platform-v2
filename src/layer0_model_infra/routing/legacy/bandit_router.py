@@ -1,5 +1,5 @@
 """
-📁 File: src/layer0_model_infra/routing/bandit_router.py
+📁 File: src/layer0_model_infra/routing/legacy/bandit_router.py
 Layer: Layer 0 - Routing Pipeline (Step 5)
 Purpose: Contextual multi-armed bandit with THOMPSON SAMPLING for continuous optimization
 Depends on: src/layer0_model_infra/config, src/database
@@ -38,7 +38,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
 from src.layer0_model_infra.config.routing_config import get_routing_config
-from src.layer0_model_infra.routing.fast_triage import ComplexityBand, Domain, Intent
+from src.layer0_model_infra.routing.legacy.fast_triage import ComplexityBand, Domain, Intent
 from src.shared.logger import get_logger
 
 logger = get_logger(__name__)

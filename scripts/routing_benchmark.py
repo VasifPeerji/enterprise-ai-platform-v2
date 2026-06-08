@@ -35,11 +35,11 @@ from typing import Optional
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.layer0_model_infra.routing.complexity_classifier import (  # noqa: E402
+from src.layer0_model_infra.routing.legacy.complexity_classifier import (  # noqa: E402
     ComplexityResult,
     get_complexity_classifier,
 )
-from src.layer0_model_infra.routing.fast_triage import (  # noqa: E402
+from src.layer0_model_infra.routing.legacy.fast_triage import (  # noqa: E402
     get_triage_classifier,
 )
 

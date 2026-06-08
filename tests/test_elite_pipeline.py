@@ -390,7 +390,7 @@ class TestModalityGate:
 
 class TestFastTriage:
     def _get(self):
-        from src.layer0_model_infra.routing.fast_triage import FastTriageClassifier
+        from src.layer0_model_infra.routing.legacy.fast_triage import FastTriageClassifier
         return FastTriageClassifier()
 
     def test_basic_classification(self):
@@ -448,7 +448,7 @@ class TestFastTriage:
 
 class TestUncertaintyEstimator:
     def _get(self):
-        from src.layer0_model_infra.routing.uncertainty_estimator import UncertaintyEstimator
+        from src.layer0_model_infra.routing.legacy.uncertainty_estimator import UncertaintyEstimator
         return UncertaintyEstimator()
 
     def test_clear_query_low_uncertainty(self):
@@ -717,14 +717,14 @@ class TestQualityEvaluator:
 
 class TestBanditRouter:
     def _get(self):
-        from src.layer0_model_infra.routing.bandit_router import BanditRouter, BanditContext
-        from src.layer0_model_infra.routing.fast_triage import Intent, Domain, ComplexityBand
+        from src.layer0_model_infra.routing.legacy.bandit_router import BanditRouter, BanditContext
+        from src.layer0_model_infra.routing.legacy.fast_triage import Intent, Domain, ComplexityBand
         br = BanditRouter()
         br.warmup_samples = 0   # skip warmup for testing
         return br, Intent, Domain, ComplexityBand
 
     def _ctx(self, Intent, Domain, ComplexityBand, **overrides):
-        from src.layer0_model_infra.routing.bandit_router import BanditContext
+        from src.layer0_model_infra.routing.legacy.bandit_router import BanditContext
         defaults = dict(
             intent=Intent.QA,
             domain=Domain.TECH,
@@ -940,7 +940,7 @@ class TestEdgeCases:
         assert abs(factor - 0.5) < 0.01
 
     def test_bandit_arm_properties_when_zero_pulls(self):
-        from src.layer0_model_infra.routing.bandit_router import BanditArm
+        from src.layer0_model_infra.routing.legacy.bandit_router import BanditArm
         arm = BanditArm(model_id="test")
         assert arm.success_rate == 0.5   # neutral default
         assert arm.escalation_rate == 0.0
@@ -956,7 +956,7 @@ class TestSignalFlow:
 
     def test_input_signals_feed_uncertainty(self):
         """InputSignals.has_multi_part should raise structure_uncertainty."""
-        from src.layer0_model_infra.routing.uncertainty_estimator import UncertaintyEstimator
+        from src.layer0_model_infra.routing.legacy.uncertainty_estimator import UncertaintyEstimator
         ue = UncertaintyEstimator()
         base = ue.estimate(
             query="simple question",
@@ -969,21 +969,21 @@ class TestSignalFlow:
         assert multi.total_uncertainty > base.total_uncertainty
 
     def test_novelty_feeds_uncertainty(self):
-        from src.layer0_model_infra.routing.uncertainty_estimator import UncertaintyEstimator
+        from src.layer0_model_infra.routing.legacy.uncertainty_estimator import UncertaintyEstimator
         ue = UncertaintyEstimator()
         known = ue.estimate(query="test", novelty_score=0.1)
         novel = ue.estimate(query="test", novelty_score=0.95)
         assert novel.total_uncertainty > known.total_uncertainty
 
     def test_domain_risk_feeds_uncertainty(self):
-        from src.layer0_model_infra.routing.uncertainty_estimator import UncertaintyEstimator
+        from src.layer0_model_infra.routing.legacy.uncertainty_estimator import UncertaintyEstimator
         ue = UncertaintyEstimator()
         low  = ue.estimate(query="test", domain_risk=0.1)
         high = ue.estimate(query="test", domain_risk=0.9)
         assert high.total_uncertainty > low.total_uncertainty
 
     def test_triage_confidence_feeds_uncertainty(self):
-        from src.layer0_model_infra.routing.uncertainty_estimator import UncertaintyEstimator
+        from src.layer0_model_infra.routing.legacy.uncertainty_estimator import UncertaintyEstimator
         ue = UncertaintyEstimator()
         conf  = ue.estimate(query="test", classifier_confidence=0.95)
         unconf = ue.estimate(query="test", classifier_confidence=0.2)

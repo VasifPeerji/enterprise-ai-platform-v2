@@ -10,7 +10,7 @@ from collections import Counter
 
 import pytest
 
-from src.layer0_model_infra.routing.complexity_classifier import (
+from src.layer0_model_infra.routing.legacy.complexity_classifier import (
     ComplexityResult,
     get_complexity_classifier,
 )

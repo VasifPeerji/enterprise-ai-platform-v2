@@ -8,7 +8,7 @@ Target Metrics:
 """
 
 import pytest
-from src.layer0_model_infra.routing.uncertainty_estimator import get_uncertainty_estimator
+from src.layer0_model_infra.routing.legacy.uncertainty_estimator import get_uncertainty_estimator
 from src.layer0_model_infra.routing.input_signals import get_input_extractor
 
 

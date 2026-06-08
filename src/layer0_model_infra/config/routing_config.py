@@ -253,7 +253,8 @@ class SemanticMemoryConfig(BaseModel):
 
 
 class FastTriageConfig(BaseModel):
-    """Configuration for fast triage classifier."""
+    """Configuration for fast triage classifier. LEGACY: consumed only by
+    routing/legacy/fast_triage.py, kept for the archived pre-kNN pipeline."""
     
     model: str = Field(..., description="Small, fast classifier model")
     vram_gb: float = Field(..., description="VRAM footprint in GB")
@@ -261,7 +262,8 @@ class FastTriageConfig(BaseModel):
 
 
 class DeepJudgeConfig(BaseModel):
-    """Configuration for deep reasoning judge."""
+    """Configuration for deep reasoning judge. LEGACY: belongs to the archived
+    pre-kNN routing design (routing/legacy/)."""
     
     model: str = Field(..., description="Reasoning model for complex queries")
     vram_gb: float = Field(..., description="VRAM footprint in GB")
@@ -279,7 +281,8 @@ class QualityEvalConfig(BaseModel):
 
 
 class BanditConfig(BaseModel):
-    """Configuration for multi-armed bandit router."""
+    """Configuration for multi-armed bandit router. LEGACY: consumed only by
+    routing/legacy/bandit_router.py, kept for the archived pre-kNN pipeline."""
     
     exploration_rate: float = Field(
         default=0.1, ge=0.0, le=1.0, description="Exploration vs exploitation"
@@ -303,9 +306,9 @@ class EscalationConfig(BaseModel):
 class ComplexityThresholds(BaseModel):
     """Configurable complexity band thresholds (provisional defaults, calibrate on gold set).
 
-    NOTE: Retained for backward compatibility with the legacy fast_triage /
-    complexity_classifier path. The new Layer 3 (benchmark-driven kNN router)
-    does not use these — see ``Layer3Config`` below.
+    LEGACY: retained for the fast_triage / complexity_classifier path, now
+    archived under routing/legacy/. The kNN router does not use these; see
+    ``Layer3Config`` below.
     """
 
     trivial_simple: float = Field(default=0.12, description="Score boundary: trivial → simple")

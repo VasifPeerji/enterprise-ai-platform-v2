@@ -1,5 +1,5 @@
 """
-📁 File: src/layer0_model_infra/query_analyzer.py
+📁 File: src/layer0_model_infra/routing/legacy/query_analyzer.py
 Layer: Layer 0 (Model Infrastructure)
 Purpose: Analyze queries to determine optimal model selection
 Depends on: pydantic
@@ -19,7 +19,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from src.shared.logger import get_logger
-from src.layer0_model_infra.routing.complexity_classifier import get_complexity_classifier
+from src.layer0_model_infra.routing.legacy.complexity_classifier import get_complexity_classifier
 
 logger = get_logger(__name__)
 

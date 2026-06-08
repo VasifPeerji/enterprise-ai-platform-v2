@@ -1,5 +1,5 @@
 """
-📁 File: src/layer0_model_infra/routing/complexity_classifier.py
+📁 File: src/layer0_model_infra/routing/legacy/complexity_classifier.py
 Layer: Layer 0 - Routing Pipeline
 Purpose: LLM-based query complexity classification with structured rubric
 Depends on: litellm, routing_config, registry

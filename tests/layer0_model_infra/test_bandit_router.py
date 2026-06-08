@@ -8,7 +8,7 @@ Target Metrics:
 """
 
 import pytest
-from src.layer0_model_infra.routing.bandit_router import (
+from src.layer0_model_infra.routing.legacy.bandit_router import (
     get_bandit_router,
     BanditContext,
 )

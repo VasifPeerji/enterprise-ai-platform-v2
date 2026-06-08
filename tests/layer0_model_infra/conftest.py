@@ -18,9 +18,9 @@ def reset_singletons():
     from src.layer0_model_infra.routing import (
         modality_gate,
         semantic_memory,
-        bandit_router,
         quality_evaluator,
     )
+    from src.layer0_model_infra.routing.legacy import bandit_router
     
     # Reset singletons
     modality_gate._modality_gate = None

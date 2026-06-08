@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.layer0_model_infra.routing.complexity_classifier import (
+from src.layer0_model_infra.routing.legacy.complexity_classifier import (
     ComplexityClassifier,
     ComplexityResult,
 )
@@ -84,7 +84,7 @@ class TestLLMClassification:
         ("complex", _make_complex_response),
         ("expert", _make_expert_response),
     ])
-    @patch("src.layer0_model_infra.routing.complexity_classifier.completion")
+    @patch("src.layer0_model_infra.routing.legacy.complexity_classifier.completion")
     def test_valid_bands_parsed(self, mock_completion, band, factory):
         mock_completion.return_value = factory()
 
@@ -95,7 +95,7 @@ class TestLLMClassification:
         assert result.complexity_band == band
         assert 0.0 <= result.confidence <= 1.0
 
-    @patch("src.layer0_model_infra.routing.complexity_classifier.completion")
+    @patch("src.layer0_model_infra.routing.legacy.complexity_classifier.completion")
     def test_rubric_dimensions_present(self, mock_completion):
         """All 5 rubric dimensions should be present."""
         mock_completion.return_value = _make_complex_response()
@@ -111,7 +111,7 @@ class TestLLMClassification:
         assert 0.0 <= result.knowledge_breadth <= 1.0
         assert 0.0 <= result.raw_score <= 1.0
 
-    @patch("src.layer0_model_infra.routing.complexity_classifier.completion")
+    @patch("src.layer0_model_infra.routing.legacy.complexity_classifier.completion")
     def test_confidence_is_derived(self, mock_completion):
         """Confidence should be derived from boundary distance + consistency,
         NOT self-reported by the model."""
@@ -125,7 +125,7 @@ class TestLLMClassification:
         assert 0.0 <= result.confidence <= 1.0
         # It should NOT be the model's self-reported value
 
-    @patch("src.layer0_model_infra.routing.complexity_classifier.completion")
+    @patch("src.layer0_model_infra.routing.legacy.complexity_classifier.completion")
     def test_reasoning_preserved(self, mock_completion):
         mock_completion.return_value = _make_rubric_response(
             "complex", reasoning_summary="Multi-step reasoning required"
@@ -145,7 +145,7 @@ class TestLLMClassification:
 class TestFallbackBehavior:
     """Test graceful fallback when LLM is unavailable or returns bad data."""
 
-    @patch("src.layer0_model_infra.routing.complexity_classifier.completion")
+    @patch("src.layer0_model_infra.routing.legacy.complexity_classifier.completion")
     def test_llm_exception_falls_back(self, mock_completion):
         """When LLM raises, should still return a valid result."""
         mock_completion.side_effect = Exception("Connection refused")
@@ -158,7 +158,7 @@ class TestFallbackBehavior:
         assert result.complexity_band in {"trivial", "simple", "moderate", "complex", "expert"}
         assert "heuristic" in result.reasoning.lower()
 
-    @patch("src.layer0_model_infra.routing.complexity_classifier.completion")
+    @patch("src.layer0_model_infra.routing.legacy.complexity_classifier.completion")
     def test_fallback_confidence_capped(self, mock_completion):
         """Heuristic fallback confidence should be capped at 0.50."""
         mock_completion.side_effect = Exception("offline")
@@ -169,7 +169,7 @@ class TestFallbackBehavior:
 
         assert result.confidence <= 0.50
 
-    @patch("src.layer0_model_infra.routing.complexity_classifier.completion")
+    @patch("src.layer0_model_infra.routing.legacy.complexity_classifier.completion")
     def test_malformed_json_falls_back(self, mock_completion):
         """When LLM returns garbage, should fall back to heuristics."""
         choice = MagicMock()
@@ -185,7 +185,7 @@ class TestFallbackBehavior:
         assert isinstance(result, ComplexityResult)
         assert "heuristic" in result.reasoning.lower()
 
-    @patch("src.layer0_model_infra.routing.complexity_classifier.completion")
+    @patch("src.layer0_model_infra.routing.legacy.complexity_classifier.completion")
     def test_invalid_band_falls_back(self, mock_completion):
         """When LLM returns an unrecognized band, should fall back."""
         mock_completion.return_value = _make_rubric_response("ultra_hard")
