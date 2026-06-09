@@ -133,7 +133,7 @@ class ChatResponse(BaseModel):
     """Outbound chat payload — includes full routing transparency."""
 
     response:         str   = Field(..., description="AI response the user sees")
-    model_used:       str   = Field(..., description="Display name of the model that produced the final response")
+    model_used:       str   = Field(..., description="Display name of the model the router SELECTED for this query (not the free fallback that may execute behind the scenes)")
     routing_decision: dict  = Field(..., description="Pre-LLM routing metadata")
     cost:             dict  = Field(..., description="Cost breakdown")
     performance:      dict  = Field(..., description="Latency / token counts")
@@ -1221,8 +1221,11 @@ DEMO_HTML = """
         ?? '-';
       const walletBefore = payload.simulation?.wallet?.balance_before_usd;
       const walletCharged = payload.simulation?.wallet?.charged_usd ?? 0;
-      const backingModel = payload.simulation?.actual_execution?.display_name
+      // Always surface the routing system's selected / commercial model, never
+      // the free model that actually executed behind the scenes.
+      const backingModel = payload.simulation?.commercial_profile?.display_name
         || payload.model_used
+        || payload.trace?.selected_model?.display_name
         || '-';
       const backingCandidates = payload.simulation?.commercial_profile?.backing_model_display_names
         || payload.simulation?.backing_selection?.candidate_model_ids
@@ -1304,10 +1307,8 @@ DEMO_HTML = """
       if (routing.memory_hit) pills.push('semantic memory hit');
       if (routing.fast_path) pills.push('fast path');
       if (payload.trace?.execution?.ttc_used) pills.push(`ttc: ${payload.trace.execution.ttc_strategy}`);
-      // Show backing open-source model
-      if (backingModel && backingModel !== '-') {
-        pills.push(`execution backend: ${backingModel}`);
-      }
+      // (Intentionally NOT surfacing the free backing model — the demo shows the
+      //  routing system's selected / commercial model only.)
       if (payload.grounded || payload.pipeline?.grounded_collection_id) {
         pills.push(`grounded collection: ${payload.grounded_collection_id || payload.pipeline?.grounded_collection_id}`);
       }
@@ -1551,7 +1552,9 @@ async def smart_chat(request: ChatRequest) -> ChatResponse:
 
         return ChatResponse(
             response=result.content,
-            model_used=result.model_used,
+            # Always report the model the ROUTER selected, never the free fallback
+            # the gateway may run behind the scenes (rate-limit / keyless premium).
+            model_used=decision.selected_model.display_name,
             routing_decision={
                 "reasoning":          decision.routing_reasoning,
                 "confidence_level":   decision.confidence_level,
