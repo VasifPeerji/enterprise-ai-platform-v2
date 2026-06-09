@@ -1477,6 +1477,7 @@ async def smart_chat(request: ChatRequest) -> ChatResponse:
             result = await orchestrator.execute(
                 query=request.message,
                 force_model_id=backing_model_id,
+                routing_decision=analyzed_decision,  # reuse the analyze pass; don't route twice
                 has_images=request.has_images,
                 has_audio=request.has_audio,
                 image_count=request.image_count,

@@ -114,6 +114,18 @@ class EliteExecutionOrchestrator:
             
             if routing_decision is not None:
                 decision = routing_decision
+                # The caller already routed (decision passed) but wants a specific
+                # model executed (e.g. the demo's free backing model, run while
+                # simulating a commercial tier). Swap the execution target on the
+                # existing decision instead of routing a second time. We clear
+                # layer3_raw_decision so Layer 8 escalates from the model actually
+                # run and the kNN calibration loop is not fed an outcome under the
+                # analyzed (non-executed) decision.
+                if force_model_id and decision.selected_model.model_id != force_model_id:
+                    decision = decision.model_copy(update={
+                        "selected_model": self.router.registry.get_model(force_model_id),
+                        "layer3_raw_decision": None,
+                    })
             else:
                 decision = self.router.route(
                     query=query,
