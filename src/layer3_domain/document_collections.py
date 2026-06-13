@@ -13,7 +13,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
-from typing import Iterable, Optional
+from typing import AsyncIterator, Iterable, Optional
 
 from pydantic import BaseModel, Field
 
@@ -26,7 +26,7 @@ from src.layer1_intelligence.rag_service import (
     HeuristicAnswerGenerator,
     RAGResponse,
 )
-from src.layer3_domain.document_models import IngestedDocument
+from src.layer3_domain.document_models import GroundedAnswerContext, IngestedDocument
 from src.layer3_domain.document_parsing import DocumentParsingService, RawDocumentAsset
 from src.shared.errors import DomainError
 from src.shared.logger import get_logger
@@ -213,6 +213,33 @@ class DocumentCollectionService:
         )
         self._enrich_proofs_with_original_page(collection_id, response)
         return response
+
+    async def stream_answer(
+        self,
+        *,
+        collection_id: str,
+        query: str,
+        tenant_id: str,
+        domain: Optional[str] = None,
+        top_k: int = 6,
+        generation_mode: Optional[str] = None,
+        answer_model_id: Optional[str] = None,
+    ) -> tuple[Optional[GroundedAnswerContext], AsyncIterator[str]]:
+        """Like ``answer_query`` but returns the grounded context plus a token
+        stream of the answer. Citations come from the context (available before
+        any token); page-image proof enrichment is skipped since streaming
+        consumers cite by source URI, not rendered page rectangles."""
+        collection = await self._ensure_collection_loaded(collection_id, tenant_id)
+        self._assert_tenant(collection, tenant_id)
+        effective_generation_mode = generation_mode or collection.generation_mode
+        self._set_answer_generation_mode(collection, effective_generation_mode)
+        return await collection.rag_service.stream_answer(
+            query=query,
+            tenant_id=tenant_id,
+            domain=domain or collection.domain,
+            top_k=top_k,
+            answer_model_id=answer_model_id,
+        )
 
     async def analyze_query(
         self,

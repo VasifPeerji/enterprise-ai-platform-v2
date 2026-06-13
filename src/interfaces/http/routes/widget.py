@@ -23,11 +23,12 @@ the model, tier, or budget).
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.layer0_model_infra.router import get_router
@@ -36,6 +37,7 @@ from src.layer3_domain.document_collections import (
     get_document_collection_service,
 )
 from src.layer4_platform.bot_registry import (
+    BotConfig,
     BotNotFoundError,
     PublicBotConfig,
     get_bot_config_service,
@@ -136,6 +138,38 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _resolve_and_guard(bot_id: str, request: Request) -> BotConfig:
+    """Shared gate for both chat surfaces: kill switch, bot existence, per-bot
+    origin enforcement, and rate limiting. Raises the appropriate HTTPException;
+    returns the bot on success."""
+    _require_enabled()
+    try:
+        bot = bot_service.get_bot(bot_id)
+    except BotNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found") from exc
+    if not bot.enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
+
+    origin = request.headers.get("origin") or request.headers.get("referer") or ""
+    if not bot_service.is_origin_allowed(bot_id, origin):
+        logger.warning("widget_origin_rejected", bot_id=bot_id, origin=origin[:120])
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origin not allowed")
+
+    limited = rate_limiter.check_and_record(ip=_client_ip(request), bot_id=bot_id)
+    if limited:
+        logger.warning("widget_rate_limited", bot_id=bot_id, reason=limited)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please slow down.",
+            headers={"Retry-After": "60"},
+        )
+    return bot
+
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
 def _field(citation: object, key: str) -> object:
     if isinstance(citation, dict):
         return citation.get(key)
@@ -222,33 +256,7 @@ async def widget_config(bot_id: str) -> PublicBotConfig:
 
 @router.post("/{bot_id}/chat", response_model=WidgetChatResponse, summary="Chat with a widget bot")
 async def widget_chat(bot_id: str, body: WidgetChatRequest, request: Request) -> WidgetChatResponse:
-    _require_enabled()
-
-    # 1. Resolve the bot (and treat disabled as absent).
-    try:
-        bot = bot_service.get_bot(bot_id)
-    except BotNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found") from exc
-    if not bot.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
-
-    # 2. Origin enforcement — the authoritative gate (CORS is browser-side only).
-    origin = request.headers.get("origin") or request.headers.get("referer") or ""
-    if not bot_service.is_origin_allowed(bot_id, origin):
-        logger.warning("widget_origin_rejected", bot_id=bot_id, origin=origin[:120])
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origin not allowed")
-
-    # 3. Abuse guard.
-    ip = _client_ip(request)
-    limited = rate_limiter.check_and_record(ip=ip, bot_id=bot_id)
-    if limited:
-        logger.warning("widget_rate_limited", bot_id=bot_id, reason=limited)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many requests. Please slow down.",
-            headers={"Retry-After": "60"},
-        )
-
+    bot = _resolve_and_guard(bot_id, request)
     message = body.message.strip()
 
     # 4. Route once: this both triages small-talk (fast path) and selects the
@@ -306,6 +314,90 @@ async def widget_chat(bot_id: str, body: WidgetChatRequest, request: Request) ->
         answer=grounded.answer,
         grounded=bool(grounded.grounded),
         sources=_project_sources(grounded.citations),
+    )
+
+
+@router.post("/{bot_id}/chat/stream", summary="Streaming (SSE) chat with a widget bot")
+async def widget_chat_stream(bot_id: str, body: WidgetChatRequest, request: Request) -> StreamingResponse:
+    """Same fusion as the blocking chat, but the answer is streamed token-by-token
+    over Server-Sent Events. Events: `{type:'token',value}` … then
+    `{type:'done',grounded,sources}` (or `{type:'error',value}`). Guards (origin,
+    rate-limit) run before streaming starts, so they surface as normal HTTP errors."""
+    bot = _resolve_and_guard(bot_id, request)
+    message = body.message.strip()
+    decision = model_router.route(query=message, user_tier="standard", budget_remaining=1.0)
+    category = decision.fast_path_category or "none"
+    selected_id = decision.selected_model.model_id
+    selected_display = decision.selected_model.display_name
+    retrieval_query = _expand_retrieval_query(message, body.history)
+
+    async def event_stream():
+        try:
+            if category in _SMALL_TALK:
+                yield _sse({"type": "token", "value": _small_talk_reply(category, bot.greeting, bot.display_name)})
+                yield _sse({"type": "done", "grounded": False, "sources": []})
+                return
+
+            grounded_context, token_iter = await grounded_collection_service.stream_answer(
+                collection_id=bot.collection_id,
+                query=retrieval_query,
+                tenant_id=bot.tenant_id,
+                domain=bot.grounded_domain,
+                top_k=bot.grounded_top_k,
+                generation_mode="gateway",
+                answer_model_id=selected_id,
+            )
+            if grounded_context is None:
+                yield _sse({"type": "token", "value": _NO_CONTEXT_MESSAGE})
+                yield _sse({"type": "done", "grounded": False, "sources": []})
+                return
+
+            sources = [s.model_dump() for s in _project_sources(grounded_context.citations)]
+            produced = False
+            try:
+                async for chunk in token_iter:
+                    if chunk:
+                        produced = True
+                        yield _sse({"type": "token", "value": chunk})
+            except Exception as exc:
+                logger.warning("widget_stream_generation_failed", bot_id=bot_id, error=str(exc))
+
+            if not produced:
+                # The routed model streamed nothing (rate-limit/empty). Fall back
+                # to the blocking path, which has gateway failover to a free model.
+                try:
+                    resp = await grounded_collection_service.answer_query(
+                        collection_id=bot.collection_id,
+                        query=retrieval_query,
+                        tenant_id=bot.tenant_id,
+                        domain=bot.grounded_domain,
+                        top_k=bot.grounded_top_k,
+                        generation_mode="gateway",
+                        answer_model_id=selected_id,
+                    )
+                    yield _sse({"type": "token", "value": resp.answer})
+                except Exception:
+                    yield _sse({"type": "token", "value": "Sorry, I had trouble answering that."})
+
+            logger.info(
+                "widget_chat_stream_answered",
+                bot_id=bot_id,
+                selected_model=selected_id,
+                selected_display=selected_display,
+                citation_count=len(grounded_context.citations),
+            )
+            yield _sse({"type": "done", "grounded": True, "sources": sources})
+        except CollectionNotFoundError:
+            logger.error("widget_stream_collection_missing", bot_id=bot_id, collection_id=bot.collection_id)
+            yield _sse({"type": "error", "value": "This assistant is temporarily unavailable."})
+        except Exception as exc:
+            logger.error("widget_stream_failed", bot_id=bot_id, error=str(exc))
+            yield _sse({"type": "error", "value": "Sorry, something went wrong."})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
@@ -507,23 +599,82 @@ WIDGET_LOADER_JS = r"""
         t2.innerHTML = '<span></span><span></span><span></span>';
         messagesEl.appendChild(t2); messagesEl.scrollTop = messagesEl.scrollHeight; return t2;
       }
+      function renderSources(wrap, sources) {
+        if (!sources || !sources.length) return;
+        var sd = document.createElement('div'); sd.className = 'sources';
+        var h = document.createElement('div'); h.className = 'h'; h.textContent = 'Sources'; sd.appendChild(h);
+        sources.forEach(function (s, i) {
+          var ok = safeHref(s.source_uri);
+          var el = document.createElement(ok ? 'a' : 'span');
+          if (ok) { el.href = s.source_uri; el.target = '_blank'; el.rel = 'noopener noreferrer'; }
+          el.textContent = '[' + (i + 1) + '] ' + (s.title || s.source_uri || 'Source') + (s.page_number ? ' (p.' + s.page_number + ')' : '');
+          sd.appendChild(el);
+        });
+        wrap.appendChild(sd); messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+      function startBotMessage() {
+        var wrap = document.createElement('div'); wrap.className = 'msg bot';
+        var body = document.createElement('div'); wrap.appendChild(body);
+        messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
+        return {
+          setText: function (md) { body.innerHTML = mdToHtml(md); messagesEl.scrollTop = messagesEl.scrollHeight; },
+          setSources: function (sources) { renderSources(wrap, sources); }
+        };
+      }
+
       function send(text) {
         text = (text || '').trim(); if (!text) return;
         chipsEl.innerHTML = '';
         var prior = history.slice(-8);
         addMessage(text, 'user'); history.push({ role: 'user', content: text }); inputEl.value = '';
+        streamAnswer(text, prior);
+      }
+
+      async function streamAnswer(text, prior) {
         var typing = addTyping();
-        fetch(apiBase + '/widget/' + encodeURIComponent(botId) + '/chat', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, history: prior })
-        }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-          .then(function (res) {
+        try {
+          var resp = await fetch(apiBase + '/widget/' + encodeURIComponent(botId) + '/chat/stream', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, history: prior })
+          });
+          if (!resp.ok) {
             typing.remove();
-            if (!res.ok) { addMessage((res.j && res.j.detail) || 'Sorry, something went wrong.', 'bot'); return; }
-            var ans = res.j.answer || '';
-            addMessage(ans, 'bot', res.j.sources);
-            history.push({ role: 'bot', content: ans });
-          }).catch(function () { typing.remove(); addMessage('Network error. Please try again.', 'bot'); });
+            var ej = await resp.json().catch(function () { return {}; });
+            addMessage((ej && ej.detail) || 'Sorry, something went wrong.', 'bot'); return;
+          }
+          if (!resp.body || !resp.body.getReader) { typing.remove(); return blockingAnswer(text, prior); }
+          typing.remove();
+          var msg = startBotMessage();
+          var reader = resp.body.getReader(), dec = new TextDecoder(), buf = '', answer = '';
+          while (true) {
+            var r = await reader.read();
+            if (r.done) break;
+            buf += dec.decode(r.value, { stream: true });
+            var idx;
+            while ((idx = buf.indexOf('\n\n')) >= 0) {
+              var line = buf.slice(0, idx).replace(/^data:\s?/, '').trim(); buf = buf.slice(idx + 2);
+              if (!line) continue;
+              var evt; try { evt = JSON.parse(line); } catch (e) { continue; }
+              if (evt.type === 'token') { answer += evt.value; msg.setText(answer); }
+              else if (evt.type === 'error') { answer = evt.value; msg.setText(answer); }
+              else if (evt.type === 'done') { msg.setSources(evt.sources); }
+            }
+          }
+          history.push({ role: 'bot', content: answer });
+        } catch (e) { typing.remove(); addMessage('Network error. Please try again.', 'bot'); }
+      }
+
+      async function blockingAnswer(text, prior) {
+        var typing = addTyping();
+        try {
+          var r = await fetch(apiBase + '/widget/' + encodeURIComponent(botId) + '/chat', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, history: prior })
+          });
+          var j = await r.json(); typing.remove();
+          if (!r.ok) { addMessage((j && j.detail) || 'Sorry, something went wrong.', 'bot'); return; }
+          var ans = j.answer || ''; addMessage(ans, 'bot', j.sources); history.push({ role: 'bot', content: ans });
+        } catch (e) { typing.remove(); addMessage('Network error. Please try again.', 'bot'); }
       }
       sendBtn.addEventListener('click', function () { send(inputEl.value); });
       inputEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); send(inputEl.value); } });
