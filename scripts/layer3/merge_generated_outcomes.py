@@ -10,8 +10,9 @@ No coverage re-tag needed: since the low-coverage-uses-real-outcomes change
 (commit 0740e2e), a low-coverage model uses its neighbour outcomes whenever it
 has >= min_outcomes of them, so simply having the rows present is enough.
 
-Run:  python scripts/layer3/merge_generated_outcomes.py
-      python scripts/layer3/merge_generated_outcomes.py --dry-run
+Run:  python scripts/layer3/merge_generated_outcomes.py                  # conversational (default)
+      python scripts/layer3/merge_generated_outcomes.py --src mmlu_det  # deterministic MMLU-Pro
+      python scripts/layer3/merge_generated_outcomes.py --src mmlu_det --dry-run
 """
 from __future__ import annotations
 
@@ -24,15 +25,23 @@ import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LIVE = REPO_ROOT / "data" / "processed" / "outcomes.parquet"
-GEN = REPO_ROOT / "data" / "processed" / "harvested" / "outcomes_generated.parquet"
+HARVEST_DIR = REPO_ROOT / "data" / "processed" / "harvested"
+# Which harvested parquet to fold in. All share the outcomes.parquet schema.
+SRC_FILES = {
+    "conversational": "outcomes_generated.parquet",   # generate_outcomes.py (LLM-judged WildBench)
+    "mmlu_det": "outcomes_mmlu_det.parquet",           # generate_mmlu_outcomes.py (exact-match, judge-free)
+}
 KEY = ["question_global_id", "model_id"]
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--src", choices=list(SRC_FILES), default="conversational",
+                    help="which harvested parquet to fold into the live corpus")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
+    GEN = HARVEST_DIR / SRC_FILES[args.src]
     if not GEN.exists():
         print(f"no generated outcomes at {GEN}", file=sys.stderr)
         return 1
