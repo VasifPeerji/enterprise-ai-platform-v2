@@ -160,6 +160,25 @@ export function clearTransactions() {
   walletTransactions.set([]);
 }
 
+// ── Toasts ───────────────────────────────────────────────
+// Lightweight, non-blocking notifications. pushToast() adds one and auto-
+// dismisses after `duration` ms (0 = sticky); dismissToast() removes early.
+export const toasts = writable([]);
+
+export function pushToast(message, { type = 'info', duration = 3200, action = null } = {}) {
+  const id = `toast-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  toasts.update((list) => [...list, { id, message, type, action }]);
+  if (duration > 0) setTimeout(() => dismissToast(id), duration);
+  return id;
+}
+
+export function dismissToast(id) {
+  toasts.update((list) => list.filter((t) => t.id !== id));
+}
+
+// ── Command palette ──────────────────────────────────────
+export const commandPaletteOpen = writable(false);
+
 // ── Page Viewer (RAG) ────────────────────────────────────
 export const pageViewerProof = writable(null); // set to a proof object to open viewer
 

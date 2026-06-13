@@ -41,6 +41,8 @@
     truncateConversationAfter,
     editingMessageId,
     speakingMessageId,
+    pushToast,
+    commandPaletteOpen,
   } from './lib/stores.js';
   import {
     sendMessage,
@@ -50,9 +52,12 @@
     searchWeb,
     formatSearchContext,
     generateSmartSuggestions,
+    processFileForUpload,
   } from './lib/api.js';
   import WalletPopup from './components/WalletPopup.svelte';
   import SettingsPopup from './components/SettingsPopup.svelte';
+  import Toaster from './components/Toaster.svelte';
+  import CommandPalette from './components/CommandPalette.svelte';
 
   let route = $state({ mode: 'chat', collection: null });
 
@@ -64,6 +69,73 @@
 
   function toggleTheme() {
     theme.update((t) => (t === 'dark' ? 'light' : 'dark'));
+  }
+
+  // ── Drag-and-drop file attach ───────────────────────────────
+  // Drop files anywhere on the app to attach them to the next message — the
+  // same pipeline as the paperclip button (processFileForUpload → attachedFiles
+  // → grounded RAG on send). dragenter/leave fire per child element, so a depth
+  // counter tracks when the cursor has truly left the window.
+  let dragActive = $state(false);
+  let dragDepth = 0;
+
+  function dropAllowed() {
+    return route.mode !== 'rag' && !$isLoading && !$isStreaming;
+  }
+  function dragHasFiles(e) {
+    return Array.from(e.dataTransfer?.types || []).includes('Files');
+  }
+  function handleDragEnter(e) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault();
+    dragDepth += 1;
+    if (dropAllowed()) dragActive = true;
+  }
+  function handleDragOver(e) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault(); // required so the drop event fires
+    if (e.dataTransfer) e.dataTransfer.dropEffect = dropAllowed() ? 'copy' : 'none';
+  }
+  function handleDragLeave(e) {
+    if (!dragHasFiles(e)) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) dragActive = false;
+  }
+  async function handleDrop(e) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    dragActive = false;
+    if (!dropAllowed()) {
+      pushToast(
+        route.mode === 'rag'
+          ? 'Attachments aren’t used in RAG mode — just ask about the collection.'
+          : 'Wait for the current response to finish before attaching files.',
+        { type: 'warning' },
+      );
+      return;
+    }
+    const files = Array.from(e.dataTransfer?.files || []);
+    if (!files.length) return;
+
+    const processed = [];
+    const errors = [];
+    for (const raw of files) {
+      try {
+        processed.push(await processFileForUpload(raw));
+      } catch (err) {
+        errors.push(err?.message || `Couldn’t read "${raw.name}".`);
+      }
+    }
+    if (processed.length) {
+      attachedFiles.update((curr) => [...curr, ...processed]);
+      pushToast(`Attached ${processed.length} file${processed.length === 1 ? '' : 's'}`, {
+        type: 'success',
+      });
+    }
+    if (errors.length) {
+      pushToast(errors[0], { type: 'error', duration: 6000 });
+    }
   }
 
   // Hash-based routing
@@ -657,6 +729,12 @@
 
   // Keyboard shortcuts
   function handleKeydown(e) {
+    // Cmd/Ctrl+K → command palette (toggle).
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      commandPaletteOpen.update((v) => !v);
+      return;
+    }
     if (e.ctrlKey && e.key === 'n') {
       e.preventDefault();
       createConversation();
@@ -674,7 +752,28 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="app-shell" class:sidebar-collapsed={!$sidebarOpen}>
+<div
+  class="app-shell"
+  class:sidebar-collapsed={!$sidebarOpen}
+  ondragenter={handleDragEnter}
+  ondragover={handleDragOver}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
+>
+  {#if dragActive}
+    <div class="drop-overlay">
+      <div class="drop-card">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        <div class="drop-title">Drop to attach</div>
+        <div class="drop-sub">PDF · DOCX · TXT · MD · CSV · JSON · HTML</div>
+      </div>
+    </div>
+  {/if}
+
   <Sidebar />
 
   <main class="main-area">
@@ -804,12 +903,19 @@
     <ModelSelector />
   {/if}
 
+  {#if $commandPaletteOpen}
+    <CommandPalette />
+  {/if}
+
   <!-- Page Viewer overlay for RAG citations -->
-  <PageViewer 
-    proof={$pageViewerProof} 
-    visible={$pageViewerProof !== null} 
-    on:close={closePageViewer} 
+  <PageViewer
+    proof={$pageViewerProof}
+    visible={$pageViewerProof !== null}
+    on:close={closePageViewer}
   />
+
+  <!-- Toast notifications -->
+  <Toaster />
 </div>
 
 <style>
@@ -819,6 +925,45 @@
     width: 100vw;
     overflow: hidden;
     background: var(--bg-primary);
+  }
+
+  /* ── Drag-and-drop overlay ───────── */
+  .drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    pointer-events: none; /* purely visual — the drop is handled by .app-shell */
+    animation: dropFade 0.15s var(--ease-out);
+  }
+  @keyframes dropFade { from { opacity: 0; } to { opacity: 1; } }
+  .drop-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-10) var(--space-12);
+    border: 2px dashed var(--accent-primary);
+    border-radius: var(--radius-xl);
+    background: rgba(16, 163, 127, 0.1);
+    color: var(--accent-primary);
+    box-shadow: var(--shadow-lg);
+  }
+  .drop-title {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+  }
+  .drop-sub {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
   }
 
   .main-area {
