@@ -26,6 +26,7 @@ from src.layer1_intelligence.vector_index import (
     DocumentIndexService,
     GatewayEmbeddingProvider,
     InMemoryVectorStore,
+    QdrantVectorStore,
     ResilientEmbeddingProvider,
     rerank_results,
 )
@@ -502,6 +503,25 @@ def _has_grounded_support(query: str, results: Sequence) -> bool:
     return False
 
 
+def _make_production_vector_store():
+    """Pick the configured grounded-RAG vector store.
+
+    Defaults to in-memory. When RAG_VECTOR_BACKEND=qdrant we use the Qdrant
+    adapter but fall back to in-memory if the server is unreachable, so a
+    misconfigured or down Qdrant degrades instead of breaking ingestion.
+    """
+    if settings.RAG_VECTOR_BACKEND == "qdrant":
+        try:
+            return QdrantVectorStore()
+        except Exception as exc:
+            logger.warning(
+                "qdrant_vector_store_unavailable_falling_back_to_memory",
+                error=str(exc),
+                layer="layer1_intelligence",
+            )
+    return InMemoryVectorStore()
+
+
 class GroundedRAGService:
     """Composable grounded RAG service for multi-document document QA."""
 
@@ -560,7 +580,7 @@ class GroundedRAGService:
                     primary=GatewayEmbeddingProvider(),
                     fallback=DeterministicEmbeddingProvider(),
                 ),
-                vector_store=InMemoryVectorStore(),
+                vector_store=_make_production_vector_store(),
                 namespace=namespace,
             ),
             answer_generator=GatewayAnswerGenerator() if use_gateway_answer else HeuristicAnswerGenerator(),

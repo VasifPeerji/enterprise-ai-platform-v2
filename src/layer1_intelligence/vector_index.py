@@ -13,6 +13,7 @@ import hashlib
 import importlib.util
 import math
 import re
+import uuid
 from collections import Counter
 from dataclasses import dataclass
 from time import perf_counter
@@ -39,10 +40,20 @@ from src.shared.logger import get_logger, log_rag_retrieval
 
 try:
     from qdrant_client import QdrantClient
-    from qdrant_client.http.models import Distance, PointStruct, VectorParams
+    from qdrant_client.http.models import (
+        Distance,
+        FieldCondition,
+        Filter,
+        MatchValue,
+        PointStruct,
+        VectorParams,
+    )
 except Exception:  # pragma: no cover - optional runtime dependency behavior
     QdrantClient = None
     Distance = None
+    FieldCondition = None
+    Filter = None
+    MatchValue = None
     PointStruct = None
     VectorParams = None
 
@@ -559,7 +570,14 @@ class InMemoryVectorStore:
 
 
 class QdrantVectorStore:
-    """Qdrant-backed vector store adapter."""
+    """Qdrant-backed vector store adapter (opt-in production backend).
+
+    One Qdrant collection per namespace ("<base>__<namespace>"), created lazily
+    on first upsert using the *actual* embedding dimension (not the possibly
+    stale settings.EMBEDDING_DIMENSION). Chunk ids are mapped to stable UUIDs
+    because Qdrant point ids must be uint or UUID; the original chunk_id is kept
+    in the payload for retrieval.
+    """
 
     def __init__(
         self,
@@ -571,25 +589,32 @@ class QdrantVectorStore:
             raise RAGError("qdrant-client is not installed", error_code="QDRANT_UNAVAILABLE")
 
         self.collection_name = collection_name or settings.QDRANT_COLLECTION_NAME
-        self.dimension = dimension or settings.EMBEDDING_DIMENSION
+        self._forced_dimension = dimension
         self.client = client or QdrantClient(
             url=settings.qdrant_url,
             api_key=settings.QDRANT_API_KEY,
         )
-        self._ensure_collection(self.collection_name)
 
     def _namespace_name(self, namespace: str) -> str:
         safe_namespace = namespace.replace("/", "_").replace("\\", "_").replace(":", "_")
         return f"{self.collection_name}__{safe_namespace}"
 
-    def _ensure_collection(self, collection_name: str) -> None:
-        existing = {collection.name for collection in self.client.get_collections().collections}
-        if collection_name in existing:
-            return
+    @staticmethod
+    def _point_id(chunk_id: str) -> str:
+        # Qdrant point ids must be uint or UUID, but chunk ids look like
+        # "doc:p1:c0". Map deterministically to a UUID so re-upserts overwrite.
+        return str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_id))
 
+    def _collection_exists(self, collection_name: str) -> bool:
+        existing = {collection.name for collection in self.client.get_collections().collections}
+        return collection_name in existing
+
+    def _ensure_collection(self, collection_name: str, dimension: int) -> None:
+        if self._collection_exists(collection_name):
+            return
         self.client.create_collection(
             collection_name=collection_name,
-            vectors_config=VectorParams(size=self.dimension, distance=Distance.COSINE),
+            vectors_config=VectorParams(size=dimension, distance=Distance.COSINE),
         )
 
     def upsert(
@@ -598,11 +623,15 @@ class QdrantVectorStore:
         *,
         namespace: str = "default",
     ) -> None:
+        item_list = list(items)
+        if not item_list:
+            return
         collection_name = self._namespace_name(namespace)
-        self._ensure_collection(collection_name)
+        dimension = self._forced_dimension or len(item_list[0][1])
+        self._ensure_collection(collection_name, dimension)
         points = [
             PointStruct(
-                id=chunk.chunk_id,
+                id=self._point_id(chunk.chunk_id),
                 vector=list(vector),
                 payload={
                     "chunk_id": chunk.chunk_id,
@@ -617,12 +646,17 @@ class QdrantVectorStore:
                     "section_title": chunk.section_title,
                     "start_char": chunk.start_char,
                     "end_char": chunk.end_char,
+                    "page_width": chunk.page_width,
+                    "page_height": chunk.page_height,
                     "metadata": chunk.metadata,
                 },
             )
-            for chunk, vector in items
+            for chunk, vector in item_list
         ]
-        self.client.upsert(collection_name=collection_name, points=points)
+        # wait=True so points are searchable immediately (read-after-write):
+        # without it Qdrant indexes asynchronously and a query right after
+        # ingest can miss freshly-added chunks.
+        self.client.upsert(collection_name=collection_name, points=points, wait=True)
 
     def search(
         self,
@@ -631,23 +665,24 @@ class QdrantVectorStore:
         *,
         namespace: str = "default",
     ) -> list[RetrievalResult]:
-        must_filters = [{"key": "tenant_id", "match": {"value": request.tenant_id}}]
-        if request.domain:
-            must_filters.append({"key": "domain", "match": {"value": request.domain}})
-
         collection_name = self._namespace_name(namespace)
-        if not self.has_namespace(namespace):
+        if not self._collection_exists(collection_name):
             return []
 
-        response = self.client.search(
+        must = [FieldCondition(key="tenant_id", match=MatchValue(value=request.tenant_id))]
+        if request.domain:
+            must.append(FieldCondition(key="domain", match=MatchValue(value=request.domain)))
+
+        response = self.client.query_points(
             collection_name=collection_name,
-            query_vector=list(_normalize_vector(vector)),
+            query=list(_normalize_vector(vector)),
             limit=request.top_k,
-            query_filter={"must": must_filters},
+            query_filter=Filter(must=must),
+            with_payload=True,
         )
 
         results: list[RetrievalResult] = []
-        for item in response:
+        for item in response.points:
             payload = item.payload or {}
             chunk = DocumentChunk(
                 chunk_id=str(payload["chunk_id"]),
@@ -662,6 +697,8 @@ class QdrantVectorStore:
                 section_title=payload.get("section_title"),
                 start_char=int(payload.get("start_char", 0)),
                 end_char=int(payload.get("end_char", 0)),
+                page_width=float(payload.get("page_width", 0.0) or 0.0),
+                page_height=float(payload.get("page_height", 0.0) or 0.0),
                 metadata=dict(payload.get("metadata", {})),
             )
             results.append(
@@ -674,9 +711,7 @@ class QdrantVectorStore:
         return results
 
     def has_namespace(self, namespace: str) -> bool:
-        collection_name = self._namespace_name(namespace)
-        existing = {collection.name for collection in self.client.get_collections().collections}
-        return collection_name in existing
+        return self._collection_exists(self._namespace_name(namespace))
 
 
 class DocumentIndexService:

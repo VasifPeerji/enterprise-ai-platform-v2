@@ -171,6 +171,12 @@ class Settings(BaseSettings):
     # competing with the Layer 3 encoder. Default on; set false for a pure
     # lexical+vector path with lower first-query latency and no GPU load.
     RAG_CROSS_ENCODER_ENABLED: bool = True
+
+    # Vector store backing grounded RAG collections: "memory" (in-process, the
+    # default — simplest, rebuilt on restart) or "qdrant" (persists across
+    # restarts and scales past one process). Qdrant falls back to memory if the
+    # server is unreachable at service construction.
+    RAG_VECTOR_BACKEND: str = "memory"
     
     @property
     def qdrant_url(self) -> str:
