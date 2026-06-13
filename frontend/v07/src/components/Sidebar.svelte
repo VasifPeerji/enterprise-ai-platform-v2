@@ -34,8 +34,23 @@
     return 'Older';
   }
 
+  // Free-text filter over the visible list — matches conversation titles and
+  // any message prose, so you can find a chat by something you said in it.
+  let searchQuery = $state('');
+  let baseList = $derived(view === 'bookmarks' ? $bookmarkedConversations : $conversations);
+  let visibleList = $derived.by(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return baseList;
+    return baseList.filter((conv) => {
+      if (conv.title?.toLowerCase().includes(q)) return true;
+      return (conv.messages || []).some((m) =>
+        (m.content || []).some(
+          (b) => b?.type === 'text' && b.text?.toLowerCase().includes(q),
+        ),
+      );
+    });
+  });
   // Pick the right source list based on view, then bucket by time.
-  let visibleList = $derived(view === 'bookmarks' ? $bookmarkedConversations : $conversations);
   let grouped = $derived.by(() => {
     const groups = {};
     for (const conv of visibleList) {
@@ -167,6 +182,24 @@
     </button>
   </div>
 
+  <!-- ── Search ─────────────────────────────────────────── -->
+  <div class="sidebar-search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+    </svg>
+    <input
+      type="text"
+      placeholder="Search chats…"
+      bind:value={searchQuery}
+      aria-label="Search conversations"
+    />
+    {#if searchQuery}
+      <button class="search-clear" onclick={() => (searchQuery = '')} aria-label="Clear search" title="Clear search">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+      </button>
+    {/if}
+  </div>
+
   <!-- ── Section header (Chats / Bookmarks, collapsible) ──── -->
   <button
     class="section-header"
@@ -283,7 +316,10 @@
 
       {#if visibleList.length === 0}
         <div class="empty-state">
-          {#if view === 'bookmarks'}
+          {#if searchQuery}
+            <p>No chats match “{searchQuery}”</p>
+            <p class="empty-hint">Try a different word, or clear the search</p>
+          {:else if view === 'bookmarks'}
             <p>No bookmarks yet</p>
             <p class="empty-hint">Bookmark a chat from its <strong>⋯</strong> menu</p>
           {:else}
@@ -350,6 +386,45 @@
     color: var(--accent-primary);
     background: rgba(16, 163, 127, 0.12);
   }
+
+  /* ── Search ─────────────────────────── */
+  .sidebar-search {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 var(--space-3) var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    transition: border-color var(--duration-fast);
+  }
+  .sidebar-search:focus-within { border-color: var(--accent-primary); }
+  .sidebar-search svg { flex-shrink: 0; }
+  .sidebar-search input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    padding: 0;
+  }
+  .sidebar-search input::placeholder { color: var(--text-muted); }
+  .search-clear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: all var(--duration-fast);
+  }
+  .search-clear:hover { background: var(--bg-hover); color: var(--text-primary); }
 
   /* ── Section title (Chats / Bookmarks) ─────────────── */
   .section-header {
