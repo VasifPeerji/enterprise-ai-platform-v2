@@ -48,7 +48,11 @@ settings = get_settings()
 # consistent with how the highlighter and grounded answer code carve text up.
 _SENTENCE_SPLIT_RE = re.compile(r"(?<!\d\.)(?<!\d[A-Za-z]\.)(?<=[.!?])\s+|\n+")
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
-_NUMERIC_TOKEN_RE = re.compile(r"\b\d+(?:\.\d+)?%?\b")
+# Numbers with optional thousands separators / decimals / percent. Commas are
+# stripped on extraction so "4000" and "4,000" compare equal — a common
+# medical/legal false-mismatch that used to knock SUPPORTED claims down to
+# PARTIAL purely because of a thousands separator.
+_NUMERIC_TOKEN_RE = re.compile(r"(?<![\w.])\d{1,3}(?:,\d{3})+(?:\.\d+)?%?|(?<![\w.])\d+(?:\.\d+)?%?")
 
 # Stopwords — superset of those used in rag_service.py.
 _STOPWORDS = {
@@ -197,7 +201,7 @@ def _significant_terms(text: str) -> set[str]:
 
 
 def _numeric_tokens(text: str) -> set[str]:
-    return set(_NUMERIC_TOKEN_RE.findall((text or "").lower()))
+    return {match.replace(",", "") for match in _NUMERIC_TOKEN_RE.findall((text or "").lower())}
 
 
 def _has_negation(text: str) -> bool:
