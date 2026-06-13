@@ -13,6 +13,7 @@
     settingsOpen,
     shortcutsOpen,
     pushToast,
+    openCompare,
   } from '../lib/stores.js';
   import { downloadConversationMarkdown } from '../lib/export.js';
 
@@ -38,9 +39,23 @@
     chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
     keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
+    compare: '<rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="16" rx="1.5"/>',
   };
 
   let activeConv = $derived(($conversations || []).find((c) => c.id === $activeConversationId) || null);
+
+  // Most recent user prompt in the active chat — the seed for "compare models".
+  function lastUserPrompt(conv) {
+    const msgs = (conv && conv.messages) || [];
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'user') {
+        const c = msgs[i].content;
+        if (Array.isArray(c)) return c.filter((b) => b?.type === 'text').map((b) => b.text || '').join(' ').trim();
+        return typeof c === 'string' ? c : '';
+      }
+    }
+    return '';
+  }
 
   // Action commands — labels react to current state for the toggles.
   let actions = $derived([
@@ -52,6 +67,16 @@
     { id: 'model', label: 'Select model…', hint: 'Smart Routing or a specific model', icon: I.model, keywords: 'model routing pick choose', run: () => modelSelectorOpen.set(true) },
     { id: 'prefs', label: 'Open preferences…', icon: I.gear, keywords: 'settings preferences options', run: () => settingsOpen.set(true) },
     { id: 'shortcuts', label: 'Keyboard shortcuts', icon: I.keyboard, keywords: 'keyboard shortcuts keys help cheatsheet', run: () => shortcutsOpen.set(true) },
+    ...(lastUserPrompt(activeConv)
+      ? [{
+          id: 'compare',
+          label: 'Compare models side-by-side',
+          hint: 'Run your last prompt on two models',
+          icon: I.compare,
+          keywords: 'compare side by side models ab test versus routing diff',
+          run: () => openCompare(lastUserPrompt(activeConv), null),
+        }]
+      : []),
     ...(activeConv && (activeConv.messages || []).length
       ? [{
           id: 'export',

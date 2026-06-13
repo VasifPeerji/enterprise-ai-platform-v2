@@ -117,6 +117,23 @@
     if (tier === 'grounded') return 'var(--accent-primary)';
     return 'var(--text-muted)';
   }
+
+  // Compact timestamp for the per-message footer. Shows the time of day, with
+  // the date prefixed once the message isn't from today. Absolute (it never
+  // ticks, so it can't go stale); the full date/time lives in the tooltip.
+  function fmtTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const now = new Date();
+    const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (d.toDateString() === now.toDateString()) return time;
+    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
+  }
+  function fmtFullTime(iso) {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '' : d.toLocaleString();
+  }
 </script>
 
 <div class="chat-viewport">
@@ -224,6 +241,12 @@
               {/if}
             </div>
 
+            {#if message.timestamp && !isEditing && message.id !== $streamingMessageId}
+              <time class="msg-time {message.role}" datetime={message.timestamp} title={fmtFullTime(message.timestamp)}>
+                {fmtTime(message.timestamp)}
+              </time>
+            {/if}
+
             <!-- ── Per-message action toolbar (copy, edit, like, etc.) ── -->
             {#if !isEditing && message.id !== $streamingMessageId}
               <MessageActions
@@ -234,6 +257,7 @@
                 on:edit={() => startEdit(message)}
                 on:regenerate={() => dispatch('regenerate', { messageId: message.id })}
                 on:regenerateWith={(e) => dispatch('regenerateWith', { messageId: message.id, model: e.detail.model })}
+                on:compare={() => dispatch('compare', { messageId: message.id })}
               />
             {/if}
 
@@ -484,6 +508,21 @@
   @media (max-width: 600px) {
     .edit-hint { display: none; }
   }
+
+  /* ── Per-message timestamp ──────── */
+  /* Subtle and persistent (works on touch, never goes stale); brightens with
+     the action toolbar on row hover. Aligns under the bubble per role. */
+  .msg-time {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    margin-top: var(--space-1);
+    opacity: 0.4;
+    transition: opacity var(--duration-fast);
+    user-select: none;
+  }
+  .msg-time.assistant { text-align: left; }
+  :global(.message-row:hover) .msg-time { opacity: 0.75; }
 
   /* ── Meta info ──────────────────── */
   .message-meta {

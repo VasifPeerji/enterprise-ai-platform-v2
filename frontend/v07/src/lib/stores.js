@@ -187,6 +187,24 @@ export const pageViewerProof = writable(null); // set to a proof object to open 
 // Set to { src, alt, caption } to open the fullscreen image viewer.
 export const lightboxImage = writable(null);
 
+// ── Side-by-side model comparison ────────────────────────
+// Ephemeral A/B overlay: runs the SAME prompt on two models at once so the
+// router's pick can be weighed against a specific model on answer, latency,
+// and cost. `seed` is the model meta of the answer that launched the compare
+// (used to pre-fill the right-hand column); the left defaults to Smart Routing.
+export const compareState = writable({ open: false, prompt: '', seed: null });
+
+export function openCompare(prompt, seedModel = null) {
+  const trimmed = (prompt || '').trim();
+  if (!trimmed) return false;
+  compareState.set({ open: true, prompt: trimmed, seed: seedModel });
+  return true;
+}
+
+export function closeCompare() {
+  compareState.update((s) => ({ ...s, open: false }));
+}
+
 // ── Route ────────────────────────────────────────────────
 export const currentRoute = writable({ mode: 'chat', collection: null });
 

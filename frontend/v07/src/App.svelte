@@ -44,6 +44,7 @@
     pushToast,
     commandPaletteOpen,
     shortcutsOpen,
+    openCompare,
   } from './lib/stores.js';
   import {
     sendMessage,
@@ -61,6 +62,7 @@
   import CommandPalette from './components/CommandPalette.svelte';
   import ShortcutsOverlay from './components/ShortcutsOverlay.svelte';
   import Lightbox from './components/Lightbox.svelte';
+  import ComparePanel from './components/ComparePanel.svelte';
 
   let route = $state({ mode: 'chat', collection: null });
 
@@ -710,6 +712,23 @@
     );
   }
 
+  // ── Open the side-by-side comparison overlay for an answer ──
+  // Reuses the answer's originating user prompt and seeds the right column with
+  // the model that produced this answer (best-effort name match in the panel).
+  // Non-destructive — unlike regenerate, the conversation is left untouched.
+  function handleCompare(assistantMessageId) {
+    const conv = getActiveConv();
+    if (!conv) return;
+    const asstIdx = conv.messages.findIndex((m) => m.id === assistantMessageId);
+    if (asstIdx < 1) return;
+    let userIdx = asstIdx - 1;
+    while (userIdx >= 0 && conv.messages[userIdx].role !== 'user') userIdx--;
+    if (userIdx < 0) return;
+    const prompt = extractPrompt(conv.messages[userIdx].content);
+    if (!prompt) return;
+    openCompare(prompt, conv.messages[asstIdx].model || null);
+  }
+
   // ── Edit a user message and regenerate downstream ──────────
   async function handleEditCommit(userMessageId, newText) {
     const trimmed = (newText || '').trim();
@@ -973,6 +992,7 @@
       on:viewProof={handleViewProof}
       on:regenerate={(e) => handleRegenerate(e.detail.messageId)}
       on:regenerateWith={(e) => handleRegenerateWith(e.detail.messageId, e.detail.model)}
+      on:compare={(e) => handleCompare(e.detail.messageId)}
       on:editCommit={(e) => handleEditCommit(e.detail.messageId, e.detail.text)}
       on:editStart={(e) => handleStartEdit(e.detail.messageId)}
       on:editCancel={handleCancelEdit}
@@ -1007,6 +1027,9 @@
 
   <!-- Fullscreen image lightbox -->
   <Lightbox />
+
+  <!-- Side-by-side model comparison overlay -->
+  <ComparePanel />
 </div>
 
 <style>
