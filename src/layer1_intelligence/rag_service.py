@@ -81,8 +81,16 @@ class AnswerGenerator(Protocol):
         self,
         query: str,
         grounded_context: GroundedAnswerContext,
+        *,
+        model_id_override: Optional[str] = None,
     ) -> GeneratedAnswer:
-        """Generate an answer from grounded context."""
+        """Generate an answer from grounded context.
+
+        ``model_id_override``, when set, forces the generation model (e.g. the
+        one the smart router selected) instead of the generator's own choice.
+        It is a per-call argument so a shared generator instance stays safe
+        across concurrent callers.
+        """
 
 
 class GatewayAnswerGenerator:
@@ -100,6 +108,8 @@ class GatewayAnswerGenerator:
         self,
         query: str,
         grounded_context: GroundedAnswerContext,
+        *,
+        model_id_override: Optional[str] = None,
     ) -> GeneratedAnswer:
         prompt_blocks = grounded_context.context_blocks
         messages = [
@@ -123,7 +133,7 @@ class GatewayAnswerGenerator:
             },
         ]
 
-        model_id = self.model_id or self._choose_model_id(query)
+        model_id = model_id_override or self.model_id or self._choose_model_id(query)
         response = await self.gateway.complete(
             LLMRequest(
                 model_id=model_id,
@@ -208,7 +218,11 @@ class HeuristicAnswerGenerator:
         self,
         query: str,
         grounded_context: GroundedAnswerContext,
+        *,
+        model_id_override: Optional[str] = None,
     ) -> GeneratedAnswer:
+        # model_id_override is accepted for protocol parity but ignored: this
+        # generator is extractive and never calls a model.
         structured_answer = structured_domain_answer(query, grounded_context.citations)
         if structured_answer:
             return GeneratedAnswer(
@@ -451,6 +465,7 @@ class GroundedRAGService:
         domain: Optional[str] = None,
         top_k: Optional[int] = None,
         raise_on_no_context: Optional[bool] = None,
+        answer_model_id: Optional[str] = None,
     ) -> RAGResponse:
         retrieval_request = RetrievalQuery(
             query=query,
@@ -500,7 +515,11 @@ class GroundedRAGService:
             citation_count=len(grounded_context.citations),
             layer="layer1_intelligence",
         )
-        generated = await self.answer_generator.generate(query=query, grounded_context=grounded_context)
+        generated = await self.answer_generator.generate(
+            query=query,
+            grounded_context=grounded_context,
+            model_id_override=answer_model_id,
+        )
         logger.info(
             "grounded_answer_generation_completed",
             query=query[:120],

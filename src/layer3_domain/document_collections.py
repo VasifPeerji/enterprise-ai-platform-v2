@@ -198,6 +198,7 @@ class DocumentCollectionService:
         domain: Optional[str] = None,
         top_k: int = 6,
         generation_mode: Optional[str] = None,
+        answer_model_id: Optional[str] = None,
     ) -> RAGResponse:
         collection = await self._ensure_collection_loaded(collection_id, tenant_id)
         self._assert_tenant(collection, tenant_id)
@@ -208,6 +209,7 @@ class DocumentCollectionService:
             tenant_id=tenant_id,
             domain=domain or collection.domain,
             top_k=top_k,
+            answer_model_id=answer_model_id,
         )
         self._enrich_proofs_with_original_page(collection_id, response)
         return response
