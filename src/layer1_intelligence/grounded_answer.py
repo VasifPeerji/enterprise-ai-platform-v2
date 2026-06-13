@@ -271,97 +271,6 @@ def _score_sentences_with_context(
     return scores
 
 
-def _score_sentence(
-    sentence: str,
-    query_terms: set[str],
-    *,
-    is_dose_query: bool,
-    is_absorption_query: bool,
-    query_weight_kg: Optional[float] = None,
-) -> float:
-    """Heuristic relevance score for a single sentence vs. the query.
-
-    Shared between snippet selection (focal sentence) and highlight collection
-    (every above-threshold sentence) so they stay in sync.
-
-    The optional ``query_weight_kg`` parameter enables patient-attribute
-    awareness: when the query mentions a specific patient weight, we boost
-    sentences whose stated weight range INCLUDES that weight and penalise
-    sentences whose range EXCLUDES it. This prevents the ≥50 kg dosing
-    paragraph from outranking the <50 kg one for a query about a 45 kg
-    patient when both share the same dosing terminology.
-    """
-    sentence_terms = set(_QUERY_TOKEN_RE.findall(sentence.lower()))
-    overlap = len(query_terms.intersection(sentence_terms))
-    token_count = len(sentence_terms)
-    if token_count < 4:
-        return -1.0
-    score = overlap * 4.0
-    score += min(token_count / 18.0, 1.5)
-    if any(char.isdigit() for char in sentence):
-        score += 1.25
-    if is_dose_query:
-        score += len(_HIGH_VALUE_DOSE_RE.findall(sentence)) * 0.9
-        if _LOW_VALUE_MEDICAL_RE.search(sentence):
-            score -= 4.0
-    if is_absorption_query:
-        score += len(_ABSORPTION_QUERY_RE.findall(sentence)) * 1.1
-    if query_weight_kg is not None:
-        # The sentence may mention a range itself (e.g. "weighing under
-        # 50 kg") or rely on context. We score the sentence in isolation
-        # here; chunk-level disambiguation happens in the caller via
-        # _evaluate_weight_range_relevance.
-        sentence_relevance = _evaluate_weight_range_relevance(sentence, query_weight_kg)
-        if sentence_relevance > 0:
-            score += 6.0
-        elif sentence_relevance < 0:
-            score -= 6.0
-    return score
-
-
-def _select_query_focused_snippet(query: str, text: str, limit: int) -> tuple[str, bool]:
-    """Backward-compatible single-sentence selector (kept for tests/callers)."""
-    exact = text.strip()
-    if len(exact) <= limit:
-        return exact, False
-
-    query_terms = _query_terms(query)
-    if not query_terms:
-        return _select_exact_snippet(text, limit)
-
-    sentences = _split_sentences(exact)
-    if not sentences:
-        return _select_exact_snippet(text, limit)
-
-    is_dose_query = _DOSE_QUERY_RE.search(query) is not None
-    is_absorption_query = _ABSORPTION_QUERY_RE.search(query) is not None
-    query_weight_kg = _extract_query_weight_kg(query)
-
-    scores = _score_sentences_with_context(
-        sentences,
-        query_terms,
-        is_dose_query=is_dose_query,
-        is_absorption_query=is_absorption_query,
-        query_weight_kg=query_weight_kg,
-    )
-
-    best_sentence = ""
-    best_score = -1.0
-    for sentence, score in zip(sentences, scores):
-        if score > best_score or (score == best_score and len(sentence) > len(best_sentence)):
-            best_score = score
-            best_sentence = sentence
-
-    if best_score <= 0 or not best_sentence:
-        return _select_exact_snippet(text, limit)
-
-    snippet = best_sentence.strip()
-    if len(snippet) > limit:
-        snippet = snippet[:limit].rstrip()
-        return snippet, True
-    return snippet, len(snippet) < len(exact)
-
-
 def _select_query_focused_window(
     query: str,
     text: str,
@@ -476,7 +385,7 @@ def _collect_query_highlight_spans(
     return their spans inside ``page_text`` for PageProof.highlights.
 
     Selection rules (after Bug H fix):
-    - Score every sentence with ``_score_sentence``.
+    - Score every sentence with ``_score_sentences_with_context``.
     - If the query mentions a patient weight ("for a 45 kg patient") and
       the chunk discusses ranges that EXCLUDE that weight (e.g. "≥ 50 kg"
       dosing), suppress highlights from this chunk entirely. This prevents
