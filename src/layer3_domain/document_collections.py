@@ -222,7 +222,7 @@ class DocumentCollectionService:
         top_k: int = 6,
         generation_mode: Optional[str] = None,
     ) -> RAGResponse:
-        collection = await self._ensure_collection_loaded(collection_id)
+        collection = await self._ensure_collection_loaded(collection_id, tenant_id)
         self._assert_tenant(collection, tenant_id)
         effective_generation_mode = generation_mode or collection.generation_mode
         self._set_answer_generation_mode(collection, effective_generation_mode)
@@ -244,7 +244,7 @@ class DocumentCollectionService:
         domain: Optional[str] = None,
         top_k: int = 6,
     ) -> dict:
-        collection = await self._ensure_collection_loaded(collection_id)
+        collection = await self._ensure_collection_loaded(collection_id, tenant_id)
         self._assert_tenant(collection, tenant_id)
         # Analyze must never raise NoRelevantContextError (the UI wants to see
         # whatever retrieval produced, even below the answer gate), but it must
@@ -332,7 +332,7 @@ class DocumentCollectionService:
 
     async def delete_collection(self, collection_id: str, tenant_id: str) -> None:
         try:
-            collection = await self._ensure_collection_loaded(collection_id)
+            collection = await self._ensure_collection_loaded(collection_id, tenant_id)
             self._assert_tenant(collection, tenant_id)
         except CollectionNotFoundError:
             return
@@ -367,11 +367,11 @@ class DocumentCollectionService:
             raise CollectionNotFoundError(collection_id)
         return collection
 
-    async def _ensure_collection_loaded(self, collection_id: str) -> DocumentCollection:
+    async def _ensure_collection_loaded(self, collection_id: str, tenant_id: str) -> DocumentCollection:
         try:
             return self._get_collection(collection_id)
         except CollectionNotFoundError:
-            return await self.hydrate_collection(collection_id)
+            return await self.hydrate_collection(collection_id, tenant_id=tenant_id)
 
     def _assert_tenant(self, collection: DocumentCollection, tenant_id: str) -> None:
         if collection.tenant_id != tenant_id:
@@ -464,7 +464,7 @@ class DocumentCollectionService:
             encoding="utf-8",
         )
 
-    async def hydrate_collection(self, collection_id: str) -> DocumentCollection:
+    async def hydrate_collection(self, collection_id: str, tenant_id: str) -> DocumentCollection:
         collection: Optional[DocumentCollection] = None
         documents: list[IngestedDocument] = []
         try:
@@ -472,6 +472,7 @@ class DocumentCollectionService:
                 collection_record, documents = await GroundedDocumentCollectionRepository.load_collection(
                     session,
                     collection_key=collection_id,
+                    tenant_key=tenant_id,
                 )
             if collection_record is not None:
                 collection = DocumentCollection(
@@ -500,6 +501,11 @@ class DocumentCollectionService:
             if not json_path.exists():
                 raise CollectionNotFoundError(collection_id)
             payload = json.loads(json_path.read_text(encoding="utf-8"))
+            # Never load another tenant's persisted collection into the shared
+            # cache: a cross-tenant request must look exactly like not-found, so
+            # it can neither read nor warm another tenant's documents.
+            if payload.get("tenant_id") != tenant_id:
+                raise CollectionNotFoundError(collection_id)
             documents = [IngestedDocument.model_validate(document) for document in payload["documents"]]
             collection = DocumentCollection(
                 collection_id=payload["collection_id"],
@@ -619,7 +625,7 @@ class DocumentCollectionService:
         dpi: int = 150,
     ) -> Optional[bytes]:
         """Render a stored collection PDF page to PNG bytes (tenant-checked)."""
-        collection = await self._ensure_collection_loaded(collection_id)
+        collection = await self._ensure_collection_loaded(collection_id, tenant_id)
         self._assert_tenant(collection, tenant_id)
         pdf_bytes = self._load_original_pdf(collection_id, document_key)
         if not pdf_bytes:

@@ -104,12 +104,18 @@ class GroundedDocumentCollectionRepository:
         session: AsyncSession,
         *,
         collection_key: str,
+        tenant_key: str | None = None,
     ) -> tuple[GroundedDocumentCollection | None, list[IngestedDocument]]:
+        conditions = [
+            GroundedDocumentCollection.collection_key == collection_key,
+            GroundedDocumentCollection.deleted_at.is_(None),
+        ]
+        if tenant_key is not None:
+            # Scope the load to the requesting tenant so a cross-tenant id can
+            # never hydrate another tenant's documents.
+            conditions.append(GroundedDocumentCollection.tenant_key == tenant_key)
         collection_result = await session.execute(
-            select(GroundedDocumentCollection).where(
-                GroundedDocumentCollection.collection_key == collection_key,
-                GroundedDocumentCollection.deleted_at.is_(None),
-            )
+            select(GroundedDocumentCollection).where(*conditions)
         )
         collection = collection_result.scalar_one_or_none()
         if collection is None:
