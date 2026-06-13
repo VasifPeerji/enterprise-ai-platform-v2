@@ -636,8 +636,8 @@ WIDGET_LOADER_JS = r"""
         + '.teaser .tx{position:absolute;top:6px;right:7px;background:transparent;border:none;color:var(--bot-text);opacity:.35;cursor:pointer;font-size:16px;line-height:1;padding:2px;}'
         + '.teaser .tx:hover{opacity:.7;}'
         // panel
-        + '.panel{position:fixed;bottom:98px;' + side + ':24px;width:400px;max-width:calc(100vw - 32px);height:640px;'
-        + 'max-height:calc(100vh - 134px);background:var(--bot-surface);color:var(--bot-text);'
+        + '.panel{position:fixed;bottom:98px;' + side + ':24px;width:420px;max-width:calc(100vw - 32px);height:720px;'
+        + 'max-height:calc(100vh - 116px);background:var(--bot-surface);color:var(--bot-text);'
         + 'border-radius:var(--bot-radius);box-shadow:0 28px 72px -18px rgba(0,0,0,.34),0 8px 24px -12px rgba(0,0,0,.16);'
         + 'display:flex;flex-direction:column;overflow:hidden;z-index:2147483000;'
         + 'opacity:0;transform:translateY(22px) scale(.95);transform-origin:bottom ' + side + ';pointer-events:none;'
