@@ -525,10 +525,17 @@ function transformResponse(data, collectionId = null) {
 
   // Grounded citations
   if (data.grounded && (data.citations?.length || data.page_proofs?.length)) {
+    const collId = collectionId || data.grounded_collection_id || null;
     content.push({
       type: 'citations',
       citations: data.citations || [],
-      pageProofs: data.page_proofs || [],
+      // Stamp the collection/tenant onto each proof so PageViewer can build the
+      // original-page-image URL (the page-image endpoint is keyed by collection).
+      pageProofs: (data.page_proofs || []).map((p) => ({
+        ...p,
+        _collection_id: collId,
+        _tenant_id: 'default',
+      })),
       evidenceGroups: data.evidence_groups || [],
     });
   }
@@ -667,7 +674,11 @@ export async function ragQuery(collectionId, query, options = {}) {
     content.push({
       type: 'citations',
       citations: data.citations || [],
-      pageProofs: data.page_proofs,
+      pageProofs: data.page_proofs.map((p) => ({
+        ...p,
+        _collection_id: collectionId,
+        _tenant_id: 'default',
+      })),
       evidenceGroups: data.evidence_groups || [],
     });
   }

@@ -10,6 +10,34 @@
   let isDragging = $state(false);
   let lastPos = $state({ x: 0, y: 0 });
 
+  // ── Original-page image view ──────────────────────────────
+  let imgError = $state(false);
+  let viewMode = $state('original'); // 'original' | 'text'
+
+  const imageUrl = $derived(
+    proof && proof.has_page_image && proof._collection_id
+      ? `/grounded-documents/collections/${encodeURIComponent(proof._collection_id)}/page-image`
+        + `?document_key=${encodeURIComponent(proof.document_id || '')}`
+        + `&page_number=${proof.page_number || 1}`
+        + `&tenant_id=${encodeURIComponent(proof._tenant_id || 'default')}`
+      : null,
+  );
+  const hasImage = $derived(!!imageUrl);
+  const showImage = $derived(hasImage && viewMode === 'original' && !imgError);
+  const rects = $derived(
+    (proof?.highlights || [])
+      .flatMap((h) => h.rects || [])
+      .filter((r) => r && r.x1 > r.x0 && r.y1 > r.y0),
+  );
+
+  // Reset the per-proof view state whenever a different proof is opened.
+  $effect(() => {
+    if (proof) {
+      imgError = false;
+      viewMode = 'original';
+    }
+  });
+
   function close() {
     dispatch('close');
   }
@@ -113,8 +141,25 @@
         </div>
       </div>
 
+      <!-- View toggle (only when an original-page render is available) -->
+      {#if hasImage}
+        <div class="view-toggle">
+          <button
+            class:active={showImage}
+            onclick={() => { viewMode = 'original'; imgError = false; }}
+          >Original page</button>
+          <button
+            class:active={!showImage}
+            onclick={() => (viewMode = 'text')}
+          >Extracted text</button>
+          {#if showImage && !rects.length}
+            <span class="toggle-note">exact highlight not located on this page</span>
+          {/if}
+        </div>
+      {/if}
+
       <!-- Content -->
-      <div 
+      <div
         class="viewer-content"
         class:zoomed={zoom > 1}
         onmousedown={handleMouseDown}
@@ -125,12 +170,32 @@
         role="img"
         aria-label="Page content"
       >
-        <div 
-          class="page-text"
-          style="transform: scale({zoom}) translate({panX/zoom}px, {panY/zoom}px)"
-        >
-          {@html renderHighlightedText(proof.page_text || '', proof.highlights || [])}
-        </div>
+        {#if showImage}
+          <div
+            class="page-image-wrap"
+            style="transform: scale({zoom}) translate({panX/zoom}px, {panY/zoom}px)"
+          >
+            <img
+              class="page-image"
+              src={imageUrl}
+              alt="Original source page {proof.page_number || ''}"
+              onerror={() => (imgError = true)}
+            />
+            {#each rects as r}
+              <div
+                class="rect-highlight"
+                style="left:{(r.x0 * 100).toFixed(3)}%;top:{(r.y0 * 100).toFixed(3)}%;width:{((r.x1 - r.x0) * 100).toFixed(3)}%;height:{((r.y1 - r.y0) * 100).toFixed(3)}%"
+              ></div>
+            {/each}
+          </div>
+        {:else}
+          <div
+            class="page-text"
+            style="transform: scale({zoom}) translate({panX/zoom}px, {panY/zoom}px)"
+          >
+            {@html renderHighlightedText(proof.page_text || '', proof.highlights || [])}
+          </div>
+        {/if}
       </div>
 
       <!-- Citation badges -->
@@ -298,6 +363,57 @@
     background: rgba(16, 163, 127, 0.1);
     color: var(--accent-primary);
     font-weight: var(--weight-medium);
+  }
+
+  /* ── View toggle + original-page image ──────────────── */
+  .view-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-5);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .view-toggle button {
+    padding: 4px 12px;
+    border-radius: var(--radius-md);
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    background: var(--surface-glass);
+    border: 1px solid var(--border-subtle);
+    transition: all var(--duration-fast);
+  }
+  .view-toggle button.active {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: transparent;
+  }
+  .toggle-note {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-left: auto;
+  }
+
+  .page-image-wrap {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+    transform-origin: top left;
+    transition: transform 0.15s ease;
+  }
+  .page-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+  }
+  .rect-highlight {
+    position: absolute;
+    background: rgba(245, 158, 11, 0.30);
+    box-shadow: inset 0 0 0 1.5px rgba(245, 158, 11, 0.9);
+    border-radius: 2px;
+    pointer-events: none;
+    mix-blend-mode: multiply;
   }
 
   @media (max-width: 600px) {
