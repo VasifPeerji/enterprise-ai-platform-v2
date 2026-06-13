@@ -301,6 +301,13 @@ class ResilientEmbeddingProvider:
 
     This keeps the app usable in development while still upgrading retrieval
     quality whenever a real embedding backend is available.
+
+    When the primary backend drops out, the local hash fallback produces
+    vectors in a different space (and generally a different dimension) than
+    the neural index, so matching its dimension to the index buys nothing.
+    ``InMemoryVectorStore.search`` instead carries a dimension guard that
+    drops the now-meaningless semantic signal and lets lexical / BM25
+    retrieval carry the query until the backend recovers.
     """
 
     def __init__(
@@ -310,19 +317,34 @@ class ResilientEmbeddingProvider:
     ) -> None:
         self.primary = primary or GatewayEmbeddingProvider()
         self.fallback = fallback or DeterministicEmbeddingProvider()
+        self.degraded = False
 
     async def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
         try:
-            return await self.primary.embed_texts(texts)
+            vectors = await self.primary.embed_texts(texts)
         except Exception as exc:
-            logger.warning(
+            self.degraded = True
+            # ERROR, not warning: silently swapping to lexical-hash vectors
+            # quietly destroys semantic retrieval quality, so operators need
+            # this to be loud and alertable rather than buried at warning.
+            logger.error(
                 "embedding_provider_primary_failed_falling_back",
                 error=str(exc),
                 primary_provider=type(self.primary).__name__,
                 fallback_provider=type(self.fallback).__name__,
+                fallback_dimension=getattr(self.fallback, "dimension", None),
+                impact="semantic retrieval degraded to lexical-hash vectors until the embedding backend recovers",
                 layer="layer1_intelligence",
             )
             return await self.fallback.embed_texts(texts)
+        if self.degraded:
+            self.degraded = False
+            logger.info(
+                "embedding_provider_primary_recovered",
+                primary_provider=type(self.primary).__name__,
+                layer="layer1_intelligence",
+            )
+        return vectors
 
 
 class DeterministicEmbeddingProvider:
@@ -354,6 +376,24 @@ class DeterministicEmbeddingProvider:
 class _StoredVector:
     chunk: DocumentChunk
     vector: list[float]
+
+
+_DIM_MISMATCH_WARNED = False
+
+
+def _warn_dimension_mismatch(query_dim: int, stored_dim: int) -> None:
+    """Warn once when query/stored embedding dimensions diverge."""
+    global _DIM_MISMATCH_WARNED
+    if _DIM_MISMATCH_WARNED:
+        return
+    _DIM_MISMATCH_WARNED = True
+    logger.warning(
+        "vector_store_dimension_mismatch",
+        query_dim=query_dim,
+        stored_dim=stored_dim,
+        impact="embedding backend likely fell back mid-index; semantic signal dropped for mismatched chunks, lexical retrieval still active",
+        layer="layer1_intelligence",
+    )
 
 
 class InMemoryVectorStore:
@@ -397,7 +437,18 @@ class InMemoryVectorStore:
         semantic_results: list[RetrievalResult] = []
         for stored in candidate_items:
             chunk = stored.chunk
-            semantic_score = self._cosine(query_vector, stored.vector)
+            # Guard against embedder dimension skew: if a stored vector and the
+            # query vector were produced by providers of different
+            # dimensionality (e.g. the embedding backend fell back to the local
+            # hash provider for one but not the other), cosine over a zip()
+            # would silently truncate to the shorter vector and return a
+            # meaningless score. Drop the semantic signal in that case and let
+            # the lexical/BM25 signals carry the result.
+            if len(stored.vector) != len(query_vector):
+                _warn_dimension_mismatch(len(query_vector), len(stored.vector))
+                semantic_score = 0.0
+            else:
+                semantic_score = self._cosine(query_vector, stored.vector)
             lexical_score, matched_terms = _lexical_feature_scores(request.query, chunk)
             if semantic_score <= 0 and lexical_score <= 0:
                 continue
