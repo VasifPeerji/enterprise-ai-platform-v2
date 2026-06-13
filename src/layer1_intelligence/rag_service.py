@@ -20,6 +20,7 @@ from typing import Iterable, Optional, Protocol, Sequence
 from pydantic import BaseModel, Field
 
 from src.layer0_model_infra.gateway import LLMRequest, ModelGateway, get_gateway
+from src.layer1_intelligence.domain_profiles import expand_domain_queries
 from src.layer1_intelligence.grounded_answer import GroundedAnswerAssembler
 from src.layer1_intelligence.vector_index import (
     DeterministicEmbeddingProvider,
@@ -52,7 +53,6 @@ _GROUNDING_STOPWORDS = {
 _MULTI_EVIDENCE_RE = re.compile(r"\b(compare|list|summarize|summary|all|differences?|between)\b|,|;|\band\b", re.I)
 _QUOTED_TEXT_RE = re.compile(r'"([^"]+)"|\'([^\']+)\'')
 _ARTICLE_TITLE_QUERY_RE = re.compile(r"\b(?:deals with|about|under)\s+(?:the\s+)?(.+?)\??$", re.I)
-_DOSE_QUERY_RE = re.compile(r"\b(max(?:imum)?|dose|dosage|daily dose|mg|milligram)\b", re.I)
 _CITATION_LINE_RE = re.compile(r"^\s*CITATION\s*:.*$", re.I | re.M)
 
 
@@ -375,50 +375,10 @@ def _clean_generated_answer(answer: str) -> str:
 
 
 def _expanded_retrieval_queries(query: str) -> list[str]:
-    lowered = query.lower()
-    expansions = [query]
-    if "emergenc" in lowered and ("three" in lowered or "types" in lowered):
-        expansions.extend(
-            [
-                "Proclamation of Emergency Article 352",
-                "failure of constitutional machinery in States Article 356",
-                "Financial Emergency Article 360",
-            ]
-        )
-    if re.search(r"\bpm\b|prime minister|contest for pm", lowered):
-        expansions.extend(
-            [
-                "Prime Minister Article 75 appointed by the President",
-                "Minister not member of Parliament six consecutive months Article 75",
-                "qualification for membership of Parliament Article 84",
-                "Council of Ministers Prime Minister Constitution of India",
-            ]
-        )
-    if _DOSE_QUERY_RE.search(query):
-        drug_terms = [
-            token
-            for token in _QUERY_TOKEN_RE.findall(query)
-            if token.lower()
-            in {
-                "acetaminophen",
-                "albuterol",
-                "amlodipine",
-                "norvasc",
-                "atorvastatin",
-                "levothyroxine",
-                "metformin",
-                "omeprazole",
-                "sertraline",
-            }
-        ]
-        drug_prefix = " ".join(drug_terms) + " " if drug_terms else ""
-        expansions.extend(
-            [
-                f"{drug_prefix}dosage and administration maximum recommended daily dose mg",
-                f"{drug_prefix}adult dosage maximum dose mg tablets",
-            ]
-        )
-    return expansions
+    # Domain-specific expansions now live in domain_profiles. Profiles are
+    # content-triggered, so prepending the original query keeps this identical
+    # to the previous inline legal/medical heuristics.
+    return [query, *expand_domain_queries(query)]
 
 
 def _merge_retrieval_results(results: Sequence) -> list:
