@@ -1,0 +1,88 @@
+/* ============================================================================
+   Design tokens — one source of truth for the whole dashboard suite.
+   Dark, high-contrast, presentation-grade. Two system accents (routing / rag)
+   swap via a wrapper class so each subsystem reads as its own world.
+   ========================================================================== */
+
+:root {
+  /* --- base surfaces ------------------------------------------------------ */
+  --bg-0: #080a0f;
+  --bg-1: #0b0e15;
+  --bg-2: #0f131c;
+  --surface-1: rgba(255, 255, 255, 0.026);
+  --surface-2: rgba(255, 255, 255, 0.045);
+  --surface-3: rgba(255, 255, 255, 0.07);
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --border-1: rgba(255, 255, 255, 0.08);
+  --border-2: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  /* --- text --------------------------------------------------------------- */
+  --text-1: #eef1f7;
+  --text-2: #a9b2c4;
+  --text-3: #6b7488;
+  --text-on-accent: #07090d;
+
+  /* --- accents (default = routing/indigo→cyan) ---------------------------- */
+  --routing-1: #6366f1;
+  --routing-2: #22d3ee;
+  --rag-1: #10b981;
+  --rag-2: #2dd4bf;
+  --accent-1: var(--routing-1);
+  --accent-2: var(--routing-2);
+  --accent-soft: rgba(99, 102, 241, 0.14);
+  --accent-line: rgba(99, 102, 241, 0.4);
+
+  /* --- semantic ----------------------------------------------------------- */
+  --green: #34d399;
+  --green-soft: rgba(52, 211, 153, 0.14);
+  --amber: #fbbf24;
+  --amber-soft: rgba(251, 191, 36, 0.14);
+  --red: #f87171;
+  --red-soft: rgba(248, 113, 113, 0.14);
+  --blue: #60a5fa;
+  --blue-soft: rgba(96, 165, 250, 0.14);
+  --violet: #a78bfa;
+  --violet-soft: rgba(167, 139, 250, 0.14);
+  --pink: #f472b6;
+
+  /* --- geometry ----------------------------------------------------------- */
+  --r-xs: 6px;
+  --r-sm: 9px;
+  --r-md: 13px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 10px 34px rgba(0, 0, 0, 0.4);
+  --shadow-3: 0 24px 64px rgba(0, 0, 0, 0.5);
+  --glow: 0 0 0 1px var(--accent-line), 0 12px 44px rgba(99, 102, 241, 0.18);
+
+  /* --- type --------------------------------------------------------------- */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code",
+    "Consolas", Menlo, monospace;
+
+  --sidebar-w: 290px;
+  --content-maxw: 1180px;
+}
+
+/* Routing accent (default already set, kept explicit for clarity) */
+.theme-routing {
+  --accent-1: var(--routing-1);
+  --accent-2: var(--routing-2);
+  --accent-soft: rgba(99, 102, 241, 0.14);
+  --accent-line: rgba(99, 102, 241, 0.4);
+  --glow: 0 0 0 1px rgba(99, 102, 241, 0.4), 0 12px 44px rgba(99, 102, 241, 0.18);
+}
+
+/* RAG accent (emerald→teal) */
+.theme-rag {
+  --accent-1: var(--rag-1);
+  --accent-2: var(--rag-2);
+  --accent-soft: rgba(16, 185, 129, 0.14);
+  --accent-line: rgba(16, 185, 129, 0.4);
+  --glow: 0 0 0 1px rgba(16, 185, 129, 0.4), 0 12px 44px rgba(16, 185, 129, 0.16);
+}

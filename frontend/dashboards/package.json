@@ -1,0 +1,20 @@
+{
+  "name": "layer-dashboards",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Presentation-grade per-layer dashboards for the Smart Routing System and RAG+Citation subsystem. Completely separate from the v07 product frontend.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "svelte": "^5.55.4",
+    "vite": "^8.0.10"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1"
+  }
+}
