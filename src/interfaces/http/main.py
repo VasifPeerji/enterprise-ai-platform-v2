@@ -29,6 +29,7 @@ from src.interfaces.http.middleware.widget_cors import PublicWidgetCORSMiddlewar
 from src.interfaces.http.routes.health import run_dependency_checks
 from src.interfaces.http.routes import (
     admin_bots,
+    admin_console,
     chat,
     grounded_documents,
     health,
@@ -176,6 +177,9 @@ def create_application() -> FastAPI:
 
     # Admin control plane for external chatbot widgets (strict-CORS, internal)
     app.include_router(admin_bots.router, tags=["Admin · Bots"])
+
+    # Visual admin console (served HTML; drives the admin + crawl APIs)
+    app.include_router(admin_console.router, tags=["Admin · Console"])
 
     # Public, cross-origin embeddable widget surface
     app.include_router(widget.router, tags=["Public Widget"])
