@@ -75,6 +75,105 @@ calibration on a `halt`-level distribution shift. The only gradient-trained comp
 (`Settings`). Models live in `registry.py` and activate/deactivate at runtime based on the presence
 of provider API keys.
 
+## Prior-path routing work + honest findings (2026-06-13, all on origin/main)
+
+The **prior path** — when a query has no kNN neighbours (~76% of diverse traffic) — scored every
+model off a flat, query-*independent* constant, and was the system's weak spot. Committed work,
+each config-gated and reversible:
+
+- **Debiased priors** (`50a3292`). `aggregate_scores.prior_quality()` multiplies the published-
+  benchmark prior by a per-`(model, modality)` **realism factor** = measured/prior, loaded from
+  `data/model_prior_realism.json` (regenerate with `scripts/layer3/calibrate_priors.py --write`).
+  Published priors ran **+0.18 to +0.45 above measured reality**, so cheap weak models cleared
+  floors they had no business clearing (under-routing). Applied on the **prior path only** — the
+  kNN-grounded path is untouched. Consequence: `knn_router._effective_floor` now **skips the
+  low-coverage penalty for any model that has a realism factor** (else it double-counts the same
+  correction).
+- **Risk-aware escalation gated to the grounded path** (`50a3292`). The escalation in
+  `knn_router._choose` only fires when `knn_grounded=True`. On the prior path every prediction
+  carries the same placeholder confidence (`prior_confidence`, 0.20), so the old code escalated
+  *every* off-distribution query up to the strongest (often paid) model — defeating cost-min.
+- **High-risk recipe false-positive fix** (`eed5f0b`). `high_risk_classifier.py` gained a
+  `NEUTRAL_PROTOTYPES` background bank: a query is flagged high-risk only when it is closer to a
+  risk prototype than to a benign one. Fixes "how to make a milkshake **at home**" → MEDICAL (it
+  was matching "treat a deep cut **at home**") without dropping medical recall (held-out eval:
+  recall 1.0, precision 0.84 → 0.99). A threshold bump can't do this — real emergencies sit in the
+  same similarity band as the recipe FPs.
+- **Learned quality head** (`68012d8`): `routing/quality_head.py` + `data/quality_head.npz`
+  (trained by `scripts/layer3/train_quality_head.py`). A per-model Ridge regressor over the query
+  embedding predicts per-`(query, model)` quality on the prior path, replacing the flat prior for
+  the 4 models whose 5-fold CV genuinely beats it (llama-8b/70b, qwen-72b, gpt-4o-mini). numpy-only
+  inference (`W·emb + b`), **inert + falls back to the prior if the artifact is missing**, gated by
+  `Layer3QualityHeadConfig.enable`.
+
+**Honest evaluation — DO NOT oversell these** (verified this session via a strict, blind,
+held-out benchmark: split questions 70/30, retrain heads on the 70%, route among *registry* models
+on the unseen 30% scored against real graded outcomes; "cost" = model size in B params since all
+models are free):
+- The **learned head is roughly a wash** vs the flat prior (≈0.545 correct / 70.6B vs 0.554 /
+  73.7B) — marginally cheaper, marginally *less* correct. Hand-picked demo queries flatter it; the
+  blind benchmark is sober. It is the right *shape* (zero per-query LLM call) but **data-limited**.
+- The prior path today ≈ **always-strongest**; the **oracle is 0.697 / 66.4B**, so there is real
+  cost+correctness headroom no predictor on this data captures.
+- A **cascade** (try-cheap → verify → escalate, FrugalGPT-style) has a high *ceiling* (0.695 /
+  47.3B with a *perfect* judge) but the entire win is **gated by the judge**: a cheap judge
+  (llama-70B) silently passes some wrong cheap answers (under-routes); a strong judge is itself a
+  **per-query LLM call**, which **defeats the cost goal at scale and contradicts the founding
+  principle that the kNN router exists specifically to avoid per-query LLM calls.** Only
+  *deterministic* verification (code compiles / tests pass, JSON+schema valid — the existing L7
+  checks) is judge-free, and it only covers **structured outputs**, never factual/reasoning.
+- **The genuine lever stays what the analysis found first: more grounding data** — it sharpens the
+  kNN *and* the head (both judge-free predictors) and is the known rate-limit-walled bottleneck.
+
+**Rule of thumb for future routing work:** prefer prediction (kNN / head) + free *deterministic*
+checks + more grounding data over bolting any per-query LLM judge onto the hot path. When you test
+a routing change, use a **blind held-out benchmark against real outcomes**, not hand-picked demo
+queries — the latter consistently over-flatter whatever you just built.
+
+## Deterministic grounding + escalation/floor work (2026-06-13 cont., local on `main`, NOT pushed)
+
+Follow-on to the section above, and the first **positive controlled proof** that "more grounding
+data is the lever" — paired with a **negative control** (floor tuning does nothing). Full write-up:
+`docs/THESIS_SESSION_DETERMINISTIC_GROUNDING.md`.
+
+- **Deterministic MMLU-Pro grounding** (`e931dc9`). The 4 newest free models (`gpt-oss-120b/20b`,
+  `qwen3-32b`, `llama-4-scout`) had **0** per-question outcomes on the 12,032-question MMLU-Pro set
+  (vs 12,032 each for llama-8b/70b, qwen-72b), so on academic queries they rode the flat prior and
+  the router defaulted to 120B. Harvesting public scores can't fix this — those models aren't on any
+  leaderboard. `scripts/layer3/generate_mmlu_outcomes.py` runs them on MMLU-Pro and grades by
+  **exact-match on the gold letter** — judge-free, $0, resumable, writes to
+  `data/processed/harvested/outcomes_mmlu_det.parquet`; fold in with `merge_generated_outcomes.py
+  --src mmlu_det`. Questions are already embedded, so outcomes attach with no re-embed. **Measured
+  (leakage-safe LOO — each question's self-match masked in Qdrant — scored on real outcomes,
+  free-only): correctness 0.597 → 0.629 at 98.2B → 65.4B avg size, 100% free** = a Pareto win
+  (gpt-oss-120b picks 117 → 68, llama-4-scout 2 → 69). **In-domain academic only** — does NOT fix
+  conversational over-routing (still needs production-feedback grounding). 278/12,032 ≈ 2.3% coverage
+  already moves routing this much → marginal value per grounded question is high; scaling the run
+  extends the win. Eval/merge tools: `validate_loo_mmlu.py` (`--free-only` for proxy-free scoring).
+- **Stop selecting keyless + over-flagged premium models** (`570f9a7`, fixes A+B):
+  - **B** — `knn_router._choose` now **skips inactive (keyless) models** in the qualifying loop. They
+    were being "selected" then falling back to a free model at execution = phantom telemetry/cost.
+    When no *active* model clears the floor, the existing best-available branch picks the best free.
+  - **A** — `high_risk_classifier.py`'s neutral bank gained **third-person/factual exam anchors**
+    (bar-exam law scenarios, finance-math, science facts) so academic MCQs aren't flagged as
+    medical/legal/financial *advice*. Over-flagging 58 → ~42 on a 278-q probe with **recall held at
+    exactly 1.0** — `test_eval_set_recall_and_precision` enforces `recall==1.0`, so the
+    contract-enforceability anchors were left out (they suppressed the genuine positive "is a verbal
+    agreement enforceable"). Recall is the hard constraint. 47 layer3 tests green.
+- **Quality-floor calibration = NEGATIVE result** (`9d11f0a`). Built
+  `scripts/layer3/calibrate_quality_floor.py` — the auto-tune script `Layer3QualityFloorConfig`'s
+  docstring promised but never existed (encode-once, then sweep only the selection; `--full` keeps
+  premium active to see the free-vs-paid axis). It proves **lowering the floor barely helps**:
+  dropping high-risk 0.75 → 0.65 and the hard penalty → 0 buys only **+4pp free-select / −11 paid at
+  flat correctness**, because the residual escalations are questions where free models *genuinely*
+  predict < 0.65 (defensible, not a miscalibration). **Floor config left unchanged** — a clean
+  negative control: the lever is the data, not the knobs.
+
+State: the three commits are **local on `main`, not pushed** (push gated on owner OK). Outcome data
+is gitignored/local — `outcomes.parquet` gained +1,070 rows (merged, reversible via
+`outcomes.parquet.genmerge.bak`); the `harvested/` sidecars and `artifacts/layer3/loo_mmlu_*.json`
+are local-only.
+
 ## The legacy router (archived, not deleted)
 
 The original Fast-Triage → Uncertainty → Contextual-Bandit pipeline was **decommissioned** from
@@ -110,7 +209,11 @@ three ways — in-process → JSON snapshot → async relational DB — and rehy
   for cross-restart persistence/scale; they are *not* interchangeable. The production factory falls
   back to memory if Qdrant is unreachable, and the adapter infers its collection dimension from the
   *actual* embeddings (so the stale `.env` `EMBEDDING_DIMENSION=1536` vs the model's real 1024 is
-  harmless).
+  harmless). **The in-memory index is rebuilt on restart** (doc text survives in the JSON snapshot +
+  Postgres `content_json`, but vectors are re-embedded). `RAG_EAGER_HYDRATE` (default on) makes
+  `DocumentCollectionService.hydrate_all()` re-index **every** persisted collection in a background
+  task off the FastAPI lifespan at startup, so a bot answers on its first query post-restart instead of
+  paying a cold lazy re-embed (turn it off on dev machines that hot-reload constantly).
 - **Cross-encoder rerank** (`cross-encoder/ms-marco-MiniLM-L-6-v2`) is gated by
   `RAG_CROSS_ENCODER_ENABLED` (default on) so it can't surprise-load onto the GPU; its raw logits are
   **sigmoid-squashed to 0–1** so the grounding-gate thresholds and the displayed score are meaningful.
@@ -152,34 +255,79 @@ three ways — in-process → JSON snapshot → async relational DB — and rehy
 
 ## Frontend (V07 — Svelte 5 SPA)
 
-`frontend/v07/` is a full Svelte 5 + Vite 8 single-page app (the showcase UI). **It is dev-served by
-Vite and is NOT statically mounted by FastAPI** — run it separately; Vite proxies API calls to
-`:8000`.
+`frontend/v07/` is a full Svelte 5 (runes) + Vite 8 single-page app (the showcase UI). **It is
+dev-served by Vite and is NOT statically mounted by FastAPI** — run it separately; Vite proxies API
+calls to `:8000`.
 
-- Dev: `cd frontend/v07 && npm install && npm run dev`.
+- Dev: `cd frontend/v07 && npm install && npm run dev` (auto-increments the port 5173→5174→… if busy).
+- **Verify frontend changes with `npm run build`** — it runs the Svelte compiler over every component
+  and surfaces all template/compile errors; a clean build is the baseline check. The Vite plugin's
+  a11y *warnings* are pre-existing and non-blocking. The Preview MCP is scoped to `C:\Users\Vasif2`
+  and can't launch this D: project, **but it can drive an already-running dev server** if you point its
+  tab at `http://localhost:<port>` (`preview_eval` to navigate, then inspect DOM / theme live).
 - `src/lib/api.js` is the backend-contract bridge **and** carries real client-side logic: the typed
   content-block transformer, **Chart.js auto-detection from markdown tables / prose**, the verbose
   `(Citation N, …)` → clean `[N]` superscript rewrite, and mammoth.js `.docx`→text before upload.
+  `transformResponse` flattens `/chat`'s `routing_decision`/`escalation`/`performance`/`cost` into the
+  `routing` object the UI renders; `getModels()` is memoized.
 - **Web search is entirely client-side** (`searchWeb`: Tavily → SearXNG → DuckDuckGo → Wikipedia
   fallback); results are injected into the prompt before it is sent, so the backend never sees the
   search step. There is no server-side web-search route — don't go looking for one.
-- `src/lib/stores.js` holds the state (conversations, simulated wallet, streaming, hash routing
-  `#/rag/<collection>`). Authoritative doc: `docs/THESIS_HANDOFF_v07.md`.
+- `src/lib/stores.js` holds the state (conversations, simulated wallet, streaming, theme, the active
+  model/jury config, hash routing `#/rag/<collection>`), all localStorage-persisted.
+
+**Typed content-block rendering is the extension seam.** Answers are arrays of typed blocks
+(`text`/`table`/`chart`/`citations`/`verification`/`jury`/`image`/…); `MessageRenderer.svelte`
+dispatches one branch per `type`, and the typewriter reveals text word-by-word while snapping non-text
+blocks in whole. **Adding an answer feature = a new block type + a renderer branch**, not a rewrite —
+that is how the claim-verification panel and the LLM Jury panel were added.
+
+**The model "mode" lives in `selectedModel.mode`** (`smart` | `manual` | `jury`). Forcing a specific
+model sends `simulation_profile_id` (a *billing profile*) — it does NOT swap the executor — so per the
+demo display rule the UI keeps showing the *chosen* model and relabels forced runs as manual
+comparisons. `ModelSelector.svelte` + the header chip switch between Smart Routing, a single model, and
+the LLM Jury; user preferences (theme, smart suggestions, web search, claim verification) live in
+`SettingsPopup.svelte`.
+
+**Multi-model features (the UX differentiators), all orchestrated client-side over the same
+`sendMessage`/`simulation_profile_id` path:**
+- **Routing transparency** — `RoutingInsight.svelte` renders the router's reasoning, quality-gate
+  meter, escalation status, and latency/cost under every answer (the headline differentiator).
+- **Regenerate-with-model + side-by-side compare** (`ComparePanel.svelte`) — re-run a prompt on
+  another model, or two at once with a live cost/latency verdict banner.
+- **LLM Jury** (`JuryConfig.svelte` + `runJury` in `App.svelte`) — fan a prompt to N chosen models,
+  then a synthesizer fuses their answers; the verdict + each juror's answer render as a `jury` block.
+  **Fan-out is bounded-concurrency (4) + retry-with-backoff** — firing all N at once trips the provider
+  rate limit. Two backend failure modes to know: a hard `ModelRateLimitError` (HTTP error → throws) and
+  a **soft `execution_loop.py` `"Error: Execution failed"` returned as HTTP 200** (not an exception);
+  both are detected and retried, and the synthesizer falls back to the strongest juror's answer rather
+  than surfacing the error text.
+
+Authoritative docs: `docs/THESIS_HANDOFF_v07.md` (the citation UX) + `docs/V07_FRONTEND_SESSION.md`
+(the 2026-06 UX-enhancement session — routing transparency, compare, jury, settings consolidation —
+with full rationale + commit trail).
 
 ## The external chatbot widget (public-facing, embeddable)
 
 Distinct from V07: an **embeddable widget** companies drop on their *own* public site via one
 `<script>` tag. It reuses the smart router + grounded-RAG stack but is a separate, public,
 cross-origin surface. Code lives in `src/layer4_platform/` + `src/interfaces/http/routes/widget.py`
-(public), `admin_bots.py` / `admin_console.py` (admin control plane), `middleware/widget_cors.py`,
-`src/layer3_domain/web_crawler.py`. Authoritative doc: `docs/THESIS_HANDOFF_EXTERNAL_WIDGET.md`.
-Tests: `tests/widget/` (kept **torch-free** — registry / rate-limit / crawler-via-httpx-MockTransport
-/ CORS shim; widget JS is verified out-of-band with jsdom, not in the Python suite).
+(public), `admin_bots.py` / `admin_console.py` / `admin_autopilot.py` (admin control plane),
+`middleware/widget_cors.py`, `src/layer3_domain/web_crawler.py`. **AutoPilot** onboarding adds
+`src/layer3_domain/site_renderer.py` (Playwright), `src/layer4_platform/theme_extractor.py`
+(palette→theme), `src/layer4_platform/autopilot.py` (orchestrator). Docs:
+`docs/THESIS_HANDOFF_EXTERNAL_WIDGET.md` (onboarding) + `docs/THESIS_EXTERNAL_WIDGET_COMPLETE.md`
+(full deep-dive). Tests: `tests/widget/` (kept **torch-free** — registry / rate-limit /
+crawler-via-httpx-MockTransport / CORS shim / `test_autopilot.py` palette+SSRF+autofill-parse; widget
++ console JS verified out-of-band with jsdom, not in the Python suite).
 
 - **A company = tenant + grounded collection + a `BotConfig`** (`layer4_platform/bot_registry.py`).
   `PublicBotConfig` is the **only** shape the browser receives and is a safe projection that
-  **never carries `tenant_id` / `collection_id` / `allowed_origins`** — a leaked `bot_id` (it sits in
-  the page source) yields branding only. Configs persist as JSON under `.runtime/bot_configs/`
+  **never carries `tenant_id` / `collection_id` / `allowed_origins` / `preview_screenshot_id`** — a
+  leaked `bot_id` (it sits in the page source) yields branding only. `BotTheme` adds `bot_bubble_color`
+  (assistant bubble → `--bot-bubble`; `null` = adaptive light/dark tint), and `BotConfig` adds
+  `preview_screenshot_id` (AutoPilot screenshot id for the preview backdrop; **server-only**). Configs
+  persist as JSON under `.runtime/bot_configs/`
   (gitignored), dir resolved from `__file__` — do **not** copy `document_collections.py`'s hard-coded
   `D:/College/...` path. Adding a per-bot field means threading it through `BotCreateRequest`/
   `BotUpdateRequest` (admin_bots) → `create_bot` (bot_registry) → `PublicBotConfig.to_public()` →
@@ -197,19 +345,45 @@ Tests: `tests/widget/` (kept **torch-free** — registry / rate-limit / crawler-
   **only on `/widget/*`** (answers preflight, reflects Origin, `credentials:false`), and passes every
   other path through untouched. A mounted sub-app does NOT work — the global CORS intercepts all
   preflight first. The authoritative origin gate is `bot_service.is_origin_allowed()` **in the handler**
-  (CORS is browser-side, bypassable), plus per-IP/per-bot rate limits (`widget_rate_limit.py`).
+  (CORS is browser-side, bypassable), plus per-IP/per-bot rate limits (`widget_rate_limit.py`). The
+  gate also trusts the app's **own** origin (`_is_self_origin` vs `request.base_url`) so `/admin/console`
+  and `/widget/preview` can chat any bot without it listing the demo host in `allowed_origins`.
 - **The loader (`WIDGET_LOADER_JS` in widget.py)** is vanilla JS in a Shadow DOM, themed entirely from
   `--bot-*` CSS variables fed by the config (re-skin = config edit, no code). **Rich answer content
   (HTML/CSS/JS) renders in a `sandbox`ed iframe with NO `allow-same-origin`** so model/KB-supplied
   scripts can't reach the host page — never render model HTML straight into the host DOM. The loader
   source must **never contain the literal `</script>`** (write `'</scr' + 'ipt>'`) so it can embed in
   inline scripts / jsdom tests.
-- **The crawler** (`web_crawler.py`, endpoint `POST /grounded-documents/collections/{id}/crawl`) is
-  same-domain, robots-aware, `httpx` + stdlib `html.parser`, **static/SSR only** (runs no JS — SPAs
-  return thin pages, reported in warnings). It feeds the **same** `ingest_assets` path as uploads.
+- **Knowledge in two ways, same `ingest_assets` path.** (1) The **crawler** (`web_crawler.py`,
+  `POST /grounded-documents/collections/{id}/crawl`): same-domain, robots-aware, `httpx` + stdlib
+  `html.parser`, **static/SSR only** (runs no JS — SPAs return thin pages, reported in warnings).
+  (2) **Document upload** (`POST /grounded-documents/collections/upload`, multipart PDF/text), now
+  exposed in the console. **Insight (verified):** a homepage crawl is mostly boilerplate, so pointed
+  questions get *correctly* refused by the grounding gate (not a crawl/rehydration bug) — focused
+  uploads (FAQ/brochure/prospectus) are the fix.
+- **AutoPilot** (`POST /admin/autopilot/analyze`, gated by `WIDGET_AUTOPILOT_ENABLED`): paste a URL →
+  review-ready bot draft. `autopilot.analyze_site` runs SSRF guard (`guard_public_url`, blocks
+  private/loopback IPs) → **Playwright** headless render (`site_renderer.render_site`: full-page
+  screenshot + visible text + metadata; **sync API via `asyncio.to_thread`** to dodge the Windows
+  Proactor pitfall; **lazy** import so the app runs without the engine) → **KMeans palette →
+  contrast-checked theme** (`theme_extractor`, Pillow+sklearn; honors `theme-color` meta; auto-darkens
+  the primary so white header text clears WCAG contrast) → **router→LLM copy** (`get_router()` +
+  `gateway.complete`, JSON `response_format`; deterministic fallback). It only *drafts* — the console
+  fills the form and the human clicks Create. **Playwright browsers MUST sit on a real filesystem
+  path** (`PLAYWRIGHT_BROWSERS_PATH` defaulted to `.runtime/pw-browsers/` in `site_renderer.py`): a
+  sandboxed installer's writes to `%LOCALAPPDATA%\ms-playwright` get AppContainer-*virtualized* so the
+  server sees "Executable doesn't exist" though it looks present. Install with that env var set;
+  `.runtime/pw-browsers/` + `.runtime/widget_screenshots/` are gitignored.
+- **The console** (`/admin/console`) has **Manual** and **✨ AutoPilot** modes; its live preview is a
+  faithful **full-size (420×720) replica** of the real widget (surfaces subtitle + branding footer +
+  bot/user bubbles), and for AutoPilot bots `/widget/preview` floats the widget over the captured site
+  screenshot as a page backdrop (via `preview_screenshot_id`).
 - **Config:** env-level toggles/caps in `Settings` (`WIDGET_PUBLIC_ENABLED`, `WIDGET_RATE_*`,
-  `WIDGET_CRAWLER_MAX_*`). Endpoints: public `/widget/{id}/config|chat|chat/stream|suggest`,
-  `/widget/loader.js`, `/widget/preview`; admin `/admin/bots/*` (+ `/debug-chat`), `/admin/console`.
+  `WIDGET_CRAWLER_MAX_*`, `WIDGET_AUTOPILOT_*`, `RAG_EAGER_HYDRATE`). New runtime deps: `playwright`
+  (then `playwright install chromium`) and `Pillow`. Endpoints: public
+  `/widget/{id}/config|chat|chat/stream|suggest`, `/widget/loader.js`, `/widget/preview`; admin
+  `/admin/bots/*` (+ `/debug-chat`), `/admin/console`, `/admin/autopilot/analyze` +
+  `/admin/autopilot/screenshot/{id}`.
 
 ## Cross-file invariants & gotchas (easy to get wrong)
 
@@ -313,6 +487,8 @@ so backend + embedded-JS edits hot-reload.
 - `docs/THESIS_HANDOFF_v07.md` — the V07 frontend and the end-to-end citation UX.
 - `docs/THESIS_HANDOFF_EXTERNAL_WIDGET.md` — the public embeddable chatbot widget (routing↔citation
   fusion, per-bot config, CORS, crawler, rich content, premium UX).
+- `docs/THESIS_EXTERNAL_WIDGET_COMPLETE.md` — the full widget deep-dive (AutoPilot pipeline, admin
+  console, document upload, eager rehydration, security, verification, limitations) for the thesis.
 - `docs/layer3/runbook.md` + `docs/layer3/*.md` — L3 operational runbook and design-choice rationale
   (encoder bake-off, high-risk classifier, data sources, aggregate priors).
 - `docs/layers/LAYER_*_REPORT.md` / `LAYER_*_RESEARCH.md` — per-layer deep dives.
