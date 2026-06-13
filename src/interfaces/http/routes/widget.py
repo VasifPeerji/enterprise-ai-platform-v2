@@ -445,24 +445,102 @@ WIDGET_LOADER_JS = r"""
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
       });
     }
-    // Minimal, XSS-safe markdown: escape everything first, then re-introduce only
-    // a known-safe set of tags. Links are restricted to http(s) / relative.
-    function mdToHtml(src) {
-      var s = escMd(src);
-      s = s.replace(/```([\s\S]*?)```/g, function (m, c) { return '<pre><code>' + c.replace(/^\n+|\n+$/g, '') + '</code></pre>'; });
+
+    // --- Inline markdown -> safe HTML (escape first, re-introduce safe tags). ---
+    function mdInline(s) {
       s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+      s = s.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, function (m, a, u) { return '<img src="' + u + '" alt="' + a + '" loading="lazy">'; });
+      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
       s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
       s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-      var lines = s.split('\n'), html = '', inList = false;
-      for (var i = 0; i < lines.length; i++) {
-        var m = lines[i].match(/^\s*(?:[-*]|\d+\.)\s+(.*)/);
-        if (m) { if (!inList) { html += '<ul>'; inList = true; } html += '<li>' + m[1] + '</li>'; }
-        else { if (inList) { html += '</ul>'; inList = false; } if (lines[i].trim()) html += '<p>' + lines[i] + '</p>'; }
+      s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+      return s;
+    }
+
+    // Block markdown -> safe HTML string: headings, hr, blockquote, lists, GFM
+    // tables, bare image/video URLs, paragraphs. (Fenced ``` blocks are handled
+    // by renderRich before this runs; the fallback here is for streaming.)
+    function mdToHtml(src) {
+      var lines = escMd(src).split('\n'), html = '', i = 0;
+      function block(re, tag) { var out = '<' + tag + '>'; while (i < lines.length && re.test(lines[i])) { out += '<li>' + mdInline(lines[i].replace(re, '$1')) + '</li>'; i++; } return out + '</' + tag + '>'; }
+      function table() {
+        function cells(r) { return r.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(function (c) { return mdInline(c.trim()); }); }
+        var head = cells(lines[i]); i += 2;
+        var out = '<table><thead><tr><th>' + head.join('</th><th>') + '</th></tr></thead><tbody>';
+        while (i < lines.length && lines[i].indexOf('|') >= 0 && lines[i].trim()) { out += '<tr><td>' + cells(lines[i]).join('</td><td>') + '</td></tr>'; i++; }
+        return out + '</tbody></table>';
       }
-      if (inList) html += '</ul>';
+      while (i < lines.length) {
+        var ln = lines[i];
+        if (/^\s*$/.test(ln)) { i++; continue; }
+        if (/^\s*```/.test(ln)) { var code = ''; i++; while (i < lines.length && !/^\s*```/.test(lines[i])) { code += lines[i] + '\n'; i++; } i++; html += '<pre><code>' + code.replace(/\n+$/, '') + '</code></pre>'; continue; }
+        var hm = ln.match(/^\s*(#{1,3})\s+(.*)/);
+        if (hm) { var n = hm[1].length; html += '<h' + n + '>' + mdInline(hm[2]) + '</h' + n + '>'; i++; continue; }
+        if (/^\s*([-*_])\1\1+\s*$/.test(ln)) { html += '<hr>'; i++; continue; }
+        if (/^\s*&gt;\s?/.test(ln)) { var q = ''; while (i < lines.length && /^\s*&gt;\s?/.test(lines[i])) { q += lines[i].replace(/^\s*&gt;\s?/, '') + ' '; i++; } html += '<blockquote>' + mdInline(q.trim()) + '</blockquote>'; continue; }
+        if (/\|/.test(ln) && i + 1 < lines.length && /\|/.test(lines[i + 1]) && /^\s*\|?[-:\s|]+-[-:\s|]*\|?\s*$/.test(lines[i + 1])) { html += table(); continue; }
+        if (/^\s*[-*]\s+/.test(ln)) { html += block(/^\s*[-*]\s+(.*)/, 'ul'); continue; }
+        if (/^\s*\d+\.\s+/.test(ln)) { html += block(/^\s*\d+\.\s+(.*)/, 'ol'); continue; }
+        var u = ln.trim();
+        if (/^https?:\/\/\S+\.(png|jpe?g|gif|webp|svg|avif)(\?\S*)?$/i.test(u)) { html += '<img src="' + u + '" alt="" loading="lazy">'; i++; continue; }
+        if (/^https?:\/\/\S+\.(mp4|webm|ogg)(\?\S*)?$/i.test(u)) { html += '<video src="' + u + '" controls preload="metadata"></video>'; i++; continue; }
+        var para = ln; i++;
+        while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^\s*(#{1,3}\s|&gt;|[-*]\s|\d+\.\s|```|([-*_])\2\2)/.test(lines[i])) { para += '\n' + lines[i]; i++; }
+        html += '<p>' + mdInline(para).replace(/\n/g, '<br>') + '</p>';
+      }
       return html || '<p></p>';
+    }
+
+    function ytEmbed(url) {
+      var y = (url || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/);
+      if (y) return 'https://www.youtube-nocookie.com/embed/' + y[1];
+      var v = (url || '').match(/vimeo\.com\/(\d+)/);
+      if (v) return 'https://player.vimeo.com/video/' + v[1];
+      return '';
+    }
+    function upgradeMedia(div) {
+      Array.prototype.slice.call(div.querySelectorAll('a')).forEach(function (a) {
+        var emb = ytEmbed(a.getAttribute('href') || ''); if (!emb) return;
+        var wrap = document.createElement('div'); wrap.className = 'embed';
+        var f = document.createElement('iframe');
+        f.src = emb; f.setAttribute('allowfullscreen', ''); f.setAttribute('loading', 'lazy');
+        f.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+        wrap.appendChild(f); a.replaceWith(wrap);
+      });
+    }
+    // Arbitrary HTML/CSS/JS renders inside a SANDBOXED iframe with NO
+    // allow-same-origin, so its scripts run in an isolated opaque origin and
+    // cannot touch the host page, its cookies, or this widget. Height is synced
+    // back over postMessage (scoped to this iframe's contentWindow).
+    function makeSandbox(rawHtml) {
+      var wrap = document.createElement('div'); wrap.className = 'rich';
+      var f = document.createElement('iframe');
+      f.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox');
+      f.setAttribute('referrerpolicy', 'no-referrer'); f.setAttribute('loading', 'lazy');
+      f.style.cssText = 'width:100%;border:0;height:80px;display:block;background:#fff;';
+      var resize = '<scr' + 'ipt>(function(){function p(){try{parent.postMessage({__rh:Math.ceil(document.body.scrollHeight)},"*");}catch(e){}}if(window.ResizeObserver){new ResizeObserver(p).observe(document.body);}window.addEventListener("load",p);[60,250,700,1600].forEach(function(t){setTimeout(p,t);});})();</scr' + 'ipt>';
+      f.srcdoc = '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><base target="_blank">'
+        + '<style>html,body{margin:0;padding:0;}body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1f2937;padding:2px;}*{box-sizing:border-box;}img,video,canvas,svg,table{max-width:100%;}</style></head><body>'
+        + rawHtml + resize + '</body></html>';
+      function onMsg(e) { if (e.source === f.contentWindow && e.data && typeof e.data.__rh === 'number') { f.style.height = Math.max(40, Math.min(e.data.__rh + 4, 680)) + 'px'; } }
+      window.addEventListener('message', onMsg);
+      wrap.appendChild(f); return wrap;
+    }
+    // Full rich render: split fenced blocks (```html -> sandbox, others -> code),
+    // markdown + media for the rest. Used for finished answers.
+    function renderRich(container, text) {
+      container.innerHTML = '';
+      var src = String(text == null ? '' : text), re = /```([\w-]*)\r?\n?([\s\S]*?)```/g, last = 0, m;
+      function addText(seg) { if (!seg || !seg.trim()) return; var d = document.createElement('div'); d.innerHTML = mdToHtml(seg); upgradeMedia(d); container.appendChild(d); }
+      while ((m = re.exec(src))) {
+        addText(src.slice(last, m.index));
+        var lang = (m[1] || '').toLowerCase(), code = m[2].replace(/\n+$/, '');
+        if (lang === 'html' || lang === 'preview' || lang === 'widget') { container.appendChild(makeSandbox(code)); }
+        else { var pre = document.createElement('pre'); var c = document.createElement('code'); c.textContent = code; pre.appendChild(c); container.appendChild(pre); }
+        last = re.lastIndex;
+      }
+      addText(src.slice(last));
+      if (!container.childNodes.length) container.innerHTML = '<p></p>';
     }
 
     function css(t) {
@@ -558,6 +636,20 @@ WIDGET_LOADER_JS = r"""
         + '.bubble code{background:rgba(' + fg + ',0.07);padding:2px 5px;border-radius:5px;font-size:.9em;font-family:ui-monospace,Consolas,monospace;}'
         + '.bubble pre{background:rgba(' + fg + ',0.06);padding:10px;border-radius:8px;overflow:auto;margin:6px 0;}'
         + '.bubble pre code{background:none;padding:0;}'
+        + '.bubble h1,.bubble h2,.bubble h3{margin:10px 0 6px;line-height:1.3;font-weight:600;}'
+        + '.bubble h1:first-child,.bubble h2:first-child,.bubble h3:first-child{margin-top:0;}'
+        + '.bubble h1{font-size:1.25em;}.bubble h2{font-size:1.14em;}.bubble h3{font-size:1.05em;}'
+        + '.bubble hr{border:none;border-top:1px solid var(--bot-line);margin:10px 0;}'
+        + '.bubble blockquote{margin:8px 0;padding:3px 0 3px 12px;border-left:3px solid var(--bot-line);color:var(--bot-muted);}'
+        + '.bubble del{opacity:.65;}'
+        + '.bubble img{max-width:100%;border-radius:10px;margin:6px 0;display:block;}'
+        + '.bubble video{max-width:100%;border-radius:10px;margin:6px 0;display:block;background:#000;}'
+        + '.bubble table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px;}'
+        + '.bubble th,.bubble td{border:1px solid var(--bot-line);padding:6px 9px;text-align:left;}'
+        + '.bubble th{background:rgba(' + fg + ',0.04);font-weight:600;}'
+        + '.bubble .embed{position:relative;width:100%;padding-top:56.25%;margin:8px 0;border-radius:10px;overflow:hidden;background:#000;}'
+        + '.bubble .embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}'
+        + '.bubble .rich{margin:8px 0;border:1px solid var(--bot-line);border-radius:10px;overflow:hidden;}'
         // sources
         + '.sources{margin-top:10px;padding-top:9px;border-top:1px solid var(--bot-line);display:flex;flex-direction:column;gap:5px;}'
         + '.sources .h{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;opacity:.5;}'
@@ -727,7 +819,7 @@ WIDGET_LOADER_JS = r"""
       }
       function addMessage(text, who, sources) {
         var bubble = addRow(who);
-        if (who === 'bot') bubble.innerHTML = mdToHtml(text); else bubble.textContent = text || '';
+        if (who === 'bot') renderRich(bubble, text); else bubble.textContent = text || '';
         if (sources) renderSources(bubble, sources);
         scrollDown();
       }
@@ -742,6 +834,7 @@ WIDGET_LOADER_JS = r"""
         var bubble = addRow('bot');
         return {
           setText: function (md) { bubble.innerHTML = mdToHtml(md); scrollDown(); },
+          finalize: function (md) { renderRich(bubble, md); scrollDown(); },
           setSources: function (sources) { renderSources(bubble, sources); }
         };
       }
@@ -772,7 +865,7 @@ WIDGET_LOADER_JS = r"""
           if (!resp.body || !resp.body.getReader) { typing.remove(); return blockingAnswer(text, prior); }
           typing.remove();
           var msg = startBotMessage();
-          var reader = resp.body.getReader(), dec = new TextDecoder(), buf = '', answer = '';
+          var reader = resp.body.getReader(), dec = new TextDecoder(), buf = '', answer = '', sources = null;
           while (true) {
             var r = await reader.read();
             if (r.done) break;
@@ -784,9 +877,11 @@ WIDGET_LOADER_JS = r"""
               var evt; try { evt = JSON.parse(line); } catch (e) { continue; }
               if (evt.type === 'token') { answer += evt.value; msg.setText(answer); }
               else if (evt.type === 'error') { answer = evt.value; msg.setText(answer); }
-              else if (evt.type === 'done') { msg.setSources(evt.sources); }
+              else if (evt.type === 'done') { sources = evt.sources; }
             }
           }
+          msg.finalize(answer);
+          if (sources) msg.setSources(sources);
           history.push({ role: 'bot', content: answer });
         } catch (e) { typing.remove(); addMessage('Network error. Please try again.', 'bot'); }
       }
