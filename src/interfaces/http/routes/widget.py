@@ -241,7 +241,7 @@ def _small_talk_reply(category: str, greeting: str, display_name: str) -> str:
     if category == "trivial_acknowledgment":
         return "You're welcome! Is there anything else I can help you with?"
     if category == "trivial_farewell":
-        return "Thanks for stopping by — have a great day!"
+        return "Thanks for stopping by! Have a great day."
     return "Sorry, I didn't quite catch that. Could you rephrase your question?"
 
 
@@ -643,6 +643,14 @@ WIDGET_LOADER_JS = r"""
         + 'opacity:0;transform:translateY(22px) scale(.95);transform-origin:bottom ' + side + ';pointer-events:none;'
         + 'transition:opacity .26s cubic-bezier(.22,1,.36,1),transform .36s cubic-bezier(.34,1.28,.5,1);}'
         + '.panel.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}'
+        // full-screen mode: dim backdrop + centered large panel with a readable column
+        + '.backdrop{position:fixed;inset:0;background:rgba(15,23,42,.5);opacity:0;pointer-events:none;z-index:2147482998;transition:opacity .3s ease;}'
+        + '.backdrop.show{opacity:1;pointer-events:auto;}'
+        + '.panel.full{width:min(1060px,96vw);height:min(880px,94vh);max-width:96vw;max-height:94vh;'
+        + 'top:50%;left:50%;right:auto;bottom:auto;transform-origin:center;transform:translate(-50%,-50%) scale(.97);border-radius:18px;}'
+        + '.panel.full.open{transform:translate(-50%,-50%) scale(1);}'
+        + '.panel.full .messages{padding-left:max(18px,calc(50% - 360px));padding-right:max(18px,calc(50% - 360px));}'
+        + '.panel.full .composer{padding-left:max(14px,calc(50% - 360px));padding-right:max(14px,calc(50% - 360px));}'
         // header
         + '.header{position:relative;background:var(--bot-primary);'
         + 'background-image:linear-gradient(135deg,rgba(255,255,255,.14),rgba(0,0,0,.10));'
@@ -662,13 +670,10 @@ WIDGET_LOADER_JS = r"""
         + '.messages::-webkit-scrollbar{width:6px;}'
         + '.messages::-webkit-scrollbar-thumb{background:rgba(' + fg + ',0.18);border-radius:3px;}'
         + '.messages::-webkit-scrollbar-track{background:transparent;}'
-        // welcome hero
-        + '.welcome{padding:6px 4px 2px;animation:msgIn .35s cubic-bezier(.22,1,.36,1);}'
-        + '.welcome .wav{width:54px;height:54px;border-radius:50%;background:var(--bot-primary);color:#fff;display:flex;align-items:center;'
-        + 'justify-content:center;font-weight:600;font-size:23px;overflow:hidden;margin-bottom:14px;box-shadow:0 6px 16px -4px rgba(0,0,0,.25);}'
-        + '.welcome .wav img{width:100%;height:100%;object-fit:cover;}'
-        + '.welcome .wt{font-size:20px;font-weight:600;line-height:1.3;letter-spacing:-.01em;}'
-        + '.welcome .ws{font-size:14px;color:var(--bot-muted);line-height:1.5;margin-top:5px;}'
+        // welcome hero (identity already lives in the header; keep the body light)
+        + '.welcome{padding:10px 4px 8px;animation:msgIn .4s cubic-bezier(.22,1,.36,1);}'
+        + '.welcome .wt{font-size:17.5px;font-weight:600;line-height:1.4;letter-spacing:-.01em;color:var(--bot-text);}'
+        + '.welcome .ws{font-size:13.5px;color:var(--bot-muted);line-height:1.55;margin-top:7px;}'
         // message rows
         + '.row{position:relative;display:flex;gap:8px;align-items:flex-end;max-width:90%;animation:msgIn .3s cubic-bezier(.22,1,.36,1);}'
         + '.row.user{align-self:flex-end;flex-direction:row-reverse;}'
@@ -749,8 +754,14 @@ WIDGET_LOADER_JS = r"""
         + '.typing span{width:7px;height:7px;border-radius:50%;background:var(--bot-text);opacity:.35;animation:bob 1.3s infinite;}'
         + '.typing span:nth-child(2){animation-delay:.18s;}.typing span:nth-child(3){animation-delay:.36s;}'
         + '@keyframes bob{0%,60%,100%{transform:translateY(0);opacity:.3;}30%{transform:translateY(-5px);opacity:.7;}}'
-        + '@media (max-width:480px){.panel{width:100vw;height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;bottom:0;right:0;left:0;border-radius:0;}'
-        + '.launcher{bottom:18px;' + side + ':18px;}.teaser{display:none;}}';
+        + '@media (max-width:480px){'
+        + '.panel,.panel.full{inset:auto 0 0 0;width:100vw;max-width:100vw;height:100vh;height:100dvh;max-height:100dvh;'
+        + 'border-radius:0;transform-origin:bottom center;transform:translateY(24px) scale(.985);}'
+        + '.panel.open,.panel.full.open{transform:translateY(0) scale(1);}'
+        + '.panel.full .messages,.panel.full .composer{padding-left:16px;padding-right:16px;}'
+        + '.composer{padding-bottom:max(12px,env(safe-area-inset-bottom));}'
+        + '.header .exp{display:none;}.teaser{display:none;}.backdrop{display:none;}'
+        + '.launcher{bottom:max(18px,env(safe-area-inset-bottom));' + side + ':18px;}}';
     }
 
     function prefersDark() { try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); } catch (e) { return false; } }
@@ -818,6 +829,7 @@ WIDGET_LOADER_JS = r"""
           '<div class="av">' + avatarInner + '</div>' +
           '<div class="meta"><div class="name"></div><div class="status"></div></div>' +
           '<button class="ib newc" aria-label="New conversation" title="New conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
+          '<button class="ib exp" aria-label="Full screen" title="Full screen"></button>' +
           '<button class="ib close" aria-label="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>' +
         '</div>' +
         '<div class="messages"></div>' +
@@ -830,6 +842,9 @@ WIDGET_LOADER_JS = r"""
         '</div>';
       root.appendChild(panel);
 
+      var backdrop = document.createElement('div'); backdrop.className = 'backdrop';
+      root.appendChild(backdrop);
+
       panel.querySelector('.name').textContent = dn;
       panel.querySelector('.status').textContent = cfg.subtitle || 'Online';
       var pwr = panel.querySelector('.pwr');
@@ -837,7 +852,7 @@ WIDGET_LOADER_JS = r"""
       var messagesEl = panel.querySelector('.messages');
       var inputEl = panel.querySelector('textarea');
       var sendBtn = panel.querySelector('.send');
-      var greeted = false, busy = false, history = [], chipsEl = null;
+      var greeted = false, busy = false, history = [], chipsEl = null, isFull = false;
 
       function scrollDown() { messagesEl.scrollTop = messagesEl.scrollHeight; }
 
@@ -849,9 +864,11 @@ WIDGET_LOADER_JS = r"""
 
       function showWelcome() {
         var w = document.createElement('div'); w.className = 'welcome';
-        w.innerHTML = '<div class="wav">' + avatarInner + '</div><div class="wt"></div><div class="ws"></div>';
+        w.innerHTML = '<div class="wt"></div><div class="ws"></div>';
         w.querySelector('.wt').textContent = cfg.greeting || ('Hi! I’m ' + dn);
-        w.querySelector('.ws').textContent = 'Ask me anything — pick a question below or type your own.';
+        w.querySelector('.ws').textContent = (cfg.suggested_prompts && cfg.suggested_prompts.length)
+          ? 'Pick a question below, or type your own.'
+          : 'Type a message below to get started.';
         messagesEl.appendChild(w);
         var prompts = cfg.suggested_prompts || [];
         if (prompts.length) {
@@ -894,12 +911,41 @@ WIDGET_LOADER_JS = r"""
         setTimeout(function () { inputEl.focus(); }, 120);
       }
       function close() {
+        setFull(false);
         panel.classList.remove('open'); launcher.classList.remove('open');
         launcher.setAttribute('aria-label', 'Open chat');
       }
       launcher.addEventListener('click', function () { panel.classList.contains('open') ? close() : open(); });
       panel.querySelector('.header .close').addEventListener('click', close);
       panel.querySelector('.header .newc').addEventListener('click', newConversation);
+
+      // Full-screen: expand the docked panel to a centered modal (desktop) with a
+      // dimming backdrop and a readable centered column; a no-op on mobile, which
+      // is already full-bleed (the control is hidden there).
+      var expBtn = panel.querySelector('.header .exp');
+      var EXP_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>';
+      var COL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6"/><path d="M20 10h-6V4"/><path d="M14 10l7-7"/><path d="M3 21l7-7"/></svg>';
+      function setFull(on) {
+        isFull = on;
+        panel.classList.toggle('full', on);
+        backdrop.classList.toggle('show', on);
+        launcher.style.opacity = on ? '0' : '';
+        launcher.style.pointerEvents = on ? 'none' : '';
+        if (expBtn) {
+          expBtn.innerHTML = on ? COL_SVG : EXP_SVG;
+          var lbl = on ? 'Exit full screen' : 'Full screen';
+          expBtn.setAttribute('aria-label', lbl); expBtn.setAttribute('title', lbl);
+        }
+        setTimeout(scrollDown, 80);
+      }
+      if (expBtn) {
+        expBtn.innerHTML = EXP_SVG;
+        expBtn.addEventListener('click', function () { setFull(!isFull); setTimeout(function () { inputEl.focus(); }, 60); });
+      }
+      backdrop.addEventListener('click', function () { setFull(false); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && panel.classList.contains('open')) { isFull ? setFull(false) : close(); }
+      });
 
       function botAva() { var a = document.createElement('div'); a.className = 'ava'; a.innerHTML = avatarInner; return a; }
       function addRow(who) {
