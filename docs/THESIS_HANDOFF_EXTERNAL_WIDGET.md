@@ -31,6 +31,7 @@ model is used even for a collection ingested in heuristic mode.
 | Public API (config + fused chat) + loader.js + preview | `src/interfaces/http/routes/widget.py` |
 | `/widget/*`-scoped CORS shim | `src/interfaces/http/middleware/widget_cors.py` |
 | Admin CRUD + debug-chat | `src/interfaces/http/routes/admin_bots.py` |
+| Visual admin console (served HTML) | `src/interfaces/http/routes/admin_console.py` |
 | Website crawler | `src/layer3_domain/web_crawler.py` |
 | Crawl endpoint | `src/interfaces/http/routes/grounded_documents.py` (`/collections/{id}/crawl`) |
 | Settings (kill switch, rate/crawl caps) | `src/shared/config.py` (`WIDGET_*`) |
@@ -66,6 +67,21 @@ Configs persist as JSON snapshots under `.runtime/bot_configs/<bot_id>.json`
 - `POST/GET/PUT/DELETE /admin/bots[/{bot_id}]` → CRUD (returns embed snippet + warnings).
 - `POST /admin/bots/{bot_id}/debug-chat` → the **full** internal view (selected
   vs executed model, retrieval count, citations with internal ids).
+- `GET /admin/console` → a visual console: create/edit/delete bots, **live theme
+  preview** (a CSS-variable widget mock that updates as you type), copy-paste
+  embed snippets, and crawl a website into a bot's collection — no curl needed.
+
+## Conversation & rendering
+
+- **Follow-ups:** the widget keeps recent turns and sends them with each request.
+  When a message reads like a follow-up (short, leading "what about"/"and", or a
+  back-referencing pronoun), the handler prepends the previous user turn to the
+  *retrieval* query so the right content is found; self-contained questions are
+  left untouched, and routing/small-talk still run on the original message. The
+  shared RAG path is unchanged — this is purely the search string passed in.
+- **Markdown answers:** the widget renders a safe subset (bold/italic/code/links/
+  lists), escaping first and re-introducing only known tags, with links limited to
+  http(s)/relative — a hostile KB document echoed into an answer can't inject markup.
 
 ## Theming — re-skin a company with zero code
 
