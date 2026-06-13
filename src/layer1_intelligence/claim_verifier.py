@@ -123,6 +123,15 @@ class ClaimVerification(BaseModel):
         description="Whether all numeric values in the claim appear in evidence",
     )
     reasoning: str = Field(..., description="Plain-English explanation of the verdict")
+    match_type: str = Field(
+        default="none",
+        description=(
+            "How the best citation matched the claim: 'verbatim' (claim is a "
+            "literal substring of the evidence — extractive grounding), "
+            "'semantic' (embedding similarity drove the match), 'lexical' "
+            "(term overlap drove it), or 'none'."
+        ),
+    )
 
 
 class VerificationReport(BaseModel):
@@ -139,6 +148,16 @@ class VerificationReport(BaseModel):
     contradicted_count: int = Field(default=0, ge=0)
     unsupported_count: int = Field(default=0, ge=0)
     inferred_count: int = Field(default=0, ge=0)
+    verbatim_supported_count: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Of the supported claims, how many were verbatim copies of the cited "
+            "evidence (extractive grounding rather than synthesis). When this "
+            "equals supported_count the answer is fully extractive, so a high "
+            "verifiability_score reflects copying, not synthesis quality."
+        ),
+    )
 
     claims: list[ClaimVerification] = Field(default_factory=list)
 
@@ -150,9 +169,13 @@ class VerificationReport(BaseModel):
 
     auto_corrected: bool = Field(
         default=False,
-        description="Whether the answer was rewritten via self-correction",
+        description="Reserved: the read-only verifier scores claims but never rewrites the answer, so this stays False",
     )
-    correction_attempts: int = Field(default=0, ge=0)
+    correction_attempts: int = Field(
+        default=0,
+        ge=0,
+        description="Reserved for a future self-correction pass; always 0 in the read-only verifier",
+    )
 
     summary: str = Field(
         default="",
@@ -577,6 +600,7 @@ class ClaimVerifier:
                 token_overlap=round(best_overlap, 3),
                 numeric_match=best_numeric_match,
                 reasoning="Verbatim match — claim is contained in cited evidence",
+                match_type="verbatim",
             )
 
         # Sentence-level polarity check (replaces old chunk-level check).
@@ -636,6 +660,13 @@ class ClaimVerifier:
             confidence = round(1.0 - best_combined, 3)
             reasoning = "No matching evidence found in citations"
 
+        if best_idx < 0 or verdict == ClaimVerdict.UNSUPPORTED:
+            match_type = "none"
+        elif claim_vec is not None and best_similarity >= best_overlap:
+            match_type = "semantic"
+        else:
+            match_type = "lexical"
+
         return ClaimVerification(
             claim_id=claim_id,
             text=claim_text,
@@ -648,6 +679,7 @@ class ClaimVerifier:
             token_overlap=round(best_overlap, 3),
             numeric_match=best_numeric_match,
             reasoning=reasoning,
+            match_type=match_type,
         )
 
     # -----------------------------------------------------------------------
@@ -679,11 +711,22 @@ class ClaimVerifier:
             counts[v.verdict] += 1
 
         supported = counts[ClaimVerdict.SUPPORTED]
+        verbatim_supported = sum(
+            1
+            for v in verifications
+            if v.verdict == ClaimVerdict.SUPPORTED and v.match_type == "verbatim"
+        )
         summary = (
             f"{supported}/{total} claims verified"
             if total > 0
             else "No verifiable claims found in answer"
         )
+        # Be transparent when the "verified" claims are just extractive copies:
+        # a 100% score on a copy-paste answer reflects grounding, not synthesis.
+        if supported > 0 and verbatim_supported == supported:
+            summary += " (all verbatim from source)"
+        elif verbatim_supported > 0:
+            summary += f" ({verbatim_supported} verbatim from source)"
         if counts[ClaimVerdict.CONTRADICTED] > 0:
             summary += f" · {counts[ClaimVerdict.CONTRADICTED]} contradicted"
 
@@ -695,6 +738,7 @@ class ClaimVerifier:
             contradicted_count=counts[ClaimVerdict.CONTRADICTED],
             unsupported_count=counts[ClaimVerdict.UNSUPPORTED],
             inferred_count=counts[ClaimVerdict.INFERRED],
+            verbatim_supported_count=verbatim_supported,
             claims=verifications,
             method=method,
             latency_ms=round(latency_ms, 2),
