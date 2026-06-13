@@ -47,6 +47,7 @@ ADMIN_CONSOLE_HTML = r"""<!doctype html>
     width:100%; border:1px solid #cfc6b8; border-radius:9px; padding:9px 11px; font:inherit;
     background:#fff; color:var(--ink); }
   textarea { min-height:64px; resize:vertical; }
+  input[type=file] { font:inherit; font-size:.82rem; color:var(--ink); padding:7px 0; }
   .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
   .swatch { display:flex; align-items:center; gap:8px; }
@@ -239,14 +240,25 @@ Support | How do I contact support?</textarea>
       </div>
 
       <div class="card">
-        <h2>Knowledge — crawl a website</h2>
-        <label>Start URL</label><input id="crawl_url" type="url" placeholder="https://company.com">
-        <div class="row3" style="margin-top:10px">
-          <div><label>Max pages</label><input id="crawl_pages" type="text" value="15"></div>
-          <div><label>Max depth</label><input id="crawl_depth" type="text" value="2"></div>
-          <div style="display:flex;align-items:flex-end"><button class="btn primary" style="width:100%" onclick="runCrawl()">Crawl into collection</button></div>
+        <h2>Knowledge base <span class="hint" style="font-weight:400">— what the bot answers from; everything ingests into the Collection ID above</span></h2>
+
+        <label>Upload documents <span class="hint">— PDF or text (FAQs, brochures, catalogs give the most precise answers)</span></label>
+        <div class="ap-row">
+          <input id="upload_files" type="file" multiple accept=".pdf,.txt,.md,.csv,text/plain,application/pdf" style="flex:1">
+          <button class="btn primary ap-run" id="uploadBtn" onclick="runUpload()">Upload</button>
         </div>
-        <div class="hint">Crawls into the Collection ID above. Static/SSR sites only — JS-rendered SPAs return little text.</div>
+        <div id="uploadMsg"></div>
+
+        <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+
+        <label>Crawl a website <span class="hint">— grabs each page's visible text (no JavaScript); deeper crawls capture more answerable content</span></label>
+        <input id="crawl_url" type="url" placeholder="https://company.com">
+        <div class="row3" style="margin-top:10px">
+          <div><label>Max pages</label><input id="crawl_pages" type="text" value="20"></div>
+          <div><label>Max depth</label><input id="crawl_depth" type="text" value="2"></div>
+          <div style="display:flex;align-items:flex-end"><button class="btn primary" style="width:100%" onclick="runCrawl()">Crawl</button></div>
+        </div>
+        <div class="hint">Static/SSR sites only — JS-rendered SPAs return little text. A homepage alone is mostly boilerplate; crawl deeper or upload documents for specific Q&amp;A.</div>
         <div id="crawlMsg"></div>
       </div>
     </div>
@@ -481,6 +493,27 @@ async function runCrawl(){
   let html=`<div class="ok">Crawled ${j.pages_crawled} page(s); collection now has ${j.collection.document_count} document(s).</div>`;
   if(j.warnings && j.warnings.length) html+=`<div class="warn">${j.warnings.join(' ')}</div>`;
   $('crawlMsg').innerHTML=html; toast('Crawl complete');
+}
+
+async function runUpload(){
+  const inp=$('upload_files'); const files=inp.files;
+  if(!files || !files.length){ toast('Choose one or more files'); return; }
+  const coll=$('collection_id').value.trim(), ten=$('tenant_id').value.trim();
+  if(!coll){ toast('Set a Collection ID first'); return; }
+  const fd=new FormData();
+  fd.append('collection_id',coll); fd.append('tenant_id',ten); fd.append('domain','general');
+  fd.append('generation_mode','gateway'); fd.append('top_k','6');
+  for(const f of files) fd.append('files',f);
+  const btn=$('uploadBtn'); const orig=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spin"></span>Indexing…';
+  $('uploadMsg').innerHTML='<div class="hint">Uploading & indexing '+files.length+' file(s)… this can take a moment.</div>';
+  try{
+    const r=await fetch(`${API}/grounded-documents/collections/upload`,{method:'POST', body:fd});
+    const j=await r.json();
+    if(!r.ok){ $('uploadMsg').innerHTML=`<div class="warn">${(j.detail)||'Upload failed'}</div>`; return; }
+    $('uploadMsg').innerHTML=`<div class="ok">Indexed into <b>${coll}</b> — ${j.document_count} document(s) now in the knowledge base.</div>`;
+    toast('Documents indexed'); inp.value='';
+  }catch(e){ $('uploadMsg').innerHTML=`<div class="warn">Upload error: ${e.message}</div>`; }
+  finally{ btn.disabled=false; btn.textContent=orig; }
 }
 
 // ---- AutoPilot: paste a URL -> fill the form, theme the preview, show the site ----
