@@ -739,10 +739,78 @@
     openCompare(prompt, conv.messages[asstIdx].model || null);
   }
 
+  // ── LLM Jury tuning ────────────────────────────────────────
+  const JURY_CONCURRENCY = 4;   // max juror calls in flight (stays under upstream rate limits)
+  const JURY_MAX_RETRIES = 2;   // extra attempts for a rate-limited / transient juror
+  const JURY_ANSWER_CAP = 2200; // chars per juror answer fed into the synthesis prompt
+
+  function jurySleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  // Run `worker` over `items` with at most `limit` in flight, preserving order.
+  // The worker must resolve (never throw) — it returns its own result object.
+  async function runWithPool(items, limit, worker) {
+    const results = new Array(items.length);
+    let next = 0;
+    async function runner() {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await worker(items[i], i);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runner));
+    return results;
+  }
+
+  // The backend returns HTTP 200 with content "Error: Execution failed" (and no
+  // real answer) when its execution loop gives up — a soft failure that doesn't
+  // throw. Treat an empty answer or that sentinel as a failure worth retrying.
+  function isSoftErrorResponse(res) {
+    const text = extractJurorText(res?.content).trim();
+    return !text || /^Error:\s*Execution failed/i.test(text);
+  }
+
+  // Rate-limit / transient matcher (covers the gateway's 429s and the soft
+  // execution-failed sentinel) — these are worth a backed-off retry.
+  function isTransientError(msg) {
+    return /429|too many|rate.?limit|upstream|wait a moment|execution failed|timeout|timed out|temporarily|unavailable/i.test(
+      String(msg || ''),
+    );
+  }
+
+  // sendMessage with retry-and-backoff for a juror/synthesis call, covering both
+  // hard throws (rate-limit HTTP errors) and soft "Error: Execution failed" 200s.
+  async function sendJurorWithRetry(prompt, opts, isStopped) {
+    let attempt = 0;
+    while (true) {
+      try {
+        const res = await sendMessage(prompt, opts);
+        if (isSoftErrorResponse(res)) {
+          if (attempt < JURY_MAX_RETRIES && !isStopped?.()) {
+            attempt += 1;
+            await jurySleep(700 * attempt + 400); // ~1.1s, 1.8s
+            continue;
+          }
+          throw new Error('Rate-limited / execution failed (upstream)');
+        }
+        return res;
+      } catch (e) {
+        if (e?.name === 'AbortError') throw e;
+        if (attempt < JURY_MAX_RETRIES && !isStopped?.() && isTransientError(e?.message)) {
+          attempt += 1;
+          await jurySleep(700 * attempt + 400);
+          continue;
+        }
+        throw e;
+      }
+    }
+  }
+
   // ── LLM Jury orchestration ─────────────────────────────────
-  // Fan the prompt out to every juror model in parallel, then have the
-  // synthesizer combine their answers into one. The assistant message carries
-  // the synthesized answer plus a `jury` block holding each juror's answer.
+  // Fan the prompt out to every juror model (bounded concurrency + retry),
+  // then have the synthesizer combine their answers into one. The assistant
+  // message carries the synthesized answer plus a `jury` block per juror.
   async function runJury(convId, prompt, modelState, ctrl, isStopped) {
     const members = Array.isArray(modelState.members) ? modelState.members : [];
     const synth = modelState.synthesizer || { model_id: 'smart_routing', display_name: 'Smart Routing' };
@@ -752,45 +820,40 @@
     loadingMeta.set({ total: members.length, done: 0, synthName: synth.display_name });
     loadingStage.set('polling');
 
-    // 1) Fan out — each juror answers the same prompt independently.
-    const settled = await Promise.allSettled(
-      members.map(async (m) => {
-        const res = await sendMessage(prompt, {
-          modelId: m.model_id,
-          sessionId: $sessionId,
-          signal: ctrl.signal,
-        });
-        loadingMeta.update((meta) => ({ ...meta, done: (meta.done || 0) + 1 }));
-        return res;
-      }),
-    );
-    if (isStopped()) return; // user hit stop mid-fan-out — finally cleans up
-
-    const jurors = settled.map((s, i) => {
-      const m = members[i];
-      if (s.status === 'fulfilled') {
-        const res = s.value;
-        applyJuryCost(res);
-        return {
-          name: m.display_name,
-          tier: m.tier,
-          provider: m.provider,
-          text: extractJurorText(res.content),
-          latencyMs: res.routing?.latencyMs ?? null,
-          cost: res.cost?.chargedUsd ?? null,
-          error: null,
-        };
-      }
-      return {
+    // 1) Fan out — each juror answers the same prompt. Bounded concurrency
+    //    (JURY_CONCURRENCY in flight) plus retry-with-backoff keeps a large
+    //    panel from tripping the upstream provider's rate limit; soft
+    //    "Error: Execution failed" 200s are retried, then marked as failures.
+    const jurors = await runWithPool(members, JURY_CONCURRENCY, async (m) => {
+      const base = {
         name: m.display_name,
         tier: m.tier,
         provider: m.provider,
         text: null,
         latencyMs: null,
         cost: null,
-        error: s.reason?.name === 'AbortError' ? 'Cancelled' : humanizeError(s.reason?.message),
+        error: null,
       };
+      try {
+        const res = await sendJurorWithRetry(
+          prompt,
+          { modelId: m.model_id, sessionId: $sessionId, signal: ctrl.signal },
+          isStopped,
+        );
+        applyJuryCost(res);
+        return {
+          ...base,
+          text: extractJurorText(res.content),
+          latencyMs: res.routing?.latencyMs ?? null,
+          cost: res.cost?.chargedUsd ?? null,
+        };
+      } catch (e) {
+        return { ...base, error: e?.name === 'AbortError' ? 'Cancelled' : humanizeError(e?.message) };
+      } finally {
+        loadingMeta.update((meta) => ({ ...meta, done: (meta.done || 0) + 1 }));
+      }
     });
+    if (isStopped()) return; // user hit stop mid-fan-out — finally cleans up
 
     const okJurors = jurors.filter((j) => j.text && j.text.trim());
 
@@ -805,18 +868,22 @@
       return;
     }
 
-    // 2) Synthesize one combined answer from the jurors' answers.
+    // 2) Synthesize one combined answer from the jurors' answers. Same retry
+    //    path (handles a rate-limited / soft-failed synthesizer); a short beat
+    //    first lets any cooldown from the fan-out clear. On final failure we
+    //    fall back to the strongest juror's answer rather than showing an error.
     loadingStage.set('deliberating');
+    await jurySleep(350);
     let synthRes = null;
     try {
-      synthRes = await sendMessage(buildJurySynthesisPrompt(prompt, okJurors), {
-        modelId: synth.model_id || 'smart_routing',
-        sessionId: $sessionId,
-        signal: ctrl.signal,
-      });
+      synthRes = await sendJurorWithRetry(
+        buildJurySynthesisPrompt(prompt, okJurors),
+        { modelId: synth.model_id || 'smart_routing', sessionId: $sessionId, signal: ctrl.signal },
+        isStopped,
+      );
       applyJuryCost(synthRes);
     } catch (e) {
-      if (e.name === 'AbortError') return;
+      if (e?.name === 'AbortError') return;
       synthRes = null; // synthesis failed — fall back to the top juror's answer
     }
     if (isStopped()) return;
@@ -882,8 +949,12 @@
   // The aggregator ("presiding judge") prompt — combine the jurors' answers
   // into the single best response without exposing the panel mechanics.
   function buildJurySynthesisPrompt(query, jurors) {
+    // Cap each answer so a big panel doesn't blow past the synthesizer's
+    // context window (which itself surfaces as an execution failure).
+    const cap = (t) =>
+      t && t.length > JURY_ANSWER_CAP ? t.slice(0, JURY_ANSWER_CAP) + '\n…(truncated)' : t;
     const panel = jurors
-      .map((j, i) => `--- Answer ${String.fromCharCode(65 + i)} (from ${j.name}) ---\n${j.text}`)
+      .map((j, i) => `--- Answer ${String.fromCharCode(65 + i)} (from ${j.name}) ---\n${cap(j.text)}`)
       .join('\n\n');
     return (
       `You are the presiding judge of an expert panel. A user asked the question below, and ${jurors.length} AI models each answered it independently. ` +
