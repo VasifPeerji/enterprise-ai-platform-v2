@@ -690,6 +690,8 @@ class GroundedAnswerAssembler:
                     page_number=citation.page_number,
                     section_title=citation.section_title,
                     page_text=chunk.page_text,
+                    page_width=chunk.page_width,
+                    page_height=chunk.page_height,
                     highlights=[],
                     citation_indices=[],
                 )

@@ -405,6 +405,43 @@ async def analyze_grounded_collection(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message) from exc
 
 
+@router.get(
+    "/collections/{collection_id}/page-image",
+    response_class=Response,
+    response_model=None,
+    summary="Render an original PDF page image for a grounded collection",
+    description=(
+        "Return the rendered original page as PNG for a document in the "
+        "collection, so the UI can overlay citation highlights on the exact "
+        "source page instead of re-flowed extracted text."
+    ),
+    responses={200: {"content": {"image/png": {}}}},
+)
+async def get_grounded_collection_page_image(
+    collection_id: str,
+    document_key: str,
+    page_number: int,
+    tenant_id: str = "default",
+    dpi: int = 150,
+) -> Response:
+    try:
+        png = await collection_service.render_page_image(
+            collection_id=collection_id,
+            document_key=document_key,
+            page_number=page_number,
+            tenant_id=tenant_id,
+            dpi=max(72, min(dpi, 300)),
+        )
+    except CollectionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message) from exc
+    if png is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Original page image is not available for this document/page.",
+        )
+    return Response(content=png, media_type="image/png")
+
+
 @router.delete(
     "/collections/{collection_id}",
     status_code=status.HTTP_204_NO_CONTENT,

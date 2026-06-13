@@ -8,6 +8,8 @@ workflow while keeping storage/indexing abstractions swappable later.
 from __future__ import annotations
 
 import json
+import re
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
@@ -17,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from src.database.services.document_collection_service import GroundedDocumentCollectionRepository
 from src.database.session import get_async_session_maker
+from src.layer1_intelligence import pdf_render
 from src.layer1_intelligence.rag_service import (
     GatewayAnswerGenerator,
     GroundedRAGService,
@@ -30,6 +33,7 @@ from src.shared.logger import get_logger
 
 logger = get_logger(__name__)
 DEFAULT_GENERATION_MODE = "gateway"
+_ILLEGAL_FILENAME_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 
 class CollectionNotFoundError(DomainError):
@@ -160,6 +164,7 @@ class DocumentCollectionService:
 
         await collection.rag_service.index_documents(documents)
         collection.documents.extend(documents)
+        self._save_original_assets(collection_id, asset_list)
         await self._persist_collection(collection)
 
         logger.info(
@@ -183,7 +188,8 @@ class DocumentCollectionService:
         generation_mode: str = DEFAULT_GENERATION_MODE,
         top_k: int = 6,
     ) -> DocumentCollectionSummary:
-        documents = self.parsing_service.parse_many(list(assets))
+        asset_list = list(assets)
+        documents = self.parsing_service.parse_many(asset_list)
         collection = DocumentCollection(
             collection_id=collection_id,
             tenant_id=tenant_id,
@@ -201,6 +207,8 @@ class DocumentCollectionService:
         collection.documents = list(documents)
         with self._lock:
             self._collections[collection_id] = collection
+        self._clear_original_files(collection_id)
+        self._save_original_assets(collection_id, asset_list)
         await self._persist_collection(collection)
         return collection.summary()
 
@@ -218,12 +226,14 @@ class DocumentCollectionService:
         self._assert_tenant(collection, tenant_id)
         effective_generation_mode = generation_mode or collection.generation_mode
         self._set_answer_generation_mode(collection, effective_generation_mode)
-        return await collection.rag_service.answer_query(
+        response = await collection.rag_service.answer_query(
             query=query,
             tenant_id=tenant_id,
             domain=domain or collection.domain,
             top_k=top_k,
         )
+        self._enrich_proofs_with_original_page(collection_id, response)
+        return response
 
     async def analyze_query(
         self,
@@ -249,6 +259,7 @@ class DocumentCollectionService:
             top_k=top_k,
             raise_on_no_context=False,
         )
+        self._enrich_proofs_with_original_page(collection_id, response)
         return {
             "retrieval_count": response.retrieval_count,
             "citations": response.citations,
@@ -510,6 +521,108 @@ class DocumentCollectionService:
     def _json_path(self, collection_id: str) -> Path:
         safe_name = collection_id.replace("/", "_").replace("\\", "_")
         return self._json_store_dir / f"{safe_name}.json"
+
+    # ------------------------------------------------------------------
+    # Original-page rendering support (PyMuPDF). The raw PDF bytes are kept at
+    # ingest so a page can be rendered to an image and citation snippets located
+    # on it as highlight rectangles, even after a restart re-hydrates the
+    # collection from the document JSON (which carries no original bytes).
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _safe_component(name: str) -> str:
+        cleaned = _ILLEGAL_FILENAME_RE.sub("_", name or "").strip()
+        return cleaned or "unnamed"
+
+    def _original_files_dir(self, collection_id: str) -> Path:
+        return self._json_store_dir / "_files" / self._safe_component(collection_id)
+
+    def _original_pdf_path(self, collection_id: str, document_id: str) -> Path:
+        return self._original_files_dir(collection_id) / f"{self._safe_component(document_id)}.pdf"
+
+    @staticmethod
+    def _is_pdf_asset(asset: RawDocumentAsset) -> bool:
+        if asset.source_type == "pdf":
+            return True
+        if (asset.mime_type or "").endswith("pdf"):
+            return True
+        return bool(asset.content_bytes[:5] == b"%PDF-")
+
+    def _save_original_assets(self, collection_id: str, assets: Iterable[RawDocumentAsset]) -> None:
+        pdf_assets = [a for a in assets if a.content_bytes and self._is_pdf_asset(a)]
+        if not pdf_assets:
+            return
+        files_dir = self._original_files_dir(collection_id)
+        files_dir.mkdir(parents=True, exist_ok=True)
+        for asset in pdf_assets:
+            try:
+                self._original_pdf_path(collection_id, asset.document_id).write_bytes(asset.content_bytes)
+            except Exception as exc:
+                logger.warning(
+                    "grounded_collection_original_pdf_save_failed",
+                    collection_id=collection_id,
+                    document_id=asset.document_id,
+                    error=str(exc),
+                    layer="layer3_domain",
+                )
+
+    def _clear_original_files(self, collection_id: str) -> None:
+        shutil.rmtree(self._original_files_dir(collection_id), ignore_errors=True)
+
+    def _load_original_pdf(self, collection_id: str, document_id: str) -> Optional[bytes]:
+        path = self._original_pdf_path(collection_id, document_id)
+        if not path.exists():
+            return None
+        try:
+            return path.read_bytes()
+        except Exception:
+            return None
+
+    def _enrich_proofs_with_original_page(self, collection_id: str, response: RAGResponse) -> None:
+        """Attach original-page highlight rectangles to each page proof.
+
+        For every page proof whose source PDF we still have on disk, mark that a
+        rendered page image is available and locate each highlight's text on the
+        page as normalized rectangles. Best-effort: any failure leaves the text
+        proof untouched.
+        """
+        page_proofs = getattr(response, "page_proofs", None)
+        if not page_proofs or not pdf_render.is_available():
+            return
+        bytes_by_document: dict[str, Optional[bytes]] = {}
+        for proof in page_proofs:
+            document_id = proof.document_id
+            if document_id not in bytes_by_document:
+                bytes_by_document[document_id] = self._load_original_pdf(collection_id, document_id)
+            pdf_bytes = bytes_by_document[document_id]
+            if not pdf_bytes:
+                continue
+            proof.has_page_image = True
+            for highlight in proof.highlights:
+                if highlight.rects:
+                    continue
+                rects = pdf_render.locate_highlight_rects(
+                    pdf_bytes, proof.page_number, [highlight.text]
+                )
+                if rects:
+                    highlight.rects = rects
+
+    async def render_page_image(
+        self,
+        *,
+        collection_id: str,
+        document_key: str,
+        page_number: int,
+        tenant_id: str,
+        dpi: int = 150,
+    ) -> Optional[bytes]:
+        """Render a stored collection PDF page to PNG bytes (tenant-checked)."""
+        collection = await self._ensure_collection_loaded(collection_id)
+        self._assert_tenant(collection, tenant_id)
+        pdf_bytes = self._load_original_pdf(collection_id, document_key)
+        if not pdf_bytes:
+            return None
+        return pdf_render.render_page_to_png(pdf_bytes, page_number, dpi=dpi)
 
 
 _document_collection_service: Optional[DocumentCollectionService] = None
