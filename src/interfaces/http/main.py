@@ -27,6 +27,7 @@ from src.interfaces.http.middleware.logging_middleware import LoggingMiddleware
 from src.interfaces.http.middleware.request_context import RequestContextMiddleware
 from src.interfaces.http.routes.health import run_dependency_checks
 from src.interfaces.http.routes import (
+    admin_bots,
     chat,
     grounded_documents,
     health,
@@ -164,7 +165,10 @@ def create_application() -> FastAPI:
     
     # Tenant management
     app.include_router(tenants.router, tags=["Tenants"])
-    
+
+    # Admin control plane for external chatbot widgets (strict-CORS, internal)
+    app.include_router(admin_bots.router, tags=["Admin · Bots"])
+
     # TODO: Add API v1 routes
     # app.include_router(api_v1.router, prefix="/api/v1", tags=["API v1"])
     

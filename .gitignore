@@ -332,3 +332,8 @@ docs/_templates/
 # ==========================================
 .cache/
 *.pid
+
+# ==========================================
+# External widget bot configs (per-company branding + origin policy; local)
+# ==========================================
+.runtime/bot_configs/
