@@ -1,5 +1,11 @@
 <script>
-  import { settingsOpen, suggestionsEnabled } from '../lib/stores.js';
+  import {
+    settingsOpen,
+    suggestionsEnabled,
+    theme,
+    webSearchEnabled,
+    verifyClaimsEnabled,
+  } from '../lib/stores.js';
 
   // Click-outside dismissal — bound to the popup root.
   function clickOutside(node, callback) {
@@ -36,23 +42,82 @@
     </button>
   </div>
 
-  <!-- ── Smart suggestions ──────────── -->
-  <label class="pref-row">
-    <span class="pref-text">
-      <span class="pref-label">Smart suggestions</span>
-      <span class="pref-desc">Follow-up &amp; refine chips under each answer. Each one is a small extra model call — turn off to save tokens.</span>
-    </span>
-    <button
-      class="switch"
-      class:on={$suggestionsEnabled}
-      role="switch"
-      aria-checked={$suggestionsEnabled}
-      aria-label="Toggle smart suggestions"
-      onclick={() => suggestionsEnabled.update((v) => !v)}
-    >
-      <span class="switch-thumb"></span>
-    </button>
-  </label>
+  <!-- ── Appearance ─────────────────── -->
+  <div class="pref-group">
+    <div class="pref-section">Appearance</div>
+    <label class="pref-row">
+      <span class="pref-text">
+        <span class="pref-label">Dark mode</span>
+        <span class="pref-desc">Use the dark interface. Turn off for the light theme.</span>
+      </span>
+      <button
+        class="switch"
+        class:on={$theme === 'dark'}
+        role="switch"
+        aria-checked={$theme === 'dark'}
+        aria-label="Toggle dark mode"
+        onclick={() => theme.update((t) => (t === 'dark' ? 'light' : 'dark'))}
+      >
+        <span class="switch-thumb"></span>
+      </button>
+    </label>
+  </div>
+
+  <!-- ── Answering ──────────────────── -->
+  <div class="pref-group">
+    <div class="pref-section">Answering</div>
+
+    <label class="pref-row">
+      <span class="pref-text">
+        <span class="pref-label">Smart suggestions</span>
+        <span class="pref-desc">Follow-up &amp; refine chips under each answer. Each is a small extra model call — turn off to save tokens.</span>
+      </span>
+      <button
+        class="switch"
+        class:on={$suggestionsEnabled}
+        role="switch"
+        aria-checked={$suggestionsEnabled}
+        aria-label="Toggle smart suggestions"
+        onclick={() => suggestionsEnabled.update((v) => !v)}
+      >
+        <span class="switch-thumb"></span>
+      </button>
+    </label>
+
+    <label class="pref-row">
+      <span class="pref-text">
+        <span class="pref-label">Web search</span>
+        <span class="pref-desc">Let answers pull in live web results. Also toggleable from the composer.</span>
+      </span>
+      <button
+        class="switch"
+        class:on={$webSearchEnabled}
+        role="switch"
+        aria-checked={$webSearchEnabled}
+        aria-label="Toggle web search"
+        onclick={() => webSearchEnabled.update((v) => !v)}
+      >
+        <span class="switch-thumb"></span>
+      </button>
+    </label>
+
+    <label class="pref-row">
+      <span class="pref-text">
+        <span class="pref-label">Claim verification</span>
+        <span class="pref-desc">Fact-check each answer's claims against its sources. Adds a verification pass.</span>
+      </span>
+      <button
+        class="switch"
+        class:on={$verifyClaimsEnabled}
+        role="switch"
+        aria-checked={$verifyClaimsEnabled}
+        aria-label="Toggle claim verification"
+        onclick={() => verifyClaimsEnabled.update((v) => !v)}
+      >
+        <span class="switch-thumb"></span>
+      </button>
+    </label>
+  </div>
 
   <div class="popup-footer">Preferences are saved on this device.</div>
 </div>
@@ -62,8 +127,10 @@
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
-    width: 320px;
+    width: 340px;
     max-width: calc(100vw - 32px);
+    max-height: min(600px, calc(100vh - 90px));
+    overflow-y: auto;
     background: var(--bg-secondary);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-xl);
@@ -105,6 +172,25 @@
   .popup-close:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
+  }
+
+  /* ── Grouped sections ───────────── */
+  .pref-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .pref-group + .pref-group {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .pref-section {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: var(--weight-semibold);
+    color: var(--text-muted);
   }
 
   /* ── Preference row ─────────────── */

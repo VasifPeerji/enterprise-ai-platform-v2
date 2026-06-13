@@ -78,10 +78,6 @@
     document.documentElement.dataset.theme = $theme;
   });
 
-  function toggleTheme() {
-    theme.update((t) => (t === 'dark' ? 'light' : 'dark'));
-  }
-
   // ── Drag-and-drop file attach ───────────────────────────────
   // Drop files anywhere on the app to attach them to the next message — the
   // same pipeline as the paperclip button (processFileForUpload → attachedFiles
@@ -1146,26 +1142,7 @@
       </div>
 
       <div class="header-right">
-        <!-- Theme toggle (light / dark) -->
-        <button
-          class="theme-toggle"
-          onclick={toggleTheme}
-          aria-label="Toggle color theme"
-          title={$theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-        >
-          {#if $theme === 'dark'}
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-            </svg>
-          {:else}
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          {/if}
-        </button>
-
-        <!-- Preferences (settings popover) -->
+        <!-- Preferences (settings popover) — theme + answering toggles live here -->
         <div class="settings-display">
           <button
             class="settings-btn"
@@ -1424,24 +1401,6 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-  }
-
-  /* ── Theme toggle ───────────────── */
-  .theme-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius-full);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-secondary);
-    transition: all var(--duration-fast);
-  }
-  .theme-toggle:hover {
-    border-color: var(--border-strong);
-    color: var(--text-primary);
-    background: var(--surface-glass);
   }
 
   /* ── Settings ───────────────────── */
