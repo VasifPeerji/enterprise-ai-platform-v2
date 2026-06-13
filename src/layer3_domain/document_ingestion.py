@@ -223,6 +223,8 @@ class DocumentChunker:
             page_number=page.page_number,
             page_text=page.text,
             content=content,
+            page_width=page.width,
+            page_height=page.height,
             section_title=section_title if section_title is not None else page.section_title,
             start_char=start_char,
             end_char=end_char,

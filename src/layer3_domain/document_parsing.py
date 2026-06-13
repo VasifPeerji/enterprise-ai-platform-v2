@@ -31,6 +31,11 @@ try:
 except Exception:  # pragma: no cover - optional dependency/runtime behavior
     pdfplumber = None
 
+try:
+    import fitz  # PyMuPDF
+except Exception:  # pragma: no cover - optional dependency/runtime behavior
+    fitz = None
+
 logger = get_logger(__name__)
 
 
@@ -74,6 +79,22 @@ def _clean_text(text: str) -> str:
     cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
     cleaned = re.sub(r"([•*-])(?=\S)", r"\1 ", cleaned)
     cleaned = re.sub(r"([a-z])([A-Z][a-z])", r"\1 \2", cleaned)
+    return cleaned.strip()
+
+
+def _clean_text_light(text: str) -> str:
+    """Whitespace-only normalization that preserves the original character
+    sequence so PyMuPDF ``search_for`` can still locate snippets verbatim.
+
+    Unlike ``_clean_text`` this does NOT collapse internal spaces or insert
+    spaces between glued camel-case words: the page text fed to retrieval and
+    the page's searchable content must stay aligned for the original-page
+    highlight mapping to find the snippet on the rendered page.
+    """
+    cleaned = "\n".join(
+        line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    )
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
 
 
@@ -136,6 +157,97 @@ class PageDelimitedTextParser:
             source_type=asset.source_type,
             page_number=page_number,
             text=text,
+            section_title=page_metadata.get("section_name"),
+            language=asset.language,
+            metadata=page_metadata,
+        )
+
+
+class PyMuPDFDocumentParser:
+    """Page-preserving PDF parser backed by PyMuPDF (fitz).
+
+    Preferred over the pypdf parser because text extraction quality is higher
+    and, critically for original-page citations, it records each page's point
+    dimensions and produces text that ``fitz.search_for`` can locate verbatim
+    on the same document. The page text is only whitespace-normalized for that
+    reason.
+    """
+
+    def supports(self, asset: RawDocumentAsset) -> bool:
+        return fitz is not None and (
+            asset.source_type == "pdf" or asset.mime_type == "application/pdf"
+        )
+
+    def parse(self, asset: RawDocumentAsset, context: ParserContext) -> IngestedDocument:
+        if fitz is None:
+            raise DocumentParsingError(
+                source_name=asset.title,
+                details={"reason": "pdf_parser_not_installed", "mime_type": asset.mime_type},
+            )
+
+        try:
+            pages: list[IngestedPage] = []
+            with fitz.open(stream=asset.content_bytes, filetype="pdf") as pdf:
+                for index, page in enumerate(pdf):
+                    extracted = _clean_text_light(page.get_text("text") or "")
+                    if not extracted:
+                        continue
+                    pages.append(
+                        self._build_page(
+                            asset,
+                            index + 1,
+                            extracted,
+                            width=float(page.rect.width),
+                            height=float(page.rect.height),
+                        )
+                    )
+        except DocumentParsingError:
+            raise
+        except Exception as exc:
+            raise DocumentParsingError(
+                source_name=asset.title,
+                details={"mime_type": asset.mime_type, "error": str(exc)},
+            ) from exc
+
+        if not pages:
+            raise DocumentParsingError(
+                source_name=asset.title,
+                details={"reason": "no_extractable_text", "mime_type": asset.mime_type},
+            )
+
+        return IngestedDocument(
+            document_id=asset.document_id,
+            tenant_id=asset.tenant_id,
+            domain=asset.domain,
+            title=asset.title,
+            source_uri=asset.source_uri,
+            source_type=asset.source_type,
+            language=asset.language,
+            pages=pages,
+            metadata=asset.metadata,
+        )
+
+    def _build_page(
+        self,
+        asset: RawDocumentAsset,
+        page_number: int,
+        text: str,
+        *,
+        width: float,
+        height: float,
+    ) -> IngestedPage:
+        page_metadata = {**asset.metadata, **build_medical_page_metadata(asset.title, text)}
+        return IngestedPage(
+            document_id=asset.document_id,
+            tenant_id=asset.tenant_id,
+            domain=asset.domain,
+            title=asset.title,
+            source_uri=asset.source_uri,
+            source_type=asset.source_type,
+            page_number=page_number,
+            text=text,
+            width=width,
+            height=height,
             section_title=page_metadata.get("section_name"),
             language=asset.language,
             metadata=page_metadata,
@@ -225,7 +337,9 @@ class DocumentParsingService:
         parsers: Sequence[DocumentParser] | None = None,
         context: ParserContext | None = None,
     ) -> None:
-        self.parsers = list(parsers or [PyPDFDocumentParser(), PageDelimitedTextParser()])
+        self.parsers = list(
+            parsers or [PyMuPDFDocumentParser(), PyPDFDocumentParser(), PageDelimitedTextParser()]
+        )
         self.context = context or ParserContext()
 
     def parse_asset(self, asset: RawDocumentAsset) -> IngestedDocument:
