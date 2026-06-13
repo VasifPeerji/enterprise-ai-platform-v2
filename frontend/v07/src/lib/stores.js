@@ -47,6 +47,11 @@ export const selectedModel = persistentWritable('selectedModel', {
   mode: 'smart', // 'smart' | 'manual'
 });
 
+// ── Theme ────────────────────────────────────────────────
+// 'dark' (the designed default) or 'light'. Applied as data-theme on <html>;
+// the light palette lives in tokens.css under :root[data-theme="light"].
+export const theme = persistentWritable('theme', 'dark');
+
 // ── UI State ─────────────────────────────────────────────
 export const sidebarOpen = persistentWritable('sidebarOpen', true);
 export const isLoading = writable(false);

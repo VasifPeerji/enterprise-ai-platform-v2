@@ -524,7 +524,7 @@
     opacity: 1;
   }
   .conv-menu-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(var(--overlay-rgb), 0.08);
     color: var(--text-primary);
   }
 

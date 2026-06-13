@@ -225,7 +225,7 @@
     transition: all var(--duration-fast);
   }
   .action-btn:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(var(--overlay-rgb), 0.06);
     color: var(--text-primary);
   }
   .action-btn:disabled {

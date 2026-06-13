@@ -188,7 +188,7 @@
     gap: var(--space-2);
     padding: 8px 12px;
     border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--overlay-rgb), 0.03);
     border: 1px solid var(--border-subtle);
     color: var(--text-secondary);
     font-size: var(--text-sm);
@@ -231,9 +231,9 @@
     border-radius: var(--radius-md);
     background: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.025) 0%,
-      rgba(255, 255, 255, 0.07) 50%,
-      rgba(255, 255, 255, 0.025) 100%
+      rgba(var(--overlay-rgb), 0.025) 0%,
+      rgba(var(--overlay-rgb), 0.07) 50%,
+      rgba(var(--overlay-rgb), 0.025) 100%
     );
     background-size: 200% 100%;
     animation: shimmerStripe 1.5s linear infinite;

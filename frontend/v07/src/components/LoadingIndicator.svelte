@@ -152,7 +152,7 @@
 
 <style>
   .loading-card {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0.01) 100%);
+    background: linear-gradient(180deg, rgba(var(--overlay-rgb), 0.025) 0%, rgba(var(--overlay-rgb), 0.01) 100%);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     padding: var(--space-4);
@@ -389,12 +389,12 @@
     animation: chipPopIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   }
   .entity-chip.more-chip {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--overlay-rgb), 0.04);
     border-color: var(--border-subtle);
     font-family: var(--font-sans);
   }
   .entity-chip.file-entity {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--overlay-rgb), 0.04);
     border-color: var(--border-subtle);
     color: var(--text-secondary);
   }
@@ -478,9 +478,9 @@
     border-radius: 4px;
     background: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.04) 0%,
-      rgba(255, 255, 255, 0.09) 50%,
-      rgba(255, 255, 255, 0.04) 100%
+      rgba(var(--overlay-rgb), 0.04) 0%,
+      rgba(var(--overlay-rgb), 0.09) 50%,
+      rgba(var(--overlay-rgb), 0.04) 100%
     );
     background-size: 200% 100%;
     animation: shimmer 1.6s linear infinite;

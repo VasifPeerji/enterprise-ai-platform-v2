@@ -40,7 +40,7 @@
   font-size: var(--text-sm);
 }
 .block-table thead {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--overlay-rgb), 0.04);
 }
 .block-table th {
   padding: var(--space-3) var(--space-4);
@@ -72,7 +72,7 @@
   transition: background var(--duration-fast);
 }
 .block-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--overlay-rgb), 0.03);
 }
 .block-table tbody tr:last-child td {
   border-bottom: none;
@@ -462,7 +462,7 @@
   border-radius: var(--radius-md);
   font-weight: var(--weight-semibold);
   font-size: var(--text-base);
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid rgba(var(--overlay-rgb),0.15);
   transition: all var(--duration-fast);
 }
 .block-payment .payment-btn:hover {
@@ -642,7 +642,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   padding: 2px var(--space-2);
-  background: rgba(255,255,255,0.06);
+  background: rgba(var(--overlay-rgb),0.06);
   border-radius: var(--radius-sm);
 }
 .block-code .code-copy-btn {
@@ -652,13 +652,13 @@
   padding: var(--space-1) var(--space-2);
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  background: rgba(255,255,255,0.06);
+  background: rgba(var(--overlay-rgb),0.06);
   border-radius: var(--radius-sm);
   transition: all var(--duration-fast);
 }
 .block-code .code-copy-btn:hover {
   color: var(--text-primary);
-  background: rgba(255,255,255,0.12);
+  background: rgba(var(--overlay-rgb),0.12);
 }
 
 /* ── Citation card (RAG) ────────────────────────────── */

@@ -463,10 +463,10 @@
     transition: all var(--duration-fast);
   }
   .edit-btn-cancel {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(var(--overlay-rgb), 0.06);
     color: var(--text-secondary);
   }
-  .edit-btn-cancel:hover { color: var(--text-primary); background: rgba(255, 255, 255, 0.1); }
+  .edit-btn-cancel:hover { color: var(--text-primary); background: rgba(var(--overlay-rgb), 0.1); }
   .edit-btn-save {
     background: var(--accent-primary);
     color: white;

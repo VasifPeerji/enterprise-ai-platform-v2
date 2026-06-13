@@ -415,7 +415,7 @@
   }
   .action-btn:hover:not(:disabled) {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(var(--overlay-rgb), 0.06);
   }
   .action-btn:disabled {
     opacity: 0.4;
@@ -467,7 +467,7 @@
     transition: all var(--duration-fast);
   }
   .error-dismiss:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(var(--overlay-rgb), 0.06);
     color: var(--text-primary);
   }
   .processing-banner {
@@ -512,7 +512,7 @@
     align-items: center;
     gap: var(--space-2);
     padding: 4px var(--space-2);
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(var(--overlay-rgb), 0.06);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-full);
     font-size: var(--text-xs);
@@ -553,7 +553,7 @@
     transition: all var(--duration-fast);
   }
   .chip-remove:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(var(--overlay-rgb), 0.1);
     color: var(--text-primary);
   }
 
@@ -602,8 +602,8 @@
     opacity: 0.9;
   }
   @keyframes stopPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.25); }
-    50% { box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--overlay-rgb), 0.25); }
+    50% { box-shadow: 0 0 0 6px rgba(var(--overlay-rgb), 0); }
   }
 
   /* ── Footer ─────────────────────── */
@@ -627,7 +627,7 @@
   }
   .model-switch:hover {
     color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--overlay-rgb), 0.04);
   }
 
   .model-switch-dot {

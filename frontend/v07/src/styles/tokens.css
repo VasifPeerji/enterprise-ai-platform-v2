@@ -18,6 +18,12 @@
   --surface-card:    rgba(255, 255, 255, 0.04);
   --surface-glass:   rgba(255, 255, 255, 0.06);
 
+  /* Overlay channel — the RGB triple used by every translucent "lighten the
+     surface" overlay (hovers, subtle fills, skeletons). White on the dark
+     theme; the light theme flips it to black so the same rgba(var(--overlay-rgb), a)
+     overlays darken instead of vanishing on a light background. */
+  --overlay-rgb: 255, 255, 255;
+
   --text-primary:    #ececec;
   --text-secondary:  #b4b4b4;
   --text-tertiary:   #8e8e8e;
@@ -107,4 +113,41 @@
   --input-max-width:    768px;
   --chat-max-width:     768px;
   --header-height:      52px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Light theme — applied via [data-theme="light"] on <html>.
+   Only the palette + overlay channel + shadows flip; spacing,
+   radii, typography and the accent/tier hues are shared. The code
+   artifact stays intentionally dark (like GitHub) in both themes.
+   ═══════════════════════════════════════════════════════════ */
+:root[data-theme="light"] {
+  --bg-primary:      #ffffff;
+  --bg-secondary:    #f7f7f8;
+  --bg-tertiary:     #f0f0f2;
+  --bg-elevated:     #ffffff;
+  --bg-hover:        #ececec;
+  --bg-active:       #e3e3e6;
+
+  --surface-chat:    #ffffff;
+  --surface-sidebar: #f7f7f8;
+  --surface-input:   #ffffff;
+  --surface-card:    rgba(0, 0, 0, 0.03);
+  --surface-glass:   rgba(0, 0, 0, 0.04);
+
+  --text-primary:    #1f1f1f;
+  --text-secondary:  #3d3d3d;
+  --text-tertiary:   #6b6b6b;
+  --text-muted:      #9a9a9a;
+  --text-inverse:    #ffffff;
+
+  --border-subtle:   rgba(0, 0, 0, 0.08);
+  --border-default:  rgba(0, 0, 0, 0.13);
+  --border-strong:   rgba(0, 0, 0, 0.22);
+
+  --shadow-sm:   0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md:   0 4px 12px rgba(0, 0, 0, 0.10);
+  --shadow-lg:   0 8px 32px rgba(0, 0, 0, 0.14);
+
+  --overlay-rgb: 0, 0, 0;
 }

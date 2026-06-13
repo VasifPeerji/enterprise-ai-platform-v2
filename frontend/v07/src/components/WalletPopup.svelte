@@ -196,7 +196,7 @@
     border: 1px solid var(--border-default);
     border-radius: var(--radius-xl);
     padding: var(--space-4);
-    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.03);
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(var(--overlay-rgb), 0.03);
     z-index: 200;
     animation: popupIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
     transform-origin: top right;
@@ -353,7 +353,7 @@
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(var(--overlay-rgb), 0.3);
     border-top-color: white;
     animation: spin 0.7s linear infinite;
   }
@@ -417,7 +417,7 @@
     border-radius: var(--radius-sm);
     transition: background var(--duration-fast);
   }
-  .activity-row:hover { background: rgba(255, 255, 255, 0.04); }
+  .activity-row:hover { background: rgba(var(--overlay-rgb), 0.04); }
   .activity-icon {
     width: 22px;
     height: 22px;
@@ -425,7 +425,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(var(--overlay-rgb), 0.06);
     color: var(--text-secondary);
     flex-shrink: 0;
   }

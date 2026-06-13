@@ -196,7 +196,7 @@
     margin-top: var(--space-2);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
-    background: linear-gradient(180deg, rgba(16, 163, 127, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+    background: linear-gradient(180deg, rgba(16, 163, 127, 0.04) 0%, rgba(var(--overlay-rgb), 0.01) 100%);
     overflow: hidden;
   }
 
@@ -211,7 +211,7 @@
     color: var(--text-tertiary);
     transition: background var(--duration-fast), color var(--duration-fast);
   }
-  .ri-summary:hover { background: rgba(255, 255, 255, 0.03); color: var(--text-secondary); }
+  .ri-summary:hover { background: rgba(var(--overlay-rgb), 0.03); color: var(--text-secondary); }
   .ri-summary.open { border-bottom: 1px solid var(--border-subtle); }
 
   .ri-spark {
@@ -248,7 +248,7 @@
     font-size: 10px;
     padding: 1px 7px;
     border-radius: var(--radius-full);
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--overlay-rgb), 0.05);
     color: var(--text-tertiary);
     white-space: nowrap;
   }
@@ -295,7 +295,7 @@
     gap: 1px;
     padding: 4px 10px;
     border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--overlay-rgb), 0.04);
     border: 1px solid var(--border-subtle);
   }
   .ri-chip-label {
