@@ -58,8 +58,12 @@ Configs persist as JSON snapshots under `.runtime/bot_configs/<bot_id>.json`
 
 **Public (`/widget/*`, credential-less CORS, cross-origin):**
 - `GET  /widget/{bot_id}/config` → `PublicBotConfig`.
-- `POST /widget/{bot_id}/chat` `{message}` → `{answer, grounded, sources[]}` —
+- `POST /widget/{bot_id}/chat` `{message, history?}` → `{answer, grounded, sources[]}` —
   origin-enforced, rate-limited; routing/cost internals never appear in the body.
+- `POST /widget/{bot_id}/chat/stream` → **SSE** stream: `{type:'token',value}` … then
+  `{type:'done',grounded,sources}` (or `{type:'error',value}`). Same fusion; guards
+  run before streaming so they stay normal HTTP errors. The loader uses this by
+  default and falls back to the blocking endpoint if streaming is unsupported.
 - `GET  /widget/loader.js` → the embeddable loader.
 - `GET  /widget/preview?bot_id=…` → a local host page (hostile global CSS, to eyeball Shadow-DOM isolation).
 
@@ -82,6 +86,10 @@ Configs persist as JSON snapshots under `.runtime/bot_configs/<bot_id>.json`
 - **Markdown answers:** the widget renders a safe subset (bold/italic/code/links/
   lists), escaping first and re-introducing only known tags, with links limited to
   http(s)/relative — a hostile KB document echoed into an answer can't inject markup.
+- **Streaming:** answers stream token-by-token over SSE (`/chat/stream`); the
+  shared `_retrieve_context` keeps the blocking and streaming retrieval identical,
+  and the streaming generator reuses the exact grounded prompt. Falls back to the
+  blocking path if the routed model streams nothing or the browser lacks streaming.
 
 ## Theming — re-skin a company with zero code
 
@@ -153,4 +161,3 @@ curl -X POST .../admin/bots/<bot_id>/debug-chat -d '{"message":"..."}'
 - Headless rendering for JS/SPA sites (Playwright).
 - Background execution for large crawls (currently synchronous, small caps).
 - Redis-backed rate limiting for multi-process deployments.
-- Streaming responses in the widget.
