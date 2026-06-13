@@ -23,6 +23,7 @@ the model, tier, or budget).
 
 from __future__ import annotations
 
+import html
 import json
 import re
 from typing import Optional
@@ -81,6 +82,10 @@ _FOLLOWUP_PREFIX_RE = re.compile(
     re.I,
 )
 _PRONOUN_RE = re.compile(r"\b(it|its|that|those|them|they|this|these|their|one)\b", re.I)
+# Public bot ids are "bot_" + token_urlsafe (base64url charset). The preview
+# page reflects bot_id from the query string into HTML, so it is validated to
+# this exact shape to close a reflected-XSS vector.
+_BOT_ID_RE = re.compile(r"^bot_[A-Za-z0-9_-]{1,64}$")
 
 
 # ---------------------------------------------------------------------------
@@ -724,15 +729,22 @@ async def widget_loader() -> Response:
 async def widget_preview(request: Request, bot_id: str = "") -> HTMLResponse:
     _require_enabled()
     api_base = str(request.base_url).rstrip("/")
-    if bot_id:
+    api_base_attr = html.escape(api_base, quote=True)
+    bot_id = (bot_id or "").strip()
+    if _BOT_ID_RE.match(bot_id):
+        # bot_id is validated to a safe charset, so it is attribute-safe; api_base
+        # (derived from the Host header) is escaped defensively.
         snippet = (
-            f'<script src="{api_base}/widget/loader.js" '
-            f'data-bot-id="{bot_id}" data-api-base="{api_base}" async></script>'
+            f'<script src="{api_base_attr}/widget/loader.js" '
+            f'data-bot-id="{bot_id}" data-api-base="{api_base_attr}" async></script>'
         )
-        status_line = f"Embedding bot <code>{bot_id}</code>. Its allowed_origins must include <code>{api_base}</code>."
+        status_line = (
+            f"Embedding bot <code>{html.escape(bot_id)}</code>. "
+            f"Its allowed_origins must include <code>{html.escape(api_base)}</code>."
+        )
     else:
         snippet = ""
-        status_line = "Append <code>?bot_id=YOUR_BOT_ID</code> to the URL to load a specific bot."
-    html = _PREVIEW_HTML.replace("__SCRIPT__", snippet).replace("__STATUS__", status_line)
-    return HTMLResponse(content=html)
+        status_line = "Append <code>?bot_id=YOUR_BOT_ID</code> (a real, enabled bot) to the URL to load it."
+    page = _PREVIEW_HTML.replace("__SCRIPT__", snippet).replace("__STATUS__", status_line)
+    return HTMLResponse(content=page)
 
