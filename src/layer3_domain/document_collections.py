@@ -236,19 +236,18 @@ class DocumentCollectionService:
     ) -> dict:
         collection = await self._ensure_collection_loaded(collection_id)
         self._assert_tenant(collection, tenant_id)
-        retrieval_request = collection.rag_service.config.__class__(
-            top_k=top_k,
-            rerank_top_k=top_k,
-            min_results=1,
-            domain=domain or collection.domain,
-            raise_on_no_context=False,
-        )
-        collection.rag_service.config = retrieval_request
+        # Analyze must never raise NoRelevantContextError (the UI wants to see
+        # whatever retrieval produced, even below the answer gate), but it must
+        # also not mutate the collection's shared service config. The previous
+        # implementation overwrote the config in place, which left
+        # raise_on_no_context=False wired in for every later /answer call on the
+        # same collection. Pass the override per-call instead.
         response = await collection.rag_service.answer_query(
             query=query,
             tenant_id=tenant_id,
             domain=domain or collection.domain,
             top_k=top_k,
+            raise_on_no_context=False,
         )
         return {
             "retrieval_count": response.retrieval_count,

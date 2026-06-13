@@ -581,6 +581,7 @@ class GroundedRAGService:
         tenant_id: str = "default",
         domain: Optional[str] = None,
         top_k: Optional[int] = None,
+        raise_on_no_context: Optional[bool] = None,
     ) -> RAGResponse:
         retrieval_request = RetrievalQuery(
             query=query,
@@ -596,6 +597,11 @@ class GroundedRAGService:
         if results:
             results = rerank_results(query, results)[: self.config.rerank_top_k]
 
+        should_raise_on_no_context = (
+            self.config.raise_on_no_context
+            if raise_on_no_context is None
+            else raise_on_no_context
+        )
         if len(results) < self.config.min_results or not _has_grounded_support(query, results):
             logger.warning(
                 "grounded_rag_no_context",
@@ -604,7 +610,7 @@ class GroundedRAGService:
                 domain=domain or self.config.domain,
                 layer="layer1_intelligence",
             )
-            if self.config.raise_on_no_context:
+            if should_raise_on_no_context:
                 raise NoRelevantContextError(query=query)
             return RAGResponse(
                 answer="I could not find grounded evidence for that request.",
