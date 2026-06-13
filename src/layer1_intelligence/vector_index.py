@@ -72,6 +72,14 @@ def _normalize_vector(values: Sequence[float]) -> list[float]:
     return [value / norm for value in values]
 
 
+def _sigmoid(value: float) -> float:
+    """Numerically stable logistic squashing (for cross-encoder logits)."""
+    if value >= 0:
+        return 1.0 / (1.0 + math.exp(-value))
+    exp_value = math.exp(value)
+    return exp_value / (1.0 + exp_value)
+
+
 def _tokenize(text: str) -> list[str]:
     return _TOKEN_RE.findall(text.lower())
 
@@ -788,9 +796,17 @@ def _cross_encoder_rerank(
     query: str,
     results: Sequence[RetrievalResult],
 ) -> list[RetrievalResult]:
-    """Optionally rerank top candidates with a local cross-encoder if installed."""
+    """Optionally rerank top candidates with a local cross-encoder.
+
+    Gated by ``settings.RAG_CROSS_ENCODER_ENABLED`` so it never surprise-loads a
+    model onto the GPU. The ms-marco cross-encoder emits raw logits; we squash
+    them with a sigmoid so the resulting score is a 0..1 relevance probability.
+    Sigmoid is monotonic, so the rerank ORDER is identical to the raw logits,
+    but the score now matches the 0..1 scale the grounding gate thresholds and
+    the UI assume (a bare logit makes both meaningless).
+    """
     global _CROSS_ENCODER, _CROSS_ENCODER_UNAVAILABLE
-    if _CROSS_ENCODER_UNAVAILABLE or not results:
+    if not settings.RAG_CROSS_ENCODER_ENABLED or _CROSS_ENCODER_UNAVAILABLE or not results:
         return list(results)
     if importlib.util.find_spec("sentence_transformers") is None:
         _CROSS_ENCODER_UNAVAILABLE = True
@@ -800,6 +816,12 @@ def _cross_encoder_rerank(
         if _CROSS_ENCODER is None:
             from sentence_transformers import CrossEncoder
 
+            logger.info(
+                "cross_encoder_loading",
+                model="cross-encoder/ms-marco-MiniLM-L-6-v2",
+                note="first grounded query loads this onto the GPU; set RAG_CROSS_ENCODER_ENABLED=false to disable",
+                layer="layer1_intelligence",
+            )
             _CROSS_ENCODER = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
         pairs = [(query, _build_retrieval_text(result.chunk)) for result in results]
         scores = _CROSS_ENCODER.predict(pairs)
@@ -817,7 +839,7 @@ def _cross_encoder_rerank(
         reranked.append(
             result.model_copy(
                 update={
-                    "score": round(float(score), 4),
+                    "score": round(_sigmoid(float(score)), 4),
                     "matched_terms": result.matched_terms,
                 }
             )

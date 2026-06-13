@@ -164,6 +164,13 @@ class Settings(BaseSettings):
     # Embedding Configuration
     EMBEDDING_DIMENSION: int = 1024  # ollama/qwen3-embedding:0.6b
     EMBEDDING_BATCH_SIZE: int = 100
+
+    # Grounded RAG retrieval
+    # The local cross-encoder reranker (cross-encoder/ms-marco-MiniLM-L-6-v2)
+    # sharpens result ordering but loads a model onto the GPU on first use,
+    # competing with the Layer 3 encoder. Default on; set false for a pure
+    # lexical+vector path with lower first-query latency and no GPU load.
+    RAG_CROSS_ENCODER_ENABLED: bool = True
     
     @property
     def qdrant_url(self) -> str:
