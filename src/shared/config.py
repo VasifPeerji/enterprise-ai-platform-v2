@@ -118,6 +118,16 @@ class Settings(BaseSettings):
     WIDGET_CRAWLER_MAX_PAGES: int = 50            # hard ceiling on pages fetched per crawl
     WIDGET_CRAWLER_MAX_DEPTH: int = 3             # hard ceiling on crawl BFS depth
 
+    # AutoPilot onboarding: paste a URL -> headless-render the site, screenshot it,
+    # extract a brand palette, and AI-fill the bot's copy. Admin-only; needs the
+    # optional `playwright` browser engine installed (degrades with a clear error).
+    WIDGET_AUTOPILOT_ENABLED: bool = True
+    WIDGET_AUTOPILOT_VIEWPORT_WIDTH: int = 1366    # render viewport width (desktop layout)
+    WIDGET_AUTOPILOT_TIMEOUT_S: float = 25.0       # per-page render/navigation budget
+    WIDGET_AUTOPILOT_SCREENSHOT_WIDTH: int = 1280  # stored screenshot is downscaled to this width
+    WIDGET_AUTOPILOT_MAX_TEXT_CHARS: int = 6000    # page text fed to the autofill LLM
+    WIDGET_AUTOPILOT_ALLOW_PRIVATE_HOSTS: bool = False  # SSRF guard: block private/loopback IPs
+
     # ==========================================
     # LAYER 0 - MODEL INFRASTRUCTURE
     # ==========================================

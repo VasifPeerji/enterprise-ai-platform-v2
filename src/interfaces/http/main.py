@@ -28,6 +28,7 @@ from src.interfaces.http.middleware.request_context import RequestContextMiddlew
 from src.interfaces.http.middleware.widget_cors import PublicWidgetCORSMiddleware
 from src.interfaces.http.routes.health import run_dependency_checks
 from src.interfaces.http.routes import (
+    admin_autopilot,
     admin_bots,
     admin_console,
     chat,
@@ -180,6 +181,9 @@ def create_application() -> FastAPI:
 
     # Visual admin console (served HTML; drives the admin + crawl APIs)
     app.include_router(admin_console.router, tags=["Admin · Console"])
+
+    # AutoPilot onboarding (URL -> rendered screenshot, brand theme, AI-filled copy)
+    app.include_router(admin_autopilot.router, tags=["Admin · AutoPilot"])
 
     # Public, cross-origin embeddable widget surface
     app.include_router(widget.router, tags=["Public Widget"])

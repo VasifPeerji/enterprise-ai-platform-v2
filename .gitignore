@@ -337,3 +337,8 @@ docs/_templates/
 # External widget bot configs (per-company branding + origin policy; local)
 # ==========================================
 .runtime/bot_configs/
+
+# AutoPilot: project-local headless browser engine + generated site screenshots
+# (real-filesystem path to dodge AppData virtualization; large + machine-specific)
+.runtime/pw-browsers/
+.runtime/widget_screenshots/

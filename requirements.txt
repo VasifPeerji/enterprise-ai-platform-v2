@@ -54,3 +54,8 @@ onnxruntime-gpu>=1.20.0  # encoder runtime (CUDA + CPU)
 # Layer 3 — Structured output + reliability (Batch 4 deps, installed early)
 instructor>=1.0.0        # Pydantic-validated LLM output for Stage C arbitrator
 pybreaker>=1.0.0         # per-provider circuit breaker
+
+# External widget AutoPilot (paste a URL -> render, brand palette, AI-filled bot)
+Pillow>=10.0.0           # brand-palette extraction from the site screenshot
+playwright>=1.49.0       # headless render for full-page screenshots
+# NOTE: also fetch the browser once -> PLAYWRIGHT_BROWSERS_PATH=<repo>/.runtime/pw-browsers python -m playwright install chromium

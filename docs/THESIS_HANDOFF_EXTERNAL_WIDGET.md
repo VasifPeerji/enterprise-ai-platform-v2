@@ -34,6 +34,10 @@ model is used even for a collection ingested in heuristic mode.
 | Visual admin console (served HTML) | `src/interfaces/http/routes/admin_console.py` |
 | Website crawler | `src/layer3_domain/web_crawler.py` |
 | Crawl endpoint | `src/interfaces/http/routes/grounded_documents.py` (`/collections/{id}/crawl`) |
+| AutoPilot — headless renderer (Playwright, optional) | `src/layer3_domain/site_renderer.py` |
+| AutoPilot — palette → bot theme | `src/layer4_platform/theme_extractor.py` |
+| AutoPilot — orchestrator (render → theme → AI copy) | `src/layer4_platform/autopilot.py` |
+| AutoPilot — admin endpoints | `src/interfaces/http/routes/admin_autopilot.py` |
 | Settings (kill switch, rate/crawl caps) | `src/shared/config.py` (`WIDGET_*`) |
 | Wiring (routers + outermost CORS) | `src/interfaces/http/main.py` |
 | Tests | `tests/widget/` |
@@ -75,8 +79,26 @@ Configs persist as JSON snapshots under `.runtime/bot_configs/<bot_id>.json`
 - `POST /admin/bots/{bot_id}/debug-chat` → the **full** internal view (selected
   vs executed model, retrieval count, citations with internal ids).
 - `GET /admin/console` → a visual console: create/edit/delete bots, **live theme
-  preview** (a CSS-variable widget mock that updates as you type), copy-paste
-  embed snippets, and crawl a website into a bot's collection — no curl needed.
+  preview** (a faithful, full-size replica of the embedded widget that updates as you
+  type), copy-paste embed snippets, and crawl a website into a bot's collection — no
+  curl needed. Two modes: **Manual** and **✨ AutoPilot**.
+- `POST /admin/autopilot/analyze` `{url}` → a review-ready bot draft from a single URL:
+  a headless-rendered **full-page screenshot** (floated behind the live preview so the
+  bot is shown on the real site), a **brand palette → contrast-checked theme**, and
+  **Smart-Router → LLM-written** name/greeting/subtitle/prompts. `GET
+  /admin/autopilot/screenshot/{id}` serves the screenshot. Needs the optional
+  `playwright` engine; the endpoint returns a clear install hint if it is missing.
+  SSRF-guarded (blocks private hosts unless `WIDGET_AUTOPILOT_ALLOW_PRIVATE_HOSTS=true`).
+  - **Browser install (one-time).** The renderer defaults `PLAYWRIGHT_BROWSERS_PATH`
+    to the project-local `.runtime/pw-browsers/` (a real filesystem path) rather than
+    `%LOCALAPPDATA%\ms-playwright`. This keeps the engine self-contained **and** avoids
+    Windows AppContainer *virtualization* of AppData — a sandboxed installer would
+    otherwise place the browser in a redirected path the real server can't see
+    ("Executable doesn't exist" although it appears present to the installer). Install to
+    the same dir the renderer reads:
+    `pip install playwright` then
+    `PLAYWRIGHT_BROWSERS_PATH=<repo>/.runtime/pw-browsers python -m playwright install chromium`.
+    (`.runtime/` is gitignored, so browsers aren't committed — re-run on a fresh clone.)
 
 ## Conversation & rendering
 
@@ -117,7 +139,8 @@ The widget mounts a **Shadow DOM** (host CSS can't leak in or out) and writes th
 company's `theme` into `--bot-*` CSS custom properties; every rule references
 them. Re-skinning is purely editing `BotConfig.theme`:
 `primary_color`, `accent_color`, `surface_color`, `text_color`,
-`user_bubble_color`, `font_family`, `font_url`, `logo_url`, `launcher_icon_url`,
+`user_bubble_color`, `bot_bubble_color` (assistant bubble; unset = adaptive
+light/dark tint), `font_family`, `font_url`, `logo_url`, `launcher_icon_url`,
 `launcher_position`, `corner_radius_px`, `dark_mode`. Plus `display_name`,
 `greeting`, and `suggested_prompts` (the use-case/FAQ chips).
 
