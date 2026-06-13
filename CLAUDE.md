@@ -117,11 +117,23 @@ three ways — in-process → JSON snapshot → async relational DB — and rehy
 - **Original-page citations:** beyond char-offset highlight spans + full page text, a proof can render
   the **actual source page image** (`src/layer1_intelligence/pdf_render.py`, served by
   `GET /grounded-documents/collections/{id}/page-image`) with highlights drawn as *normalized
-  rectangles* located via `fitz.search_for`; the demo UI toggles "Original page" / "Extracted text"
-  and falls back to text if no image. Original PDF bytes are persisted per collection under
-  `.runtime/grounded_collections/_files/` so pages re-render after a restart. Contract types (incl.
-  `NormalizedRect`, `HighlightSpan.rects`, `PageProof.has_page_image`) live in
+  rectangles* located via `fitz.search_for`. Both the standalone `/rag-citations/demo` **and V07's
+  `PageViewer.svelte`** offer an "Original page" / "Extracted text" toggle and fall back to text when
+  no image (V07's `api.js` stamps the collection id + tenant onto each proof so the viewer can build
+  the image URL; the Vite proxy already covers `/grounded-documents`). Original PDF bytes are persisted
+  per collection under `.runtime/grounded_collections/_files/` to re-render after a restart — **PDFs
+  only, and only from ingest onward, so a collection created before this feature needs a re-ingest to
+  get page images** (no stored bytes → `has_page_image=False` → text fallback). Contract types
+  (`NormalizedRect`, `HighlightSpan.rects`, `PageProof.has_page_image`) live in
   `src/layer3_domain/document_models.py`.
+- **Routing ↔ generation fusion seam.** By default `GatewayAnswerGenerator._choose_model_id` picks the
+  answer model from a hardcoded free-model list, so grounded mode does *not* invoke the smart router.
+  An optional per-call **`answer_model_id`** on `GroundedRAGService.answer_query` /
+  `DocumentCollectionService.answer_query` (threaded as `model_id_override` into the generator) forces
+  a specific model — e.g. the one the kNN router selected — without mutating the shared per-collection
+  generator. Default `None` preserves current behavior; this is the seam for fusing router-selected
+  models with cited answers. (It only takes effect in gateway generation mode; the extractive
+  `HeuristicAnswerGenerator` accepts and ignores it.)
 - **Domain heuristics are pluggable, not inline.** `src/layer1_intelligence/domain_profiles.py`
   (`LegalDomainProfile`, `MedicalDomainProfile`) owns the constitution/medicine query-expansions and
   the legal structured-answer logic; the engine calls `expand_domain_queries` /
