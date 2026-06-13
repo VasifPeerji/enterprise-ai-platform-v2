@@ -7,6 +7,7 @@
     modelSelectorOpen,
     attachedFiles,
     webSearchEnabled,
+    verifyClaimsEnabled,
   } from '../lib/stores.js';
   import { processFileForUpload } from '../lib/api.js';
 
@@ -74,6 +75,11 @@
   function toggleWebSearch() {
     if ($isLoading || $isStreaming) return;
     webSearchEnabled.update((v) => !v);
+  }
+
+  function toggleVerify() {
+    if ($isLoading || $isStreaming) return;
+    verifyClaimsEnabled.update((v) => !v);
   }
 
   function humanSize(bytes) {
@@ -175,7 +181,7 @@
       </div>
     {/if}
 
-    {#if $attachedFiles.length > 0 || $webSearchEnabled}
+    {#if $attachedFiles.length > 0 || $webSearchEnabled || $verifyClaimsEnabled}
       <div class="attachments-row">
         {#if $webSearchEnabled}
           <span class="attachment-chip web-chip" title="Web search active">
@@ -185,6 +191,16 @@
             </svg>
             <span>Web search</span>
             <button class="chip-remove" onclick={toggleWebSearch} aria-label="Disable web search">×</button>
+          </span>
+        {/if}
+        {#if $verifyClaimsEnabled}
+          <span class="attachment-chip verify-chip" title="Claim verification active">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+            <span>Verify claims</span>
+            <button class="chip-remove" onclick={toggleVerify} aria-label="Disable claim verification">×</button>
           </span>
         {/if}
         {#each $attachedFiles as file, idx}
@@ -255,6 +271,22 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
             <path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/>
+          </svg>
+        </button>
+
+        <!-- Verify claims toggle -->
+        <button
+          class="action-btn verify-btn"
+          class:active={$verifyClaimsEnabled}
+          onclick={toggleVerify}
+          aria-label="Toggle claim verification"
+          aria-pressed={$verifyClaimsEnabled}
+          title={$verifyClaimsEnabled ? 'Claim verification on (click to disable)' : 'Verify the answer against its sources'}
+          disabled={$isLoading || $isStreaming}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
           </svg>
         </button>
 
@@ -396,6 +428,13 @@
   .action-btn.web-btn.active:hover:not(:disabled) {
     background: rgba(16, 163, 127, 0.2);
   }
+  .action-btn.verify-btn.active {
+    color: var(--info);
+    background: rgba(59, 130, 246, 0.12);
+  }
+  .action-btn.verify-btn.active:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.2);
+  }
 
   /* ── File error + processing banners ─────────────────── */
   .file-error-banner {
@@ -484,6 +523,11 @@
     background: rgba(16, 163, 127, 0.12);
     border-color: rgba(16, 163, 127, 0.4);
     color: var(--accent-primary);
+  }
+  .attachment-chip.verify-chip {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: var(--info);
   }
   .chip-name {
     overflow: hidden;

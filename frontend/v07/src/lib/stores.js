@@ -59,6 +59,11 @@ export const attachedFiles = writable([]);
 // When true, the next send routes through searchWeb() and the user's prompt
 // is enriched with the top results before being sent to /chat.
 export const webSearchEnabled = persistentWritable('webSearchEnabled', false);
+// When true, the backend decomposes the answer into atomic claims and verifies
+// each against the cited evidence (verify_claims=true). Most meaningful for
+// grounded/RAG answers; on an ungrounded answer the backend reports it as
+// unverified — itself a useful trust signal.
+export const verifyClaimsEnabled = persistentWritable('verifyClaimsEnabled', false);
 
 // ── Loading indicator (themed per request type) ──────────
 // Drives the per-mode loading card shown while we wait for the backend:

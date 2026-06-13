@@ -28,6 +28,7 @@
     pageViewerProof,
     attachedFiles,
     webSearchEnabled,
+    verifyClaimsEnabled,
     sessionId,
     walletPopupOpen,
     walletTransactions,
@@ -94,6 +95,9 @@
     unsubFiles();
     const unsubWeb = webSearchEnabled.subscribe((v) => (useWebSearch = v));
     unsubWeb();
+    let useVerify = false;
+    const unsubVerify = verifyClaimsEnabled.subscribe((v) => (useVerify = v));
+    unsubVerify();
     attachedFiles.set([]);
 
     // Create conversation if needed
@@ -250,17 +254,20 @@
       if (route.mode === 'rag' && route.collection) {
         response = await ragQuery(route.collection, promptForBackend, {
           sessionId: $sessionId,
+          verifyClaims: useVerify,
           signal: controller.signal,
         });
       } else if (collectionIdOverride) {
         response = await ragQuery(collectionIdOverride, promptForBackend, {
           sessionId: $sessionId,
+          verifyClaims: useVerify,
           signal: controller.signal,
         });
       } else {
         response = await sendMessage(promptForBackend, {
           modelId: modelState.id || 'smart_routing',
           sessionId: $sessionId,
+          verifyClaims: useVerify,
           signal: controller.signal,
         });
       }

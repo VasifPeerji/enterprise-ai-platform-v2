@@ -531,6 +531,37 @@
   function handleQuickReply(text) {
     dispatch('quickReply', { message: text });
   }
+
+  // ── Claim verification rendering ────────────────────────────
+  // Maps the backend ClaimVerifier verdicts to a label + colour + soft
+  // background. Mirrors the verdict taxonomy from claim_verifier.py.
+  const VERDICT_META = {
+    supported:    { label: 'Supported',    color: 'var(--success)',    bg: 'rgba(16, 185, 129, 0.14)' },
+    partial:      { label: 'Partial',      color: 'var(--warning)',    bg: 'rgba(245, 158, 11, 0.14)' },
+    contradicted: { label: 'Contradicted', color: 'var(--error)',      bg: 'rgba(239, 68, 68, 0.14)' },
+    unsupported:  { label: 'Unsupported',  color: 'var(--text-muted)', bg: 'rgba(142, 142, 142, 0.16)' },
+    inferred:     { label: 'Inferred',     color: 'var(--info)',       bg: 'rgba(59, 130, 246, 0.14)' },
+  };
+  function verdictMeta(v) {
+    return VERDICT_META[v] || VERDICT_META.unsupported;
+  }
+  function scoreColor(s) {
+    if (s >= 75) return 'var(--success)';
+    if (s >= 50) return 'var(--warning)';
+    return 'var(--error)';
+  }
+  // Non-zero verdict tallies, in severity order, for the summary pills.
+  function verdictBreakdown(v) {
+    return [
+      ['supported', v.supported_count],
+      ['partial', v.partial_count],
+      ['contradicted', v.contradicted_count],
+      ['unsupported', v.unsupported_count],
+      ['inferred', v.inferred_count],
+    ]
+      .filter(([, c]) => (c || 0) > 0)
+      .map(([k, c]) => ({ count: c, ...VERDICT_META[k] }));
+  }
 </script>
 
 <div class="message-content" class:user-content={role === 'user'} onclick={handleContentClick} role="presentation">
@@ -840,6 +871,75 @@
             <div class="citation-page">Page {proof.page_number || '—'}</div>
           </div>
         {/each}
+      </div>
+
+    {:else if block.type === 'verification'}
+      {@const v = block.report || {}}
+      {@const skipped = v.method === 'skipped_no_citations'}
+      {@const score = Math.max(0, Math.min(100, Math.round(Number(v.verifiability_score || 0))))}
+      <div class="verification-block">
+        <div class="verification-head">
+          <div
+            class="ver-ring"
+            style="background: conic-gradient({skipped ? 'var(--border-default)' : scoreColor(score)} {score}%, var(--bg-elevated) 0)"
+          >
+            <div class="ver-ring-inner">
+              <span class="ver-ring-score">{skipped ? '—' : score}</span>
+              <span class="ver-ring-cap">score</span>
+            </div>
+          </div>
+          <div class="ver-summary">
+            <div class="ver-summary-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+              <span>{skipped ? 'Answer not grounded in sources' : 'Claim verification'}</span>
+            </div>
+            <div class="ver-summary-text">
+              {v.summary ||
+                (skipped
+                  ? 'This answer was not backed by retrieved sources, so there is nothing to verify it against. Attach a document or open a grounded collection for per-claim checks.'
+                  : '')}
+            </div>
+            {#if !skipped && verdictBreakdown(v).length}
+              <div class="ver-pills">
+                {#each verdictBreakdown(v) as p}
+                  <span class="ver-pill" style="color: {p.color}; background: {p.bg}">{p.count} {p.label.toLowerCase()}</span>
+                {/each}
+              </div>
+            {/if}
+            <div class="ver-meta">
+              {v.total_claims || 0} claim{(v.total_claims || 0) === 1 ? '' : 's'}
+              {#if v.latency_ms} · {Number(v.latency_ms).toFixed(0)}ms{/if}
+              {#if v.method} · {v.method}{/if}
+            </div>
+          </div>
+        </div>
+
+        {#if (v.claims || []).length}
+          <div class="ver-claims">
+            {#each v.claims as claim}
+              {@const m = verdictMeta(claim.verdict)}
+              <div class="ver-claim" style="border-left-color: {m.color}">
+                <div class="ver-claim-row">
+                  <span class="ver-claim-text">{claim.text}</span>
+                  <span class="ver-claim-verdict" style="color: {m.color}; background: {m.bg}">{m.label}</span>
+                </div>
+                <div class="ver-claim-meta">
+                  {claim.best_citation_index != null && claim.best_citation_index >= 0
+                    ? `Citation ${claim.best_citation_index + 1}`
+                    : 'No citation'}
+                  {#if claim.confidence != null} · conf {Number(claim.confidence).toFixed(2)}{/if}
+                  {#if claim.numeric_match === false} · <span class="ver-numeric-bad">numeric mismatch</span>{/if}
+                </div>
+                {#if claim.reasoning}
+                  <div class="ver-claim-reason">{claim.reasoning}</div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
       </div>
     {/if}
   {/each}
@@ -1272,5 +1372,132 @@
     font-weight: var(--weight-semibold);
     color: var(--text-secondary);
     margin-bottom: var(--space-3);
+  }
+
+  /* ── Claim verification block ───────────────── */
+  .verification-block {
+    margin-top: var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+    padding-top: var(--space-3);
+  }
+  .verification-head {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+  }
+  .ver-ring {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ver-ring-inner {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--surface-chat);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .ver-ring-score {
+    font-size: var(--text-md);
+    font-weight: var(--weight-bold);
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    line-height: 1;
+  }
+  .ver-ring-cap {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+  .ver-summary { flex: 1; min-width: 0; }
+  .ver-summary-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--text-secondary);
+  }
+  .ver-summary-title svg { color: var(--accent-primary); flex-shrink: 0; }
+  .ver-summary-text {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    line-height: var(--leading-normal);
+    margin-top: 3px;
+  }
+  .ver-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: var(--space-2);
+  }
+  .ver-pill {
+    font-size: 10px;
+    font-weight: var(--weight-semibold);
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+  }
+  .ver-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    margin-top: var(--space-2);
+  }
+  .ver-claims {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
+  .ver-claim {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-left: 3px solid var(--text-muted);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+  }
+  .ver-claim-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .ver-claim-text {
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+    line-height: var(--leading-normal);
+    flex: 1;
+  }
+  .ver-claim-verdict {
+    font-size: 10px;
+    font-weight: var(--weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .ver-claim-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    margin-top: 5px;
+  }
+  .ver-numeric-bad { color: var(--error); font-weight: var(--weight-semibold); }
+  .ver-claim-reason {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-style: italic;
+    margin-top: 4px;
+    line-height: var(--leading-normal);
   }
 </style>

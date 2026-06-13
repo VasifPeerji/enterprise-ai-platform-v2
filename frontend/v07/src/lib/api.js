@@ -31,6 +31,7 @@ export async function sendMessage(message, options = {}) {
     temperature = 0.7,
     sessionId = 'v07-demo',
     collectionId = null,
+    verifyClaims = false,
     signal = null,
   } = options;
 
@@ -50,6 +51,11 @@ export async function sendMessage(message, options = {}) {
   if (collectionId) {
     payload.grounded_collection_id = collectionId;
     payload.grounded_tenant_id = 'default';
+  }
+
+  if (verifyClaims) {
+    payload.verify_claims = true;
+    payload.verification_use_embeddings = true;
   }
 
   const data = await request('/chat', { method: 'POST', body: payload, signal });
@@ -527,6 +533,12 @@ function transformResponse(data, collectionId = null) {
     });
   }
 
+  // Claim verification — per-claim verdicts against the cited evidence,
+  // surfaced as a trust panel when verify_claims was requested.
+  if (data.verification) {
+    content.push({ type: 'verification', report: data.verification });
+  }
+
   // Model info — headline the model the SMART ROUTER picked (its routing
   // decision), NOT the simulated commercial brand or the free backing/fallback
   // model that actually executed. Showcasing the router's decision is the whole
@@ -614,7 +626,7 @@ export async function resetWallet(sessionId = 'v07-demo') {
 }
 
 export async function ragQuery(collectionId, query, options = {}) {
-  const { sessionId = 'v07-demo', signal = null } = options;
+  const { sessionId = 'v07-demo', verifyClaims = false, signal = null } = options;
 
   const payload = {
     message: query,
@@ -624,6 +636,11 @@ export async function ragQuery(collectionId, query, options = {}) {
     grounded_tenant_id: 'default',
     grounded_top_k: 6,
   };
+
+  if (verifyClaims) {
+    payload.verify_claims = true;
+    payload.verification_use_embeddings = true;
+  }
 
   const data = await request('/chat', { method: 'POST', body: payload, signal });
 
@@ -639,6 +656,9 @@ export async function ragQuery(collectionId, query, options = {}) {
       pageProofs: data.page_proofs,
       evidenceGroups: data.evidence_groups || [],
     });
+  }
+  if (data.verification) {
+    content.push({ type: 'verification', report: data.verification });
   }
 
   return {
