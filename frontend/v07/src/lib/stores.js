@@ -57,6 +57,13 @@ export const sidebarOpen = persistentWritable('sidebarOpen', true);
 export const isLoading = writable(false);
 export const isTyping = writable(false);
 export const modelSelectorOpen = writable(false);
+export const settingsOpen = writable(false);
+
+// ── Preferences ──────────────────────────────────────────
+// Smart follow-up / refine suggestions under each answer. Each generation is a
+// separate LLM round-trip, so users who don't want them (or want to save
+// tokens) can switch them off — gating both the pre-warm and the chips.
+export const suggestionsEnabled = persistentWritable('suggestionsEnabled', true);
 
 // ── Attachments / Web search ─────────────────────────────
 // File objects the user has attached to the next message. Cleared after send.

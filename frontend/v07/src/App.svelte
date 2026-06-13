@@ -10,6 +10,8 @@
     theme,
     currentRoute,
     modelSelectorOpen,
+    settingsOpen,
+    suggestionsEnabled,
     activeConversationId,
     createConversation,
     addMessage,
@@ -50,6 +52,7 @@
     generateSmartSuggestions,
   } from './lib/api.js';
   import WalletPopup from './components/WalletPopup.svelte';
+  import SettingsPopup from './components/SettingsPopup.svelte';
 
   let route = $state({ mode: 'chat', collection: null });
 
@@ -329,7 +332,7 @@
       // time the chips render they read the already-resolved cache and appear
       // instantly. Keyed by asstId, so FollowUpSuggestions/QuickRefine dedupe
       // onto this same request.
-      prewarmSuggestions(asstId, message, finalContent);
+      if ($suggestionsEnabled) prewarmSuggestions(asstId, message, finalContent);
 
       await typewriterStream(convId, asstId, finalContent, () => stopRequested);
     } catch (error) {
@@ -724,6 +727,27 @@
           {/if}
         </button>
 
+        <!-- Preferences (settings popover) -->
+        <div class="settings-display">
+          <button
+            class="settings-btn"
+            class:popup-open={$settingsOpen}
+            onclick={() => settingsOpen.update((v) => !v)}
+            aria-label="Preferences"
+            aria-expanded={$settingsOpen}
+            aria-haspopup="dialog"
+            title="Preferences"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+          {#if $settingsOpen}
+            <SettingsPopup />
+          {/if}
+        </div>
+
         <!-- Wallet chip — opens the wallet popup with balance + activity + refill -->
         <div class="wallet-display" title="Open wallet">
           <button
@@ -889,6 +913,35 @@
     border-color: var(--border-strong);
     color: var(--text-primary);
     background: var(--surface-glass);
+  }
+
+  /* ── Settings ───────────────────── */
+  .settings-display {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .settings-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    transition: all var(--duration-fast);
+  }
+  .settings-btn:hover {
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+    background: var(--surface-glass);
+  }
+  .settings-btn.popup-open {
+    border-color: var(--accent-primary);
+    background: rgba(16, 163, 127, 0.08);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.12);
   }
 
   /* ── Wallet ─────────────────────── */

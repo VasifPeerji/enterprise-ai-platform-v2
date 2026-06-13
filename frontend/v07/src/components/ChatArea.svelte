@@ -5,6 +5,7 @@
     activeConversationId,
     streamingMessageId,
     editingMessageId,
+    suggestionsEnabled,
   } from '../lib/stores.js';
   import MessageRenderer from './MessageRenderer.svelte';
   import WelcomeScreen from './WelcomeScreen.svelte';
@@ -235,8 +236,9 @@
               />
             {/if}
 
-            <!-- ── Quick refine + follow-ups (only on the latest done response) ── -->
-            {#if isLastAssistant}
+            <!-- ── Quick refine + follow-ups (latest done response; gated by
+                 the Smart suggestions preference) ── -->
+            {#if isLastAssistant && $suggestionsEnabled}
               <QuickRefine
                 {message}
                 on:refine={(e) => dispatch('refine', e.detail)}
