@@ -17,6 +17,9 @@
   // RAG answers route through grounded retrieval, not the kNN model router, so
   // they carry only a reasoning string — render a slimmer grounded variant.
   let isGrounded = $derived(routing?.mode === 'rag' || model?.tier === 'grounded');
+  // A "regenerate with model X" run — the user forced the model, so suppress
+  // the auto-router framing (reasoning / "cheapest that cleared the bar").
+  let isManual = $derived(routing?.mode === 'manual');
 
   // Title-case a backend enum like "high_risk" → "High risk".
   function pretty(s) {
@@ -99,6 +102,9 @@
       <span class="ri-summary-text">
         {#if isGrounded}
           Grounded retrieval
+        {:else if isManual}
+          <span class="ri-dot" style="background: {tierColor(routing.tier)}"></span>
+          Compared on <strong>{model?.name || 'model'}</strong>
         {:else}
           <span class="ri-dot" style="background: {tierColor(routing.tier)}"></span>
           Routed to <strong>{model?.name || 'model'}</strong>
@@ -120,8 +126,13 @@
 
     {#if expanded && hasDetail}
       <div class="ri-body">
-        {#if routing.reasoning}
+        {#if routing.reasoning && !isManual}
           <p class="ri-reasoning">{routing.reasoning}</p>
+        {:else if isManual}
+          <p class="ri-reasoning">
+            You ran this prompt on {model?.name || 'this model'} to compare — the
+            analysis below is of the query itself, not an automatic routing decision.
+          </p>
         {/if}
 
         {#if chips.length}
@@ -179,7 +190,9 @@
 
         <!-- Footer: the cost/latency story -->
         <div class="ri-foot">
-          {#if !isGrounded}
+          {#if isManual}
+            <span class="ri-foot-item">Manually run for comparison</span>
+          {:else if !isGrounded}
             <span class="ri-foot-item">Cheapest model that cleared the bar</span>
           {/if}
           <span class="ri-foot-spacer"></span>

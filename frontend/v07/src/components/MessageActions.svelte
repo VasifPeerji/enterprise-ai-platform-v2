@@ -1,6 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte';
   import { speakingMessageId } from '../lib/stores.js';
+  import { getModels } from '../lib/api.js';
 
   let {
     message,
@@ -87,6 +88,58 @@
     if (disabled) return;
     dispatch('regenerate');
   }
+
+  // ── "Try another model" menu ────────────────────────────────
+  // Lazy-loads the model list on first open, then re-runs the prompt forcing
+  // the chosen model so the same question can be compared across models.
+  let modelMenuOpen = $state(false);
+  let models = $state([]);
+  let modelsLoading = $state(false);
+  let modelsError = $state(false);
+
+  async function toggleModelMenu() {
+    if (disabled) return;
+    modelMenuOpen = !modelMenuOpen;
+    if (modelMenuOpen && !models.length && !modelsLoading) {
+      modelsLoading = true;
+      modelsError = false;
+      try {
+        models = await getModels();
+      } catch {
+        modelsError = true;
+      } finally {
+        modelsLoading = false;
+      }
+    }
+  }
+
+  function pickModel(sel) {
+    modelMenuOpen = false;
+    dispatch('regenerateWith', { model: sel });
+  }
+
+  function clickOutside(node, cb) {
+    function handle(e) {
+      if (node && !node.contains(e.target)) cb();
+    }
+    document.addEventListener('mousedown', handle, true);
+    return { destroy() { document.removeEventListener('mousedown', handle, true); } };
+  }
+
+  function tierColor(tier) {
+    if (tier === 'premium') return 'var(--tier-premium)';
+    if (tier === 'moderate') return 'var(--tier-moderate)';
+    if (tier === 'cheap') return 'var(--tier-cheap)';
+    return 'var(--accent-primary)';
+  }
+
+  const tierOrder = ['premium', 'moderate', 'cheap'];
+  const tierLabel = { premium: 'Premium', moderate: 'Moderate', cheap: 'Budget' };
+  let groupedModels = $derived.by(() => {
+    const g = {};
+    for (const m of models) (g[m.tier] ||= []).push(m);
+    return g;
+  });
 
   let isSpeaking = $derived($speakingMessageId === message.id);
   let liked = $derived(message.reaction === 'like');
@@ -188,6 +241,54 @@
         </svg>
       </button>
     {/if}
+
+    <!-- ── Regenerate with another model (assistant only) ── -->
+    {#if canRegenerate}
+      <div class="model-menu-wrap" use:clickOutside={() => (modelMenuOpen = false)}>
+        <button
+          class="action-btn"
+          class:menu-open={modelMenuOpen}
+          onclick={toggleModelMenu}
+          title="Regenerate with another model"
+          aria-label="Regenerate with another model"
+          aria-haspopup="menu"
+          aria-expanded={modelMenuOpen}
+          {disabled}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+            <rect x="9" y="9" width="6" height="6" />
+            <path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2" />
+          </svg>
+        </button>
+        {#if modelMenuOpen}
+          <div class="model-menu" role="menu">
+            <div class="mm-header">Regenerate with…</div>
+            <button class="mm-item" role="menuitem" onclick={() => pickModel({ modelId: 'smart_routing', name: 'Smart Routing', tier: 'smart' })}>
+              <span class="mm-dot smart"></span>
+              <span class="mm-name">Smart Routing</span>
+            </button>
+            {#if modelsLoading}
+              <div class="mm-note">Loading models…</div>
+            {:else if modelsError}
+              <div class="mm-note">Couldn’t load models</div>
+            {:else}
+              {#each tierOrder as tier}
+                {#if groupedModels[tier]?.length}
+                  <div class="mm-tier">{tierLabel[tier]}</div>
+                  {#each groupedModels[tier] as m}
+                    <button class="mm-item" role="menuitem" onclick={() => pickModel({ modelId: m.model_id, name: m.display_name, tier: m.tier, provider: m.provider })}>
+                      <span class="mm-dot" style="background: {tierColor(m.tier)}"></span>
+                      <span class="mm-name">{m.display_name}</span>
+                    </button>
+                  {/each}
+                {/if}
+              {/each}
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -264,6 +365,88 @@
   @keyframes speakingPulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(16, 163, 127, 0.4); }
     50% { box-shadow: 0 0 0 4px rgba(16, 163, 127, 0); }
+  }
+
+  /* ── Try-another-model menu ─────── */
+  .model-menu-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .action-btn.menu-open {
+    color: var(--accent-primary);
+    background: rgba(16, 163, 127, 0.12);
+  }
+  .model-menu {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    z-index: 40;
+    min-width: 220px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    box-shadow: var(--shadow-lg);
+    animation: mmIn 0.15s var(--ease-out);
+  }
+  @keyframes mmIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .mm-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    font-weight: var(--weight-semibold);
+    padding: 6px 8px 4px;
+  }
+  .mm-tier {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding: 6px 8px 2px;
+  }
+  .mm-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    text-align: left;
+    transition: background var(--duration-fast), color var(--duration-fast);
+  }
+  .mm-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  .mm-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--text-muted);
+  }
+  .mm-dot.smart {
+    background: var(--accent-primary);
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+  .mm-name {
+    font-size: var(--text-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mm-note {
+    padding: 8px;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    text-align: center;
   }
 
   @media (max-width: 600px) {

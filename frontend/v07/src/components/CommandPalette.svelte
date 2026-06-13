@@ -11,7 +11,10 @@
     sidebarOpen,
     modelSelectorOpen,
     settingsOpen,
+    shortcutsOpen,
+    pushToast,
   } from '../lib/stores.js';
+  import { downloadConversationMarkdown } from '../lib/export.js';
 
   let query = $state('');
   let selectedIdx = $state(0);
@@ -33,7 +36,11 @@
     model: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>',
     gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
     chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+    keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
   };
+
+  let activeConv = $derived(($conversations || []).find((c) => c.id === $activeConversationId) || null);
 
   // Action commands — labels react to current state for the toggles.
   let actions = $derived([
@@ -44,6 +51,19 @@
     { id: 'sidebar', label: $sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar', icon: I.panel, keywords: 'sidebar panel hide show', run: () => sidebarOpen.update((v) => !v) },
     { id: 'model', label: 'Select model…', hint: 'Smart Routing or a specific model', icon: I.model, keywords: 'model routing pick choose', run: () => modelSelectorOpen.set(true) },
     { id: 'prefs', label: 'Open preferences…', icon: I.gear, keywords: 'settings preferences options', run: () => settingsOpen.set(true) },
+    { id: 'shortcuts', label: 'Keyboard shortcuts', icon: I.keyboard, keywords: 'keyboard shortcuts keys help cheatsheet', run: () => shortcutsOpen.set(true) },
+    ...(activeConv && (activeConv.messages || []).length
+      ? [{
+          id: 'export',
+          label: 'Export this chat as Markdown',
+          icon: I.download,
+          keywords: 'export download markdown save chat file',
+          run: () => {
+            const name = downloadConversationMarkdown(activeConv);
+            pushToast(`Exported ${name}`, { type: 'success' });
+          },
+        }]
+      : []),
   ]);
 
   let convItems = $derived(

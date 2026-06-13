@@ -178,9 +178,14 @@ export function dismissToast(id) {
 
 // ── Command palette ──────────────────────────────────────
 export const commandPaletteOpen = writable(false);
+export const shortcutsOpen = writable(false);
 
 // ── Page Viewer (RAG) ────────────────────────────────────
 export const pageViewerProof = writable(null); // set to a proof object to open viewer
+
+// ── Image lightbox ───────────────────────────────────────
+// Set to { src, alt, caption } to open the fullscreen image viewer.
+export const lightboxImage = writable(null);
 
 // ── Route ────────────────────────────────────────────────
 export const currentRoute = writable({ mode: 'chat', collection: null });

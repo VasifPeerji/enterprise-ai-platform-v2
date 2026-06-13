@@ -43,6 +43,7 @@
     speakingMessageId,
     pushToast,
     commandPaletteOpen,
+    shortcutsOpen,
   } from './lib/stores.js';
   import {
     sendMessage,
@@ -58,8 +59,14 @@
   import SettingsPopup from './components/SettingsPopup.svelte';
   import Toaster from './components/Toaster.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
+  import ShortcutsOverlay from './components/ShortcutsOverlay.svelte';
+  import Lightbox from './components/Lightbox.svelte';
 
   let route = $state({ mode: 'chat', collection: null });
+
+  // Modifier-key label for shortcut hints (⌘ on macOS, Ctrl elsewhere).
+  const modLabel =
+    typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '') ? '⌘' : 'Ctrl';
 
   // Apply the chosen theme to <html data-theme> so the light-palette overrides
   // in tokens.css take effect. Dark is the default; the value is persisted.
@@ -352,11 +359,26 @@
         });
       } else {
         response = await sendMessage(promptForBackend, {
-          modelId: modelState.id || 'smart_routing',
+          // A "regenerate with model X" run forces that model for this turn;
+          // otherwise use whatever the model chip is set to.
+          modelId: opts.forceModelId || modelState.id || 'smart_routing',
           sessionId: $sessionId,
           verifyClaims: useVerify,
           signal: controller.signal,
         });
+      }
+
+      // For a forced "try another model" run, the backend still reports the
+      // router's own pick in model_used — surface the model the user explicitly
+      // chose instead, and flag the insight as a manual comparison run.
+      if (opts.forceModelMeta) {
+        response.model = {
+          ...response.model,
+          name: opts.forceModelMeta.name,
+          tier: opts.forceModelMeta.tier,
+          provider: opts.forceModelMeta.provider,
+        };
+        response.routing = { ...response.routing, mode: 'manual' };
       }
 
       // Update wallet balance from simulation. The backend is the source
@@ -655,6 +677,39 @@
     await handleSend({ detail: { message: prompt } }, { skipUserBubble: true });
   }
 
+  // ── Regenerate the same prompt on a specific model ─────────
+  // Re-runs the preceding user turn forcing `sel.modelId` (or Smart Routing),
+  // so you can compare the same query across models. sel = { modelId, name,
+  // tier, provider }; modelId 'smart_routing' is a plain re-run.
+  async function handleRegenerateWith(assistantMessageId, sel) {
+    const conv = getActiveConv();
+    if (!conv) return;
+    const asstIdx = conv.messages.findIndex((m) => m.id === assistantMessageId);
+    if (asstIdx < 1) return;
+    let userIdx = asstIdx - 1;
+    while (userIdx >= 0 && conv.messages[userIdx].role !== 'user') userIdx--;
+    if (userIdx < 0) return;
+    const userMsg = conv.messages[userIdx];
+    const prompt = extractPrompt(userMsg.content);
+    if (!prompt) return;
+
+    truncateConversationAfter(conv.id, userMsg.id);
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    speakingMessageId.set(null);
+
+    const isSmart = !sel || sel.modelId === 'smart_routing';
+    await handleSend(
+      { detail: { message: prompt } },
+      {
+        skipUserBubble: true,
+        forceModelId: isSmart ? null : sel.modelId,
+        forceModelMeta: isSmart
+          ? null
+          : { name: sel.name, tier: sel.tier, provider: sel.provider },
+      },
+    );
+  }
+
   // ── Edit a user message and regenerate downstream ──────────
   async function handleEditCommit(userMessageId, newText) {
     const trimmed = (newText || '').trim();
@@ -728,11 +783,25 @@
   }
 
   // Keyboard shortcuts
+  // True when the keystroke is destined for a text field — so global single-key
+  // shortcuts (like "?") don't hijack normal typing.
+  function isTypingTarget(el) {
+    if (!el) return false;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+  }
+
   function handleKeydown(e) {
     // Cmd/Ctrl+K → command palette (toggle).
     if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
       e.preventDefault();
       commandPaletteOpen.update((v) => !v);
+      return;
+    }
+    // "?" → keyboard shortcuts (only when not typing into a field).
+    if (e.key === '?' && !e.ctrlKey && !e.metaKey && !isTypingTarget(e.target)) {
+      e.preventDefault();
+      shortcutsOpen.set(true);
       return;
     }
     if (e.ctrlKey && e.key === 'n') {
@@ -796,6 +865,20 @@
           </svg>
         </button>
       {/if}
+
+      <!-- Command palette trigger (also Ctrl/⌘+K) -->
+      <button
+        class="cmdk-trigger"
+        onclick={() => commandPaletteOpen.set(true)}
+        title="Search & commands"
+        aria-label="Open command palette"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+        </svg>
+        <span class="cmdk-label">Search</span>
+        <kbd class="cmdk-kbd">{modLabel} K</kbd>
+      </button>
 
       <div class="header-center">
         {#if route.mode === 'rag' && route.collection}
@@ -889,6 +972,7 @@
       on:send={handleSend}
       on:viewProof={handleViewProof}
       on:regenerate={(e) => handleRegenerate(e.detail.messageId)}
+      on:regenerateWith={(e) => handleRegenerateWith(e.detail.messageId, e.detail.model)}
       on:editCommit={(e) => handleEditCommit(e.detail.messageId, e.detail.text)}
       on:editStart={(e) => handleStartEdit(e.detail.messageId)}
       on:editCancel={handleCancelEdit}
@@ -907,6 +991,10 @@
     <CommandPalette />
   {/if}
 
+  {#if $shortcutsOpen}
+    <ShortcutsOverlay />
+  {/if}
+
   <!-- Page Viewer overlay for RAG citations -->
   <PageViewer
     proof={$pageViewerProof}
@@ -916,6 +1004,9 @@
 
   <!-- Toast notifications -->
   <Toaster />
+
+  <!-- Fullscreen image lightbox -->
+  <Lightbox />
 </div>
 
 <style>
@@ -1008,6 +1099,35 @@
   @keyframes openBtnEnter {
     from { opacity: 0; transform: translateX(-6px); }
     to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* ── Command palette trigger ─────── */
+  .cmdk-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 10px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-tertiary);
+    background: var(--surface-card);
+    transition: all var(--duration-fast);
+    flex-shrink: 0;
+  }
+  .cmdk-trigger:hover {
+    border-color: var(--border-strong);
+    color: var(--text-secondary);
+    background: var(--surface-glass);
+  }
+  .cmdk-label { font-size: var(--text-sm); }
+  .cmdk-kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: rgba(var(--overlay-rgb), 0.06);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 1px 5px;
   }
 
   .header-center {
@@ -1189,6 +1309,10 @@
       display: none;
     }
     .wallet-charged {
+      display: none;
+    }
+    .cmdk-label,
+    .cmdk-kbd {
       display: none;
     }
   }

@@ -8,7 +8,9 @@
     deleteConversation,
     renameConversation,
     toggleBookmark,
+    pushToast,
   } from '../lib/stores.js';
+  import { downloadConversationMarkdown } from '../lib/export.js';
   import { tick } from 'svelte';
 
   // Two top-level views: chats history vs bookmarks.
@@ -82,6 +84,12 @@
 
   function doBookmark(id) {
     toggleBookmark(id);
+    openMenuId = null;
+  }
+
+  function doExport(conv) {
+    const name = downloadConversationMarkdown(conv);
+    pushToast(`Exported ${name}`, { type: 'success' });
     openMenuId = null;
   }
 
@@ -285,6 +293,14 @@
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
                     Rename
+                  </button>
+                  <button class="menu-item" onclick={() => doExport(conv)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Export as Markdown
                   </button>
                   <div class="menu-divider"></div>
                   <button class="menu-item menu-danger" onclick={() => askDelete(conv.id)}>

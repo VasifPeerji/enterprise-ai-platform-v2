@@ -233,6 +233,7 @@
                 on:reaction={(e) => dispatch('reaction', { messageId: message.id, reaction: e.detail.reaction })}
                 on:edit={() => startEdit(message)}
                 on:regenerate={() => dispatch('regenerate', { messageId: message.id })}
+                on:regenerateWith={(e) => dispatch('regenerateWith', { messageId: message.id, model: e.detail.model })}
               />
             {/if}
 

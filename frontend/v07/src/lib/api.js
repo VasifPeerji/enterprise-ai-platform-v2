@@ -610,9 +610,23 @@ function transformResponse(data, collectionId = null) {
 // Public API functions
 // ═══════════════════════════════════════════════════════════
 
+// Memoised — the commercial model list is static for a session and is read by
+// both the model selector and the per-message "try another model" menu.
+let _modelsCache = null;
+let _modelsInflight = null;
 export async function getModels() {
-  const data = await request('/chat/demo/commercial-models');
-  return data.models || [];
+  if (_modelsCache) return _modelsCache;
+  if (_modelsInflight) return _modelsInflight;
+  _modelsInflight = (async () => {
+    const data = await request('/chat/demo/commercial-models');
+    _modelsCache = data.models || [];
+    return _modelsCache;
+  })();
+  try {
+    return await _modelsInflight;
+  } finally {
+    _modelsInflight = null;
+  }
 }
 
 export async function getWalletBalance(sessionId = 'v07-demo') {

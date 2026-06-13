@@ -20,6 +20,7 @@
   import markdownLang from 'highlight.js/lib/languages/markdown';
   import Chart from 'chart.js/auto';
   import { onMount } from 'svelte';
+  import { lightboxImage } from '../lib/stores.js';
 
   hljs.registerLanguage('javascript', javascript);
   hljs.registerLanguage('js', javascript);
@@ -418,6 +419,15 @@
     navigator.clipboard.writeText(code).catch(() => {});
   }
 
+  // Open an image block in the fullscreen lightbox.
+  function openLightbox(block) {
+    lightboxImage.set({
+      src: block.url || block.src,
+      alt: block.alt || '',
+      caption: block.caption || '',
+    });
+  }
+
   // Inline RAG citations are rendered as <a class="rag-cite-link" data-rag-cite="N">
   // anchor elements inside the @html markdown output, so we intercept clicks
   // via delegation on the wrapper and dispatch viewProof for the matching
@@ -600,7 +610,21 @@
 
     {:else if block.type === 'image'}
       <div class="block-image rich-block">
-        <img src={block.url || block.src} alt={block.alt || 'Image'} loading="lazy" />
+        <img
+          src={block.url || block.src}
+          alt={block.alt || 'Image'}
+          loading="lazy"
+          role="button"
+          tabindex="0"
+          title="Click to enlarge"
+          onclick={() => openLightbox(block)}
+          onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              openLightbox(block);
+            }
+          }}
+        />
         {#if block.caption}
           <div class="image-caption">{@html renderInline(block.caption)}</div>
         {/if}
