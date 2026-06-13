@@ -86,11 +86,13 @@ class BotTheme(BaseModel):
     (``--bot-*``), so the widget's stylesheet never changes between companies.
     """
 
-    primary_color: str = Field(default="#2d6a4f", description="Primary / brand color (header, send button)")
-    accent_color: str = Field(default="#8a5a2b", description="Accent color (links, source chips)")
-    surface_color: str = Field(default="#fffbf4", description="Panel background")
-    text_color: str = Field(default="#1d2b2a", description="Primary text color")
-    user_bubble_color: str = Field(default="#2d6a4f", description="Visitor message bubble background")
+    primary_color: str = Field(default="#4f46e5", description="Primary / brand color (header, send button)")
+    accent_color: Optional[str] = Field(default=None, description="Accent (links, chips); falls back to primary")
+    surface_color: str = Field(default="#ffffff", description="Panel background")
+    text_color: str = Field(default="#1f2937", description="Primary text color")
+    user_bubble_color: Optional[str] = Field(
+        default=None, description="Visitor bubble background; falls back to primary so partial themes stay coherent"
+    )
     font_family: str = Field(
         default="system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
         description="CSS font-family stack",
