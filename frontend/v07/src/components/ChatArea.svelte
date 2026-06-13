@@ -12,6 +12,7 @@
   import MessageActions from './MessageActions.svelte';
   import QuickRefine from './QuickRefine.svelte';
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
+  import RoutingInsight from './RoutingInsight.svelte';
 
   let editingText = $state('');
   let editingTextarea = $state(null);
@@ -60,17 +61,46 @@
   const dispatch = createEventDispatcher();
   let scrollContainer = $state(null);
 
-  // Auto-scroll to bottom when messages change
+  // ── Smart auto-scroll ───────────────────────────────────────
+  // Follow the conversation only while the user is parked near the bottom.
+  // If they scroll up to re-read mid-stream, we stop yanking them down and
+  // surface a "jump to latest" button instead. A brand-new user turn always
+  // pulls the view down (they just acted) — matching ChatGPT/Claude/Gemini.
+  let pinnedToBottom = $state(true);
+  let showJumpButton = $state(false);
+  const NEAR_BOTTOM_PX = 140;
+
+  function recomputePin() {
+    if (!scrollContainer) return;
+    const dist =
+      scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight;
+    pinnedToBottom = dist < NEAR_BOTTOM_PX;
+    showJumpButton = !pinnedToBottom;
+  }
+
+  function scrollToBottom(behavior = 'smooth') {
+    if (!scrollContainer) return;
+    // Honor the OS reduced-motion setting: a JS scrollTo ignores the CSS
+    // scroll-behavior override, so resolve it here.
+    const reduce =
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    scrollContainer.scrollTo({
+      top: scrollContainer.scrollHeight,
+      behavior: reduce ? 'auto' : behavior,
+    });
+    pinnedToBottom = true;
+    showJumpButton = false;
+  }
+
   $effect(() => {
     const msgs = $currentMessages;
-    const typing = $isTyping;
-    if (scrollContainer) {
-      tick().then(() => {
-        scrollContainer.scrollTo({
-          top: scrollContainer.scrollHeight,
-          behavior: 'smooth',
-        });
-      });
+    const typing = $isTyping; // re-run when the loading indicator toggles
+    if (!scrollContainer) return;
+    const userJustSent = msgs[msgs.length - 1]?.role === 'user';
+    if (pinnedToBottom || userJustSent) {
+      tick().then(() => scrollToBottom('smooth'));
     }
   });
 
@@ -88,7 +118,8 @@
   }
 </script>
 
-<div class="chat-area" bind:this={scrollContainer}>
+<div class="chat-viewport">
+  <div class="chat-area" bind:this={scrollContainer} onscroll={recomputePin}>
   {#if !$activeConversationId || $currentMessages.length === 0}
     <WelcomeScreen on:suggestion={handleSuggestion} />
   {:else}
@@ -139,17 +170,55 @@
 
                 {#if message.role === 'assistant' && message.model && message.id !== $streamingMessageId}
                   <div class="message-meta">
-                    <span class="meta-model" style="--dot-color: {getModelColor(message.model?.tier)}">
-                      <span class="meta-dot"></span>
-                      {message.model?.name || 'AI'}
+                    <!-- Headline shows the (impressive) commercial model name.
+                         Hovering reveals the truth: the real backing model that
+                         ran, plus the original→fallback chain when the gateway
+                         failed over off a rate-limited free model. -->
+                    <span class="meta-model-wrap" class:has-tooltip={message.model?.actualModel}>
+                      <span class="meta-model" style="--dot-color: {getModelColor(message.model?.tier)}">
+                        <span class="meta-dot"></span>
+                        {message.model?.name || 'AI'}
+                      </span>
+                      {#if message.model?.actualModel}
+                        <span class="meta-tooltip" role="tooltip">
+                          {#if message.model?.fellBack}
+                            <span class="mt-row">
+                              <span class="mt-label">Routed to</span>
+                              <span class="mt-val">{message.model.requestedModel}</span>
+                            </span>
+                            <span class="mt-row mt-fallback">
+                              <span class="mt-label">{message.model.fallbackReason === 'escalation' ? 'Escalated to' : 'Fell back to'}</span>
+                              <span class="mt-val">{message.model.actualModel}</span>
+                            </span>
+                            <span class="mt-note">
+                              {message.model.fallbackReason === 'escalation'
+                                ? 'Quality escalation — upgraded mid-flight'
+                                : 'Free-tier rate limit — automatic failover'}
+                            </span>
+                          {:else}
+                            <span class="mt-row">
+                              <span class="mt-label">Running on</span>
+                              <span class="mt-val">{message.model.actualModel}</span>
+                            </span>
+                          {/if}
+                        </span>
+                      {/if}
                     </span>
-                    {#if message.routing?.complexity}
-                      <span class="meta-pill">{message.routing.complexity}</span>
-                    {/if}
                     {#if message.cost?.chargedUsd > 0}
                       <span class="meta-cost">${message.cost.chargedUsd.toFixed(4)}</span>
                     {/if}
                   </div>
+                {/if}
+
+                <!-- Routing transparency — why the smart router picked this
+                     model, the query analysis, quality/escalation outcome, and
+                     latency/cost. The platform's headline differentiator. -->
+                {#if message.role === 'assistant' && message.routing && message.id !== $streamingMessageId}
+                  <RoutingInsight
+                    routing={message.routing}
+                    model={message.model}
+                    cost={message.cost}
+                  />
                 {/if}
               {/if}
             </div>
@@ -209,13 +278,66 @@
       {/if}
     </div>
   {/if}
+  </div>
+
+  {#if showJumpButton}
+    <button
+      class="jump-to-latest"
+      onclick={() => scrollToBottom()}
+      aria-label="Scroll to latest message"
+      title="Scroll to latest"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 5v14M19 12l-7 7-7-7" />
+      </svg>
+    </button>
+  {/if}
 </div>
 
 <style>
+  .chat-viewport {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
   .chat-area {
     flex: 1;
     overflow-y: auto;
     scroll-behavior: smooth;
+    min-height: 0;
+  }
+
+  /* ── Jump-to-latest button ───────── */
+  .jump-to-latest {
+    position: absolute;
+    bottom: var(--space-4);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-md);
+    z-index: 15;
+    animation: jumpIn 0.2s var(--ease-out);
+    transition: background var(--duration-fast), color var(--duration-fast),
+                transform var(--duration-fast);
+  }
+  .jump-to-latest:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    transform: translateX(-50%) translateY(-2px);
+  }
+  @keyframes jumpIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
   }
 
   .messages-container {
@@ -391,14 +513,65 @@
     font-family: var(--font-mono);
   }
 
-  .meta-pill {
+  /* ── Model name + reveal-the-truth tooltip ───────────────── */
+  .meta-model-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .meta-model-wrap.has-tooltip .meta-model {
+    cursor: help;
+    border-bottom: 1px dotted var(--border-strong);
+    padding-bottom: 1px;
+  }
+  .meta-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 220px;
+    padding: 10px 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out),
+                visibility var(--duration-fast);
+    pointer-events: none;
+  }
+  .meta-model-wrap:hover .meta-tooltip,
+  .meta-model-wrap:focus-within .meta-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+  .mt-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+  }
+  .mt-label { color: var(--text-muted); }
+  .mt-val {
+    color: var(--text-primary);
+    font-weight: var(--weight-medium);
+    font-family: var(--font-mono);
+  }
+  .mt-fallback .mt-val { color: var(--warning); }
+  .mt-note {
     font-size: 10px;
-    padding: 1px 8px;
-    border-radius: var(--radius-full);
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 5px;
+    margin-top: 1px;
   }
 
   @media (max-width: 600px) {
