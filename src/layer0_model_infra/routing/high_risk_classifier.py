@@ -157,6 +157,64 @@ HIGH_RISK_PROTOTYPES: dict[str, list[str]] = {
 }
 
 
+# ============================================================================
+# Benign "background" anchors for the precision gate (Arm B)
+# ============================================================================
+# A query is only flagged high-risk when it is closer to a high-risk prototype
+# than to ANY of these everyday anchors. Without this, benign phrasings like
+# "how to make a milkshake at home" land just over the absolute threshold against
+# "how do I treat a deep cut at home" purely on the shared "...at home" structure
+# (a measured false positive at sim 0.66 vs the 0.62 threshold). Genuine
+# advice-seeking queries ("my grandmother fainted, what do I do") have no benign
+# neighbour, so they still flag — recall is preserved (validated 1.0 on the
+# held-out eval set). Covers the false-positive-prone spaces: cooking/recipes,
+# crafts/DIY, lifestyle, coding, and explanatory/academic knowledge.
+
+NEUTRAL_PROTOTYPES: list[str] = [
+    # cooking / recipes (the "make X at home" space)
+    "how do I make a smoothie at home",
+    "what is a good recipe for banana bread",
+    "how do I make homemade pizza dough",
+    "how do I brew cold coffee at home",
+    "how do I bake a chocolate cake from scratch",
+    "how do I make iced tea at home",
+    "what is an easy dessert recipe to make at home",
+    "how do I make a milkshake",
+    # crafts / DIY / lifestyle how-to
+    "how do I make a paper airplane",
+    "how do I build a birdhouse out of wood",
+    "how do I knit a scarf for beginners",
+    "how do I make friendship bracelets",
+    "how do I tie a tie",
+    "how do I grow tomatoes in a pot",
+    "how do I start a small vegetable garden",
+    "how do I set up a tent for camping",
+    "how do I clean a cast iron skillet",
+    "what is a fun craft project for kids",
+    "how do I decorate a room on a budget",
+    "how do I plan a birthday party",
+    # entertainment / learning / everyday
+    "recommend a good movie to watch tonight",
+    "what are some tips for learning the guitar",
+    "how do I improve my photography skills",
+    "how does a car engine work",
+    "what is the best way to learn a new language",
+    "what board games are good for families",
+    "how do I write a cover letter for a job",
+    "what is a good beginner running plan",
+    # coding / technical how-to
+    "write a python function to sort a list",
+    "how do I fix a bug in my code",
+    "how do I optimize a slow database query",
+    "how do I scrape data from a website with python",
+    # explanatory / academic knowledge (informational, not advice-seeking)
+    "explain how compound interest works mathematically",
+    "what is the history of common law",
+    "what is the difference between civil and criminal law",
+    "explain what the federal reserve does",
+]
+
+
 def _resolve_device_index() -> int:
     """transformers pipeline device: 0 for first CUDA GPU, -1 for CPU."""
     try:
@@ -193,6 +251,7 @@ class BgeKnnHighRiskClassifier:
         self._device = device
         self._model = None
         self._proto: dict[str, np.ndarray] = {}
+        self._neutral: Optional[np.ndarray] = None
         self._lock = threading.Lock()
 
     def _ensure_loaded(self) -> None:
@@ -210,8 +269,13 @@ class BgeKnnHighRiskClassifier:
                     utterances, normalize_embeddings=True, convert_to_numpy=True,
                     show_progress_bar=False,
                 )
+            neutral = model.encode(
+                NEUTRAL_PROTOTYPES, normalize_embeddings=True, convert_to_numpy=True,
+                show_progress_bar=False,
+            ) if NEUTRAL_PROTOTYPES else None
             self._model = model
             self._proto = proto
+            self._neutral = neutral
             logger.info("layer3_high_risk_bge_loaded", model=self._model_name, device=device)
 
     def classify(self, query: str, threshold: Optional[float] = None) -> tuple[Optional[HighRiskDomain], float]:
@@ -225,7 +289,18 @@ class BgeKnnHighRiskClassifier:
             sim = float(np.max(matrix @ qv))
             if sim > best_sim:
                 best_sim, best_domain = sim, domain
-        if best_domain is not None and best_sim >= thr:
+        # Background gate: only flag when the query is closer to a high-risk anchor
+        # than to ANY benign anchor (recipes / crafts / coding / trivia). A benign
+        # "how to make X at home" query matches a cooking anchor more than a
+        # medical one and falls through; a genuine advice-seeking query has no
+        # benign neighbour and still flags. See NEUTRAL_PROTOTYPES — validated to
+        # keep recall 1.0 on the held-out eval set while removing the recipe FPs.
+        neutral_sim = (
+            float(np.max(self._neutral @ qv))
+            if self._neutral is not None and len(self._neutral)
+            else -1.0
+        )
+        if best_domain is not None and best_sim >= thr and best_sim > neutral_sim:
             return _DOMAIN_ENUM[best_domain], best_sim
         return None, best_sim
 

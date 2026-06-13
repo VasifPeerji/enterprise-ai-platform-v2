@@ -54,6 +54,21 @@ def test_bge_ignores_general(bge, query):
     assert domain is None
 
 
+@pytest.mark.parametrize("query", [
+    "how to make chocolate kunafa milkshake at home",
+    "how to make a paper airplane at home",
+    "how to make pizza at home",
+    "how do I make homemade ice cream",
+])
+def test_bge_ignores_make_at_home(bge, query):
+    # Regression: the "...at home" phrasing embeds near the medical prototype
+    # "how do I treat a deep cut at home" and used to false-positive MEDICAL
+    # (sim ~0.66 > 0.62), over-routing a recipe to a premium model. The neutral
+    # background gate fixes it without dropping recall on genuine medical queries.
+    domain, _score = bge.classify(query)
+    assert domain is None
+
+
 # ---------------------------------------------------------------------------
 # Tier-2 wiring in the feature extractor (regex → bge, gated to TEXT)
 # ---------------------------------------------------------------------------

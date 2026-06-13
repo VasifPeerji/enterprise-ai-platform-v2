@@ -116,6 +116,15 @@ HIGH_RISK_EVAL: list[tuple[str, str | None]] = [
     ("what are some good stretching exercises for beginners", None),
     ("what year did world war two end", None),
 
+    # ---------------- NEGATIVES: "make X at home" how-to (FP regression) ----------------
+    # The "...at home" phrasing embeds near the medical prototype "how do I treat
+    # a deep cut at home" and used to false-positive MEDICAL → over-route premium.
+    ("how to make chocolate kunafa milkshake at home", None),
+    ("how to make a paper airplane at home", None),
+    ("how to make pizza at home", None),
+    ("how to make cold brew coffee at home", None),
+    ("how do I make homemade ice cream", None),
+
     # ---------------- NEGATIVES: coding (adversarial) ----------------
     ("build a computer vision pipeline in python", None),
     ("write a class to model a patient record", None),
