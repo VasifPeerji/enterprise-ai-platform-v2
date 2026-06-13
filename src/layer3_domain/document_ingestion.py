@@ -298,15 +298,29 @@ class DocumentChunker:
         if not page_text or not chunk_text:
             return 0, 0
 
+        # Fast path: the chunk text appears verbatim in the page.
         start = page_text.find(chunk_text)
         if start >= 0:
             return start, start + len(chunk_text)
 
-        normalized_page = _normalize_whitespace(page_text)
-        normalized_chunk = _normalize_whitespace(chunk_text)
-        start = normalized_page.find(normalized_chunk)
-        if start >= 0:
-            end = start + len(normalized_chunk)
-            return start, end
+        # chunk_text has been whitespace-normalized (single spaces, "\n\n"
+        # paragraph breaks) while page_text keeps the source's original
+        # whitespace — wide gaps from columns/justified text, single newlines
+        # from line wraps. Match token-by-token with a flexible whitespace
+        # separator so the returned offsets stay in ORIGINAL page_text space and
+        # page_text[start:end] is the exact source substring.
+        #
+        # The previous implementation searched the *normalized* page text and
+        # returned those offsets against the *un-normalized* page_text, which
+        # silently mis-sliced the page (e.g. truncating "...per day." to
+        # "...per") on any line containing a multi-space run. start_char/end_char
+        # feed the citation/highlight fallback paths and the extracted-text
+        # view, so the offsets must index page_text exactly.
+        tokens = chunk_text.split()
+        if tokens:
+            pattern = r"\s+".join(re.escape(token) for token in tokens)
+            match = re.search(pattern, page_text)
+            if match:
+                return match.start(), match.end()
 
         return 0, len(chunk_text)

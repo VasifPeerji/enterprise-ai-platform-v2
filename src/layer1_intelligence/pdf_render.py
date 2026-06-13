@@ -111,6 +111,13 @@ def locate_highlight_rects(
             if page_w <= 0 or page_h <= 0:
                 return []
 
+            # search_for returns coordinates in the page's *unrotated* space,
+            # but page.rect and the rendered pixmap are in *displayed* (rotated)
+            # space. Apply the page's rotation matrix so the rects line up with
+            # the rendered original-page image. For unrotated pages this matrix
+            # is the identity, so the common case is unchanged.
+            rotation = page.rotation_matrix
+
             seen: set[tuple] = set()
             rects: list[NormalizedRect] = []
             for snippet in snippets:
@@ -120,7 +127,7 @@ def locate_highlight_rects(
                     except Exception:
                         hits = []
                     for hit in hits:
-                        normalized = _to_normalized(hit, page_w, page_h)
+                        normalized = _to_normalized(hit * rotation, page_w, page_h)
                         if normalized is None:
                             continue
                         key = (
