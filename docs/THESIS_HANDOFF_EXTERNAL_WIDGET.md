@@ -64,6 +64,9 @@ Configs persist as JSON snapshots under `.runtime/bot_configs/<bot_id>.json`
   `{type:'done',grounded,sources}` (or `{type:'error',value}`). Same fusion; guards
   run before streaming so they stay normal HTTP errors. The loader uses this by
   default and falls back to the blocking endpoint if streaming is unsupported.
+- `POST /widget/{bot_id}/suggest` `{message, answer}` → `{suggestions[]}` — routes the
+  prompt and has the chosen model propose three short follow-up questions. Best-effort
+  (empty list on any failure); the widget shows them as "Related" chips after answers.
 - `GET  /widget/loader.js` → the embeddable loader.
 - `GET  /widget/preview?bot_id=…` → a local host page (hostile global CSS, to eyeball Shadow-DOM isolation).
 
@@ -90,6 +93,23 @@ Configs persist as JSON snapshots under `.runtime/bot_configs/<bot_id>.json`
   shared `_retrieve_context` keeps the blocking and streaming retrieval identical,
   and the streaming generator reuses the exact grounded prompt. Falls back to the
   blocking path if the routed model streams nothing or the browser lacks streaming.
+- **Rich content (state-of-the-art):** answers render full markdown (headings,
+  tables, blockquotes, lists), inline images, video, and YouTube/Vimeo embeds. A
+  fenced `html` block renders inside a **sandboxed iframe** (`allow-scripts`, no
+  `allow-same-origin`), so a knowledge base can ship interactive cards/charts whose
+  JS runs isolated and can never touch the host page. Streaming shows lightweight
+  markdown; the full rich pass runs once the stream completes.
+- **Blend-in theming:** `auto_dark` (default on) follows the visitor's
+  `prefers-color-scheme`; `auto_brand` reads the host page's `theme-color` meta and
+  uses it as the primary — so the widget matches the site automatically.
+- **Stickier sessions:** the conversation persists in `localStorage` and restores on
+  reopen (6h); a new-conversation control and per-answer copy button; and follow-up
+  "Related" chips after each answer (via `/suggest`).
+- **Fully configurable, no code:** header subtitle, teaser text + show toggle,
+  powered-by branding (blank hides it), `auto_dark`/`auto_brand`, web-font URL, and
+  launcher-icon URL are all per-bot config fields, editable in the console with live
+  preview. The premium look is the default palette (indigo on white, soft shadows,
+  spring open, welcome hero, message avatars, auto-grow input).
 
 ## Theming — re-skin a company with zero code
 
