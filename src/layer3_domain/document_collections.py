@@ -441,7 +441,9 @@ class DocumentCollectionService:
             encoding="utf-8",
         )
 
-    async def hydrate_collection(self, collection_id: str, tenant_id: str) -> DocumentCollection:
+    async def hydrate_collection(
+        self, collection_id: str, tenant_id: str | None = None
+    ) -> DocumentCollection:
         collection: Optional[DocumentCollection] = None
         documents: list[IngestedDocument] = []
         try:
@@ -480,8 +482,10 @@ class DocumentCollectionService:
             payload = json.loads(json_path.read_text(encoding="utf-8"))
             # Never load another tenant's persisted collection into the shared
             # cache: a cross-tenant request must look exactly like not-found, so
-            # it can neither read nor warm another tenant's documents.
-            if payload.get("tenant_id") != tenant_id:
+            # it can neither read nor warm another tenant's documents. When
+            # tenant_id is None (direct rehydration, not a tenant-scoped
+            # request) the check is skipped.
+            if tenant_id is not None and payload.get("tenant_id") != tenant_id:
                 raise CollectionNotFoundError(collection_id)
             documents = [IngestedDocument.model_validate(document) for document in payload["documents"]]
             collection = DocumentCollection(
