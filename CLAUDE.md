@@ -166,6 +166,51 @@ Vite and is NOT statically mounted by FastAPI** — run it separately; Vite prox
 - `src/lib/stores.js` holds the state (conversations, simulated wallet, streaming, hash routing
   `#/rag/<collection>`). Authoritative doc: `docs/THESIS_HANDOFF_v07.md`.
 
+## The external chatbot widget (public-facing, embeddable)
+
+Distinct from V07: an **embeddable widget** companies drop on their *own* public site via one
+`<script>` tag. It reuses the smart router + grounded-RAG stack but is a separate, public,
+cross-origin surface. Code lives in `src/layer4_platform/` + `src/interfaces/http/routes/widget.py`
+(public), `admin_bots.py` / `admin_console.py` (admin control plane), `middleware/widget_cors.py`,
+`src/layer3_domain/web_crawler.py`. Authoritative doc: `docs/THESIS_HANDOFF_EXTERNAL_WIDGET.md`.
+Tests: `tests/widget/` (kept **torch-free** — registry / rate-limit / crawler-via-httpx-MockTransport
+/ CORS shim; widget JS is verified out-of-band with jsdom, not in the Python suite).
+
+- **A company = tenant + grounded collection + a `BotConfig`** (`layer4_platform/bot_registry.py`).
+  `PublicBotConfig` is the **only** shape the browser receives and is a safe projection that
+  **never carries `tenant_id` / `collection_id` / `allowed_origins`** — a leaked `bot_id` (it sits in
+  the page source) yields branding only. Configs persist as JSON under `.runtime/bot_configs/`
+  (gitignored), dir resolved from `__file__` — do **not** copy `document_collections.py`'s hard-coded
+  `D:/College/...` path. Adding a per-bot field means threading it through `BotCreateRequest`/
+  `BotUpdateRequest` (admin_bots) → `create_bot` (bot_registry) → `PublicBotConfig.to_public()` →
+  the loader → the console form.
+- **The fusion (the entire reason this exists):** the public chat handler runs `model_router.route()`,
+  then generates the grounded/cited answer *with that routed model* by passing `answer_model_id` into
+  `grounded_collection_service.answer_query(...)` **and forcing `generation_mode="gateway"`**. The
+  internal `/chat` grounded branch does NOT route (it bypasses the router). `answer_model_id` threads
+  `document_collections.answer_query` → `GroundedRAGService.answer_query`/`stream_answer` →
+  `GatewayAnswerGenerator.generate`/`generate_stream` (as `model_id_override`). Retrieval is shared by
+  `GroundedRAGService._retrieve_context`, the prompt by `_build_grounded_messages` — keep both the
+  blocking and streaming paths on the shared helpers so they never drift.
+- **CORS is the #1 gotcha.** The public surface is credential-less and must NOT ride the global strict
+  `CORSMiddleware`. `PublicWidgetCORSMiddleware` is added **last in `main.py` (→ outermost)**, acts
+  **only on `/widget/*`** (answers preflight, reflects Origin, `credentials:false`), and passes every
+  other path through untouched. A mounted sub-app does NOT work — the global CORS intercepts all
+  preflight first. The authoritative origin gate is `bot_service.is_origin_allowed()` **in the handler**
+  (CORS is browser-side, bypassable), plus per-IP/per-bot rate limits (`widget_rate_limit.py`).
+- **The loader (`WIDGET_LOADER_JS` in widget.py)** is vanilla JS in a Shadow DOM, themed entirely from
+  `--bot-*` CSS variables fed by the config (re-skin = config edit, no code). **Rich answer content
+  (HTML/CSS/JS) renders in a `sandbox`ed iframe with NO `allow-same-origin`** so model/KB-supplied
+  scripts can't reach the host page — never render model HTML straight into the host DOM. The loader
+  source must **never contain the literal `</script>`** (write `'</scr' + 'ipt>'`) so it can embed in
+  inline scripts / jsdom tests.
+- **The crawler** (`web_crawler.py`, endpoint `POST /grounded-documents/collections/{id}/crawl`) is
+  same-domain, robots-aware, `httpx` + stdlib `html.parser`, **static/SSR only** (runs no JS — SPAs
+  return thin pages, reported in warnings). It feeds the **same** `ingest_assets` path as uploads.
+- **Config:** env-level toggles/caps in `Settings` (`WIDGET_PUBLIC_ENABLED`, `WIDGET_RATE_*`,
+  `WIDGET_CRAWLER_MAX_*`). Endpoints: public `/widget/{id}/config|chat|chat/stream|suggest`,
+  `/widget/loader.js`, `/widget/preview`; admin `/admin/bots/*` (+ `/debug-chat`), `/admin/console`.
+
 ## Cross-file invariants & gotchas (easy to get wrong)
 
 - **Two registries, bridged by an adapter.** Routing happens over `data/registry.json` (the Layer 3
@@ -266,6 +311,8 @@ so backend + embedded-JS edits hot-reload.
 - `THESIS_HANDOFF_SMART_ROUTING_SYSTEM.md` — full routing architecture (the trustworthy overview).
 - `docs/THESIS_HANDOFF_RAG_CITATION.md` — the grounded-RAG-with-citation subsystem (backend half).
 - `docs/THESIS_HANDOFF_v07.md` — the V07 frontend and the end-to-end citation UX.
+- `docs/THESIS_HANDOFF_EXTERNAL_WIDGET.md` — the public embeddable chatbot widget (routing↔citation
+  fusion, per-bot config, CORS, crawler, rich content, premium UX).
 - `docs/layer3/runbook.md` + `docs/layer3/*.md` — L3 operational runbook and design-choice rationale
   (encoder bake-off, high-risk classifier, data sources, aggregate priors).
 - `docs/layers/LAYER_*_REPORT.md` / `LAYER_*_RESEARCH.md` — per-layer deep dives.
