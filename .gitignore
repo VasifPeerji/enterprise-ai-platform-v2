@@ -32,8 +32,12 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchor these Python build-artifact dirs to the repo root. Unanchored, "lib/"
+# matches any lib dir anywhere and was silently ignoring frontend/v07/src/lib/
+# (api.js + stores.js — the V07 data/state layer), so a fresh clone shipped a
+# broken frontend. Same footgun as the old unanchored "models/" rule.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
