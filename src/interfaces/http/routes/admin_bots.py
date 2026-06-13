@@ -48,6 +48,10 @@ class BotCreateRequest(BaseModel):
     collection_id: str = Field(..., min_length=1)
     display_name: str = Field(default="Assistant")
     greeting: str = Field(default="Hi! How can I help you today?")
+    subtitle: Optional[str] = Field(default=None)
+    teaser: Optional[str] = Field(default=None)
+    show_teaser: Optional[bool] = Field(default=None)
+    branding: Optional[str] = Field(default=None)
     suggested_prompts: list[SuggestedPrompt] = Field(default_factory=list)
     theme: BotTheme = Field(default_factory=BotTheme)
     allowed_origins: list[str] = Field(default_factory=list)
@@ -60,6 +64,10 @@ class BotUpdateRequest(BaseModel):
     collection_id: Optional[str] = None
     display_name: Optional[str] = None
     greeting: Optional[str] = None
+    subtitle: Optional[str] = None
+    teaser: Optional[str] = None
+    show_teaser: Optional[bool] = None
+    branding: Optional[str] = None
     suggested_prompts: Optional[list[SuggestedPrompt]] = None
     theme: Optional[BotTheme] = None
     allowed_origins: Optional[list[str]] = None
@@ -166,6 +174,10 @@ async def create_bot(request: Request, body: BotCreateRequest) -> BotAdminView:
             collection_id=body.collection_id,
             display_name=body.display_name,
             greeting=body.greeting,
+            subtitle=body.subtitle,
+            teaser=body.teaser,
+            show_teaser=body.show_teaser,
+            branding=body.branding,
             suggested_prompts=body.suggested_prompts,
             theme=body.theme,
             allowed_origins=body.allowed_origins,

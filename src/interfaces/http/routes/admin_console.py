@@ -39,6 +39,10 @@ ADMIN_CONSOLE_HTML = r"""<!doctype html>
   .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:18px; }
   .card h2 { margin:0 0 14px; font-size:1rem; }
   label { display:block; font-size:.78rem; color:var(--muted); margin:10px 0 4px; font-weight:600; }
+  label.ck { display:flex; align-items:center; gap:8px; cursor:pointer; }
+  label.ck input, .flags input { width:auto; }
+  .flags { display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; }
+  .flags label { display:flex; align-items:center; gap:7px; margin:0; cursor:pointer; }
   input[type=text], input[type=url], textarea, select {
     width:100%; border:1px solid #cfc6b8; border-radius:9px; padding:9px 11px; font:inherit;
     background:#fff; color:var(--ink); }
@@ -111,6 +115,13 @@ ADMIN_CONSOLE_HTML = r"""<!doctype html>
         </div>
         <label>Display name</label><input id="display_name" type="text" value="Acme Assistant">
         <label>Greeting</label><input id="greeting" type="text" value="Hi! How can I help you today?">
+        <div class="row">
+          <div><label>Subtitle (header status)</label><input id="subtitle" type="text" value="Typically replies instantly"></div>
+          <div><label>Branding footer <span class="hint">(blank = hidden)</span></label><input id="branding" type="text" value="Powered by Smart Routing"></div>
+        </div>
+        <label>Teaser bubble <span class="hint">— proactive nudge near the launcher</span></label>
+        <input id="teaser" type="text" value="Hi there 👋 Have a question? I'm here to help.">
+        <label class="ck"><input id="show_teaser" type="checkbox" checked> Show the proactive teaser bubble</label>
         <label>Suggested prompts <span class="hint">— one per line, format: <code>Label | the actual question</code></span></label>
         <textarea id="prompts">Pricing | What are your prices?
 Support | How do I contact support?</textarea>
@@ -121,20 +132,30 @@ Support | How do I contact support?</textarea>
       <div class="card">
         <h2>Theme</h2>
         <div class="row3">
-          <div><label>Primary</label><div class="swatch"><input id="primary_color" type="color" value="#2d6a4f"></div></div>
-          <div><label>Accent</label><div class="swatch"><input id="accent_color" type="color" value="#8a5a2b"></div></div>
-          <div><label>User bubble</label><div class="swatch"><input id="user_bubble_color" type="color" value="#2d6a4f"></div></div>
+          <div><label>Primary</label><div class="swatch"><input id="primary_color" type="color" value="#4f46e5"></div></div>
+          <div><label>Accent</label><div class="swatch"><input id="accent_color" type="color" value="#4f46e5"></div></div>
+          <div><label>User bubble</label><div class="swatch"><input id="user_bubble_color" type="color" value="#4f46e5"></div></div>
         </div>
         <div class="row3">
-          <div><label>Surface</label><div class="swatch"><input id="surface_color" type="color" value="#fffbf4"></div></div>
-          <div><label>Text</label><div class="swatch"><input id="text_color" type="color" value="#1d2b2a"></div></div>
-          <div><label>Corner radius</label><input id="corner_radius_px" type="range" min="0" max="32" value="16"></div>
+          <div><label>Surface</label><div class="swatch"><input id="surface_color" type="color" value="#ffffff"></div></div>
+          <div><label>Text</label><div class="swatch"><input id="text_color" type="color" value="#1f2937"></div></div>
+          <div><label>Corner radius</label><input id="corner_radius_px" type="range" min="0" max="32" value="18"></div>
         </div>
         <div class="row3">
           <div><label>Launcher position</label>
             <select id="launcher_position"><option value="bottom-right">bottom-right</option><option value="bottom-left">bottom-left</option></select></div>
           <div><label>Font family</label><input id="font_family" type="text" value="system-ui, sans-serif"></div>
           <div><label>Logo URL (optional)</label><input id="logo_url" type="url" placeholder="https://…"></div>
+        </div>
+        <div class="row3">
+          <div><label>Web font URL (optional)</label><input id="font_url" type="url" placeholder="https://fonts.googleapis.com/…"></div>
+          <div><label>Launcher icon URL (optional)</label><input id="launcher_icon_url" type="url" placeholder="https://…"></div>
+          <div></div>
+        </div>
+        <div class="flags">
+          <label><input id="auto_dark" type="checkbox" checked> Auto dark mode</label>
+          <label><input id="auto_brand" type="checkbox"> Match host brand color</label>
+          <label><input id="dark_mode" type="checkbox"> Force dark</label>
         </div>
         <div class="actions">
           <button class="btn primary" id="saveBtn" onclick="createOrSave()">Create bot</button>
@@ -199,8 +220,10 @@ function themeFromForm(){
     primary_color:$('primary_color').value, accent_color:$('accent_color').value,
     surface_color:$('surface_color').value, text_color:$('text_color').value,
     user_bubble_color:$('user_bubble_color').value, font_family:$('font_family').value,
-    logo_url:$('logo_url').value||null, launcher_position:$('launcher_position').value,
-    corner_radius_px:parseInt($('corner_radius_px').value,10), dark_mode:false
+    font_url:$('font_url').value||null, logo_url:$('logo_url').value||null,
+    launcher_icon_url:$('launcher_icon_url').value||null, launcher_position:$('launcher_position').value,
+    corner_radius_px:parseInt($('corner_radius_px').value,10),
+    dark_mode:$('dark_mode').checked, auto_dark:$('auto_dark').checked, auto_brand:$('auto_brand').checked
   };
 }
 function parsePrompts(){
@@ -233,6 +256,8 @@ function payloadFromForm(){
   return {
     tenant_id:$('tenant_id').value.trim(), collection_id:$('collection_id').value.trim(),
     display_name:$('display_name').value.trim(), greeting:$('greeting').value.trim(),
+    subtitle:$('subtitle').value.trim(), teaser:$('teaser').value, show_teaser:$('show_teaser').checked,
+    branding:$('branding').value,
     suggested_prompts:parsePrompts(), allowed_origins:parseOrigins(), theme:themeFromForm()
   };
 }
@@ -262,13 +287,17 @@ function resetForm(){ setEditing(null); $('formMsg').innerHTML=''; $('crawlMsg')
 function editBot(c){
   $('tenant_id').value=c.tenant_id; $('collection_id').value=c.collection_id;
   $('display_name').value=c.display_name; $('greeting').value=c.greeting;
+  $('subtitle').value=c.subtitle||''; $('teaser').value=c.teaser||''; $('show_teaser').checked=c.show_teaser!==false;
+  $('branding').value=c.branding!=null?c.branding:'';
   $('prompts').value=(c.suggested_prompts||[]).map(p=>`${p.label} | ${p.prompt}`).join('\n');
   $('origins').value=(c.allowed_origins||[]).join('\n');
   const t=c.theme||{};
   ['primary_color','accent_color','surface_color','text_color','user_bubble_color'].forEach(k=>{ if(t[k]) $(k).value=t[k]; });
-  $('font_family').value=t.font_family||''; $('logo_url').value=t.logo_url||'';
+  $('font_family').value=t.font_family||''; $('font_url').value=t.font_url||''; $('logo_url').value=t.logo_url||'';
+  $('launcher_icon_url').value=t.launcher_icon_url||'';
   $('launcher_position').value=t.launcher_position||'bottom-right';
-  $('corner_radius_px').value=t.corner_radius_px!=null?t.corner_radius_px:16;
+  $('corner_radius_px').value=t.corner_radius_px!=null?t.corner_radius_px:18;
+  $('dark_mode').checked=!!t.dark_mode; $('auto_dark').checked=t.auto_dark!==false; $('auto_brand').checked=!!t.auto_brand;
   setEditing(c.bot_id); applyPreview(); window.scrollTo({top:0,behavior:'smooth'});
 }
 

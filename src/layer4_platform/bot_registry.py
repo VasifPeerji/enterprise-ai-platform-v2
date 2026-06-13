@@ -126,6 +126,13 @@ class BotConfig(BaseModel):
     collection_id: str = Field(..., description="Grounded collection answers are drawn from")
     display_name: str = Field(default="Assistant", description="Bot name shown in the header")
     greeting: str = Field(default="Hi! How can I help you today?", description="Opening message")
+    subtitle: str = Field(default="Typically replies instantly", description="Header status line under the name")
+    teaser: str = Field(
+        default="Hi there 👋 Have a question? I'm here to help.",
+        description="Proactive nudge bubble text shown near the launcher",
+    )
+    show_teaser: bool = Field(default=True, description="Show the proactive teaser bubble")
+    branding: str = Field(default="Powered by Smart Routing", description="Footer text; empty string hides it")
     suggested_prompts: list[SuggestedPrompt] = Field(default_factory=list)
     theme: BotTheme = Field(default_factory=BotTheme)
     allowed_origins: list[str] = Field(
@@ -144,6 +151,10 @@ class BotConfig(BaseModel):
             bot_id=self.bot_id,
             display_name=self.display_name,
             greeting=self.greeting,
+            subtitle=self.subtitle,
+            teaser=self.teaser,
+            show_teaser=self.show_teaser,
+            branding=self.branding,
             suggested_prompts=self.suggested_prompts,
             theme=self.theme,
         )
@@ -160,6 +171,10 @@ class PublicBotConfig(BaseModel):
     bot_id: str
     display_name: str
     greeting: str
+    subtitle: str = "Typically replies instantly"
+    teaser: str = ""
+    show_teaser: bool = True
+    branding: str = ""
     suggested_prompts: list[SuggestedPrompt]
     theme: BotTheme
 
@@ -257,6 +272,10 @@ class BotConfigService:
         collection_id: str,
         display_name: str = "Assistant",
         greeting: str = "Hi! How can I help you today?",
+        subtitle: Optional[str] = None,
+        teaser: Optional[str] = None,
+        show_teaser: Optional[bool] = None,
+        branding: Optional[str] = None,
         suggested_prompts: Optional[list[SuggestedPrompt]] = None,
         theme: Optional[BotTheme] = None,
         allowed_origins: Optional[list[str]] = None,
@@ -266,6 +285,12 @@ class BotConfigService:
     ) -> BotConfig:
         bot_id = f"{_BOT_ID_PREFIX}{secrets.token_urlsafe(12)}"
         now = _now_iso()
+        # Only override BotConfig's defaults for content fields that were given.
+        extra = {
+            k: v
+            for k, v in {"subtitle": subtitle, "teaser": teaser, "show_teaser": show_teaser, "branding": branding}.items()
+            if v is not None
+        }
         config = BotConfig(
             bot_id=bot_id,
             tenant_id=tenant_id,
@@ -274,6 +299,7 @@ class BotConfigService:
             greeting=greeting,
             suggested_prompts=suggested_prompts or [],
             theme=theme or BotTheme(),
+            **extra,
             allowed_origins=self._normalize_origins(allowed_origins or []),
             grounded_domain=grounded_domain,
             grounded_top_k=grounded_top_k,

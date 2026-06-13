@@ -809,14 +809,14 @@ WIDGET_LOADER_JS = r"""
 
       var teaser = document.createElement('div'); teaser.className = 'teaser';
       teaser.innerHTML = '<button class="tx" aria-label="Dismiss">&times;</button><div class="tt"></div>';
-      teaser.querySelector('.tt').textContent = 'Hi there 👋 Have a question? I’m here to help.';
+      teaser.querySelector('.tt').textContent = cfg.teaser || 'Hi there 👋 Have a question? I’m here to help.';
       root.appendChild(teaser);
 
       var panel = document.createElement('div'); panel.className = 'panel';
       panel.innerHTML =
         '<div class="header">' +
           '<div class="av">' + avatarInner + '</div>' +
-          '<div class="meta"><div class="name"></div><div class="status">Typically replies instantly</div></div>' +
+          '<div class="meta"><div class="name"></div><div class="status"></div></div>' +
           '<button class="ib newc" aria-label="New conversation" title="New conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
           '<button class="ib close" aria-label="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>' +
         '</div>' +
@@ -826,11 +826,14 @@ WIDGET_LOADER_JS = r"""
             '<textarea rows="1" placeholder="Type your message…"></textarea>' +
             '<button class="send" aria-label="Send" disabled><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.45-7.48a1 1 0 000-1.84L3.4 3.6a1 1 0 00-1.4.92V9.5c0 .5.36.93.86 1l11.14 1.5-11.14 1.5c-.5.07-.86.5-.86 1v4.98a1 1 0 001.4.92z"/></svg></button>' +
           '</div>' +
-          '<div class="pwr">Powered by <b>Smart Routing</b></div>' +
+          '<div class="pwr"></div>' +
         '</div>';
       root.appendChild(panel);
 
       panel.querySelector('.name').textContent = dn;
+      panel.querySelector('.status').textContent = cfg.subtitle || 'Online';
+      var pwr = panel.querySelector('.pwr');
+      if (cfg.branding) pwr.textContent = cfg.branding; else pwr.remove();
       var messagesEl = panel.querySelector('.messages');
       var inputEl = panel.querySelector('textarea');
       var sendBtn = panel.querySelector('.send');
@@ -874,7 +877,9 @@ WIDGET_LOADER_JS = r"""
         if (e.target.closest('.tx')) { dismissTeaser(); return; }
         open();
       });
-      setTimeout(function () { if (!teaserDismissed && !panel.classList.contains('open')) teaser.classList.add('show'); }, 2400);
+      if (cfg.show_teaser !== false && (cfg.teaser === undefined || cfg.teaser !== '')) {
+        setTimeout(function () { if (!teaserDismissed && !panel.classList.contains('open')) teaser.classList.add('show'); }, 2400);
+      }
 
       function open() {
         dismissTeaser();
