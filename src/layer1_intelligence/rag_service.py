@@ -20,7 +20,7 @@ from typing import Iterable, Optional, Protocol, Sequence
 from pydantic import BaseModel, Field
 
 from src.layer0_model_infra.gateway import LLMRequest, ModelGateway, get_gateway
-from src.layer1_intelligence.domain_profiles import expand_domain_queries
+from src.layer1_intelligence.domain_profiles import expand_domain_queries, structured_domain_answer
 from src.layer1_intelligence.grounded_answer import GroundedAnswerAssembler
 from src.layer1_intelligence.vector_index import (
     DeterministicEmbeddingProvider,
@@ -34,8 +34,6 @@ from src.layer1_intelligence.vector_index import (
 from src.layer3_domain.document_structure import (
     chunk_article_number,
     extract_article_reference,
-    extract_article_text,
-    find_article_spans,
 )
 from src.layer3_domain.document_models import GroundedAnswerContext, IngestedDocument, RetrievalQuery
 from src.shared.config import get_settings
@@ -51,8 +49,6 @@ _GROUNDING_STOPWORDS = {
     "with", "work",
 }
 _MULTI_EVIDENCE_RE = re.compile(r"\b(compare|list|summarize|summary|all|differences?|between)\b|,|;|\band\b", re.I)
-_QUOTED_TEXT_RE = re.compile(r'"([^"]+)"|\'([^\']+)\'')
-_ARTICLE_TITLE_QUERY_RE = re.compile(r"\b(?:deals with|about|under)\s+(?:the\s+)?(.+?)\??$", re.I)
 _CITATION_LINE_RE = re.compile(r"^\s*CITATION\s*:.*$", re.I | re.M)
 
 
@@ -213,7 +209,7 @@ class HeuristicAnswerGenerator:
         query: str,
         grounded_context: GroundedAnswerContext,
     ) -> GeneratedAnswer:
-        structured_answer = self._try_structured_article_answer(query, grounded_context)
+        structured_answer = structured_domain_answer(query, grounded_context.citations)
         if structured_answer:
             return GeneratedAnswer(
                 answer=structured_answer,
@@ -237,115 +233,6 @@ class HeuristicAnswerGenerator:
         if not answer:
             answer = f"No grounded answer available for: {query}"
         return GeneratedAnswer(answer=answer, model_id="heuristic-grounder", finish_reason="stop")
-
-    def _try_structured_article_answer(
-        self,
-        query: str,
-        grounded_context: GroundedAnswerContext,
-    ) -> Optional[str]:
-        requested_article = extract_article_reference(query)
-        if requested_article:
-            for citation in grounded_context.citations:
-                article_number = chunk_article_number(
-                    citation.snippet,
-                    {"article_number": citation.section_title.split(":", 1)[0].removeprefix("Article ").strip()}
-                    if citation.section_title and citation.section_title.startswith("Article ")
-                    else {},
-                )
-                if article_number == requested_article:
-                    title = self._article_title_from_citation(citation.snippet, citation.section_title)
-                    exact_article = extract_article_text(citation.snippet, requested_article) or citation.snippet
-                    body = self._article_body_from_snippet(exact_article, requested_article, title)
-                    if body:
-                        return f"Article {requested_article} provides: {body}"
-                    if title:
-                        return f"Article {requested_article} deals with {title}"
-                    return citation.snippet.strip()
-
-        if "financial emergency" in query.lower():
-            for citation in grounded_context.citations:
-                article_number = chunk_article_number(citation.snippet, None)
-                if article_number and "financial emergency" in citation.snippet.lower():
-                    return f"The President can declare a Financial Emergency under Article {article_number}."
-
-        wanted_title = self._extract_requested_title(query)
-        if wanted_title:
-            wanted_terms = set(_query_terms(wanted_title))
-            best: tuple[int, str] | None = None
-            for citation in grounded_context.citations:
-                for span in find_article_spans(citation.snippet):
-                    title_terms = set(_query_terms(span.title))
-                    overlap = len(wanted_terms.intersection(title_terms))
-                    if overlap and (best is None or overlap > best[0]):
-                        best = (overlap, f"Article {span.number} deals with {span.title.rstrip('.')}.")
-                if citation.section_title and citation.section_title.startswith("Article "):
-                    match = re.match(r"Article\s+([0-9A-Z]+):\s+(.+)", citation.section_title)
-                    if match:
-                        title = match.group(2).rstrip(".")
-                        overlap = len(wanted_terms.intersection(_query_terms(title)))
-                        if overlap and (best is None or overlap > best[0]):
-                            best = (overlap, f"Article {match.group(1)} deals with {title}.")
-            if best:
-                return best[1]
-
-        if "three" in query.lower() and "emergenc" in query.lower():
-            emergency_answer = self._try_emergency_types_answer(grounded_context)
-            if emergency_answer:
-                return emergency_answer
-
-        return None
-
-    def _try_emergency_types_answer(self, grounded_context: GroundedAnswerContext) -> Optional[str]:
-        joined = " ".join(citation.snippet.lower() for citation in grounded_context.citations)
-        has_national = "proclamation of emergency" in joined or "article 352" in joined
-        has_state = (
-            "failure of constitutional machinery" in joined
-            or "president's rule" in joined
-            or "article 356" in joined
-        )
-        has_financial = "financial emergency" in joined or "article 360" in joined
-        if has_national and has_state and has_financial:
-            return (
-                "The Constitution mentions three types of emergencies: "
-                "National Emergency, State Emergency or President's Rule, and Financial Emergency."
-            )
-        return None
-
-    def _extract_requested_title(self, query: str) -> Optional[str]:
-        quoted = _QUOTED_TEXT_RE.search(query)
-        if quoted:
-            return quoted.group(1) or quoted.group(2)
-        match = _ARTICLE_TITLE_QUERY_RE.search(query)
-        if match:
-            return match.group(1).strip(" .")
-        return None
-
-    def _article_title_from_citation(self, snippet: str, section_title: Optional[str]) -> Optional[str]:
-        if section_title and section_title.startswith("Article "):
-            return section_title.split(":", 1)[1].strip() if ":" in section_title else None
-        spans = find_article_spans(snippet)
-        return spans[0].title if spans else None
-
-    def _article_body_from_snippet(
-        self,
-        snippet: str,
-        article_number: str,
-        title: Optional[str],
-    ) -> str:
-        text = snippet.strip()
-        if title:
-            text = re.sub(
-                rf"^\s*{re.escape(article_number)}\.\s+{re.escape(title)}\s*",
-                "",
-                text,
-                flags=re.I,
-            ).strip()
-            if text and title.rstrip(".").lower() not in text[:80].lower():
-                return f"{title.rstrip('.')}. {text}"
-        else:
-            text = re.sub(rf"^\s*{re.escape(article_number)}\.\s*", "", text, flags=re.I).strip()
-        return text or (title or "")
-
 
 @dataclass(frozen=True)
 class RAGServiceConfig:
