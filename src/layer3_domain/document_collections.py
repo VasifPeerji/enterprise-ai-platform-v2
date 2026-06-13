@@ -90,35 +90,12 @@ class DocumentCollectionService:
         self,
         *,
         parsing_service: Optional[DocumentParsingService] = None,
-        rag_service_factory: Optional[callable] = None,
     ) -> None:
         self.parsing_service = parsing_service or DocumentParsingService()
-        self.rag_service_factory = rag_service_factory or self._default_rag_service_factory
         self._collections: dict[str, DocumentCollection] = {}
         self._lock = RLock()
         self._json_store_dir = Path("D:/College/enterprise-ai-platform/.runtime/grounded_collections")
         self._json_store_dir.mkdir(parents=True, exist_ok=True)
-
-    def _default_rag_service_factory(
-        self,
-        *,
-        domain: str,
-        generation_mode: str,
-        top_k: int,
-    ) -> GroundedRAGService:
-        if generation_mode == "gateway":
-            return GroundedRAGService.for_production_like_runtime(
-                domain=domain,
-                top_k=top_k,
-                namespace=f"collection::{domain}",
-                use_gateway_answer=True,
-            )
-        return GroundedRAGService.for_production_like_runtime(
-            domain=domain,
-            top_k=top_k,
-            namespace=f"collection::{domain}",
-            use_gateway_answer=False,
-        )
 
     async def ingest_assets(
         self,
