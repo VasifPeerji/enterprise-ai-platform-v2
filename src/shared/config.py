@@ -105,7 +105,19 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         """Parse CORS origins into a list."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
-    
+
+    # ==========================================
+    # EXTERNAL CHATBOT WIDGET
+    # ==========================================
+    # Public, cross-origin surface (/widget/*). Deliberately separate from the
+    # authenticated CORS policy above: it is credential-less and rate-limited.
+    WIDGET_PUBLIC_ENABLED: bool = True
+    WIDGET_RATE_PER_IP_PER_MIN: int = 20          # per visitor IP, per bot, per minute
+    WIDGET_RATE_PER_BOT_PER_MIN: int = 120        # aggregate across all visitors of one bot
+    WIDGET_BOT_DAILY_CAP: int = 2000              # per-bot requests per UTC day
+    WIDGET_CRAWLER_MAX_PAGES: int = 50            # hard ceiling on pages fetched per crawl
+    WIDGET_CRAWLER_MAX_DEPTH: int = 3             # hard ceiling on crawl BFS depth
+
     # ==========================================
     # LAYER 0 - MODEL INFRASTRUCTURE
     # ==========================================

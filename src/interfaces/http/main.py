@@ -25,6 +25,7 @@ from src.database.session import close_db, init_db
 from src.interfaces.http.middleware.error_handler import ErrorHandlerMiddleware
 from src.interfaces.http.middleware.logging_middleware import LoggingMiddleware
 from src.interfaces.http.middleware.request_context import RequestContextMiddleware
+from src.interfaces.http.middleware.widget_cors import PublicWidgetCORSMiddleware
 from src.interfaces.http.routes.health import run_dependency_checks
 from src.interfaces.http.routes import (
     admin_bots,
@@ -34,6 +35,7 @@ from src.interfaces.http.routes import (
     models,
     rag_citations_demo,
     tenants,
+    widget,
 )
 from src.shared.config import get_settings
 from src.shared.logger import get_logger
@@ -141,9 +143,15 @@ def create_application() -> FastAPI:
     # 4. Logging middleware
     app.add_middleware(LoggingMiddleware)
     
-    # 5. Error handler - Must be last
+    # 5. Error handler
     app.add_middleware(ErrorHandlerMiddleware)
-    
+
+    # 6. Public widget CORS - added LAST so it is OUTERMOST, letting it answer
+    #    /widget/* preflight before the global strict CORS (credentials=True,
+    #    fixed origins) can reject a company origin. Acts only on /widget/*;
+    #    every other path passes straight through to the strict policy above.
+    app.add_middleware(PublicWidgetCORSMiddleware)
+
     # ==========================================
     # ROUTES
     # ==========================================
@@ -168,6 +176,9 @@ def create_application() -> FastAPI:
 
     # Admin control plane for external chatbot widgets (strict-CORS, internal)
     app.include_router(admin_bots.router, tags=["Admin · Bots"])
+
+    # Public, cross-origin embeddable widget surface
+    app.include_router(widget.router, tags=["Public Widget"])
 
     # TODO: Add API v1 routes
     # app.include_router(api_v1.router, prefix="/api/v1", tags=["API v1"])
