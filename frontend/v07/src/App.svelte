@@ -47,6 +47,7 @@
     uploadFilesToCollection,
     searchWeb,
     formatSearchContext,
+    generateSmartSuggestions,
   } from './lib/api.js';
   import WalletPopup from './components/WalletPopup.svelte';
 
@@ -321,6 +322,15 @@
       streamingMessageId.set(asstId);
       isStreaming.set(true);
 
+      // Kick off the follow-up / refine suggestions NOW, in parallel with the
+      // typewriter. They're produced by a separate LLM round-trip; firing it
+      // here (instead of when the chips mount after streaming) overlaps that
+      // round-trip with the several seconds of typewriter animation, so by the
+      // time the chips render they read the already-resolved cache and appear
+      // instantly. Keyed by asstId, so FollowUpSuggestions/QuickRefine dedupe
+      // onto this same request.
+      prewarmSuggestions(asstId, message, finalContent);
+
       await typewriterStream(convId, asstId, finalContent, () => stopRequested);
     } catch (error) {
       // AbortError before response arrived → user clicked stop early. Drop a
@@ -390,6 +400,24 @@
 
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // Pre-warm the follow-up / refine suggestions for an assistant message so the
+  // generating LLM call overlaps the typewriter rather than starting after it.
+  // Extracts the same plain text the chip components use and applies the same
+  // skip threshold; fires fire-and-forget (any error surfaces when the chips
+  // mount and retry). generateSmartSuggestions dedupes/caches by messageId, so
+  // FollowUpSuggestions and QuickRefine attach to this same in-flight request.
+  function prewarmSuggestions(messageId, userText, contentBlocks) {
+    const responseText = (contentBlocks || [])
+      .filter((b) => b?.type === 'text')
+      .map((b) => b.text || '')
+      .join('\n\n')
+      .trim();
+    if (responseText.length < 100) return;
+    generateSmartSuggestions({ messageId, userText, responseText, sessionId: $sessionId }).catch(
+      () => {},
+    );
   }
 
   // Escape HTML special chars so titles can safely sit inside a title="…"
