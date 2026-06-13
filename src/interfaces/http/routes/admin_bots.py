@@ -19,7 +19,11 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from src.layer3_domain.document_collections import get_document_collection_service
+from src.layer0_model_infra.router import get_router
+from src.layer3_domain.document_collections import (
+    CollectionNotFoundError,
+    get_document_collection_service,
+)
 from src.layer4_platform.bot_registry import (
     BotConfig,
     BotConfigInvalidError,
@@ -28,6 +32,7 @@ from src.layer4_platform.bot_registry import (
     SuggestedPrompt,
     get_bot_config_service,
 )
+from src.shared.errors import NoRelevantContextError
 from src.shared.logger import get_logger
 
 router = APIRouter(prefix="/admin/bots", tags=["Admin · Bots"])
@@ -35,6 +40,7 @@ logger = get_logger(__name__)
 
 bot_service = get_bot_config_service()
 collection_service = get_document_collection_service()
+model_router = get_router()
 
 
 class BotCreateRequest(BaseModel):
@@ -68,6 +74,54 @@ class BotAdminView(BaseModel):
     config: BotConfig
     embed_snippet: str
     warnings: list[str] = Field(default_factory=list)
+
+
+class DebugChatRequest(BaseModel):
+    message: str = Field(..., min_length=1)
+
+
+class DebugCitation(BaseModel):
+    """A citation WITH internal identifiers — admin debug only, never public."""
+
+    title: str
+    source_uri: str
+    page_number: Optional[int] = None
+    section_title: Optional[str] = None
+    chunk_id: Optional[str] = None
+    document_id: Optional[str] = None
+    snippet: str = ""
+
+
+class DebugChatResponse(BaseModel):
+    """The full internal view of a bot answer, for admins testing a bot."""
+
+    answer: str
+    selected_model: str = Field(..., description="Model the router SELECTED (headline)")
+    selected_display: str
+    executed_model: Optional[str] = Field(None, description="Model that actually RAN (may be a failover)")
+    fast_path_category: str
+    grounded: bool
+    retrieval_count: int
+    citations: list[DebugCitation] = Field(default_factory=list)
+
+
+def _field(citation: object, key: str) -> object:
+    if isinstance(citation, dict):
+        return citation.get(key)
+    return getattr(citation, key, None)
+
+
+def _debug_citation(citation: object) -> DebugCitation:
+    page = _field(citation, "page_number")
+    return DebugCitation(
+        title=str(_field(citation, "title") or "Source"),
+        source_uri=str(_field(citation, "source_uri") or ""),
+        page_number=int(page) if isinstance(page, (int, float)) else None,
+        section_title=(_field(citation, "section_title") or None),
+        chunk_id=(_field(citation, "chunk_id") or None),
+        document_id=(_field(citation, "document_id") or None),
+        snippet=str(_field(citation, "content") or _field(citation, "snippet") or "")[:300],
+    )
 
 
 async def _collection_warnings(tenant_id: str, collection_id: str) -> list[str]:
@@ -155,3 +209,58 @@ async def update_bot(request: Request, bot_id: str, body: BotUpdateRequest) -> B
 @router.delete("/{bot_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a bot")
 async def delete_bot(bot_id: str) -> None:
     bot_service.delete_bot(bot_id)
+
+
+@router.post(
+    "/{bot_id}/debug-chat",
+    response_model=DebugChatResponse,
+    summary="Test a bot with full routing/grounding internals (admin)",
+)
+async def debug_chat(bot_id: str, body: DebugChatRequest) -> DebugChatResponse:
+    """Admin counterpart to the public widget chat: identical fusion (route ->
+    grounded answer by the routed model), but returns the internals the public
+    surface deliberately hides — selected vs executed model, retrieval count, and
+    citations with their internal ids."""
+    try:
+        bot = bot_service.get_bot(bot_id)
+    except BotNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message) from exc
+
+    message = body.message.strip()
+    decision = model_router.route(query=message, user_tier="standard", budget_remaining=1.0)
+    selected_id = decision.selected_model.model_id
+    selected_display = decision.selected_model.display_name
+    category = decision.fast_path_category or "none"
+
+    answer, executed, grounded, retrieval = "", None, False, 0
+    citations: list[DebugCitation] = []
+    try:
+        resp = await collection_service.answer_query(
+            collection_id=bot.collection_id,
+            query=message,
+            tenant_id=bot.tenant_id,
+            domain=bot.grounded_domain,
+            top_k=bot.grounded_top_k,
+            generation_mode="gateway",
+            answer_model_id=selected_id,
+        )
+        answer = resp.answer
+        executed = resp.model_id
+        grounded = bool(resp.grounded)
+        retrieval = resp.retrieval_count
+        citations = [_debug_citation(c) for c in (resp.citations or [])]
+    except NoRelevantContextError as exc:
+        answer = f"[no grounded context] {exc.message}"
+    except CollectionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message) from exc
+
+    return DebugChatResponse(
+        answer=answer,
+        selected_model=selected_id,
+        selected_display=selected_display,
+        executed_model=executed,
+        fast_path_category=category,
+        grounded=grounded,
+        retrieval_count=retrieval,
+        citations=citations,
+    )
