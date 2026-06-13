@@ -13,6 +13,7 @@ This is the main application that:
 - Initializes logging and tracing
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -83,7 +84,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     dependency_checks = await run_dependency_checks()
     app.state.dependency_checks = dependency_checks
     logger.info("startup_dependency_checks_completed", checks=dependency_checks)
-    
+
+    # Eagerly warm grounded-RAG collections so the first query after a restart is
+    # already indexed (the in-memory search index is rebuilt on restart). Runs in
+    # the background so it never delays readiness; lazy on-demand hydration still
+    # covers anything a request reaches before the warmup gets to it.
+    if settings.RAG_EAGER_HYDRATE:
+        async def _warm_grounded_collections() -> None:
+            try:
+                from src.layer3_domain.document_collections import (
+                    get_document_collection_service,
+                )
+
+                result = await get_document_collection_service().hydrate_all()
+                logger.info("grounded_collections_warmed", **result)
+            except Exception as exc:  # never let warmup crash the app
+                logger.warning("grounded_collections_warm_failed", error=str(exc))
+
+        app.state.warm_task = asyncio.create_task(_warm_grounded_collections())
+
     logger.info("application_started_successfully")
     
     yield

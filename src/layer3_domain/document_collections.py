@@ -536,6 +536,71 @@ class DocumentCollectionService:
             self._collections[collection_id] = collection
         return collection
 
+    async def hydrate_all(self) -> dict[str, int]:
+        """Eagerly load and re-index every persisted collection.
+
+        Run once at startup so the first query after a restart never pays a cold
+        re-index (re-embedding the whole collection, which can be slow). It is
+        best-effort and sequential: one slow or corrupt collection neither blocks
+        the others nor crashes startup, and collections already in the cache are
+        skipped. Enumerated from the JSON snapshots — each carries the
+        collection_id + tenant_id needed to hydrate, and a snapshot is always
+        written even when the database is the primary store, so this covers every
+        collection regardless of which backend ``hydrate_collection`` loads from.
+        """
+        loaded = skipped = failed = 0
+        try:
+            paths = sorted(self._json_store_dir.glob("*.json"))
+        except Exception:
+            paths = []
+        for path in paths:
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                collection_id = payload.get("collection_id")
+                tenant_id = payload.get("tenant_id")
+            except Exception as exc:
+                failed += 1
+                logger.warning(
+                    "grounded_eager_hydrate_snapshot_unreadable",
+                    path=str(path),
+                    error=str(exc),
+                    layer="layer3_domain",
+                )
+                continue
+            if not collection_id or not tenant_id:
+                failed += 1
+                continue
+            with self._lock:
+                already_loaded = collection_id in self._collections
+            if already_loaded:
+                skipped += 1
+                continue
+            try:
+                await self.hydrate_collection(collection_id, tenant_id=tenant_id)
+                loaded += 1
+                logger.info(
+                    "grounded_eager_hydrate_loaded",
+                    collection_id=collection_id,
+                    tenant_id=tenant_id,
+                    layer="layer3_domain",
+                )
+            except Exception as exc:
+                failed += 1
+                logger.warning(
+                    "grounded_eager_hydrate_failed",
+                    collection_id=collection_id,
+                    error=str(exc),
+                    layer="layer3_domain",
+                )
+        logger.info(
+            "grounded_eager_hydrate_complete",
+            loaded=loaded,
+            skipped=skipped,
+            failed=failed,
+            layer="layer3_domain",
+        )
+        return {"loaded": loaded, "skipped": skipped, "failed": failed}
+
     def _json_path(self, collection_id: str) -> Path:
         safe_name = collection_id.replace("/", "_").replace("\\", "_")
         return self._json_store_dir / f"{safe_name}.json"

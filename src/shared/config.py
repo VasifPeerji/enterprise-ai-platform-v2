@@ -199,7 +199,15 @@ class Settings(BaseSettings):
     # restarts and scales past one process). Qdrant falls back to memory if the
     # server is unreachable at service construction.
     RAG_VECTOR_BACKEND: str = "memory"
-    
+
+    # With the in-memory backend the search index is rebuilt on restart. By
+    # default that happens lazily on a collection's first query — a slow re-embed
+    # that can make a freshly-restarted bot look unresponsive. When true, every
+    # persisted collection is re-indexed in the background at startup so the first
+    # query is already warm ("fully automatic" rehydration). Set false on dev
+    # machines that hot-reload often to avoid repeated background re-embeds.
+    RAG_EAGER_HYDRATE: bool = True
+
     @property
     def qdrant_url(self) -> str:
         """Construct Qdrant URL."""
