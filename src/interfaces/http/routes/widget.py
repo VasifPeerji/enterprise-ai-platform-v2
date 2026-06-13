@@ -620,9 +620,14 @@ WIDGET_LOADER_JS = r"""
         + '.welcome .wt{font-size:20px;font-weight:600;line-height:1.3;letter-spacing:-.01em;}'
         + '.welcome .ws{font-size:14px;color:var(--bot-muted);line-height:1.5;margin-top:5px;}'
         // message rows
-        + '.row{display:flex;gap:8px;align-items:flex-end;max-width:90%;animation:msgIn .3s cubic-bezier(.22,1,.36,1);}'
+        + '.row{position:relative;display:flex;gap:8px;align-items:flex-end;max-width:90%;animation:msgIn .3s cubic-bezier(.22,1,.36,1);}'
         + '.row.user{align-self:flex-end;flex-direction:row-reverse;}'
         + '.row.bot{align-self:flex-start;}'
+        + '.row .cp{align-self:flex-end;opacity:0;background:transparent;border:none;color:var(--bot-muted);cursor:pointer;padding:4px;margin-bottom:2px;border-radius:6px;transition:opacity .15s,background .15s,color .15s;}'
+        + '.row:hover .cp{opacity:.55;}'
+        + '.row .cp:hover{opacity:1;background:rgba(' + fg + ',0.06);}'
+        + '.row .cp.ok{color:#16a34a;opacity:1;}'
+        + '.row .cp svg{width:15px;height:15px;display:block;}'
         + '.row .ava{width:28px;height:28px;border-radius:50%;flex-shrink:0;background:var(--bot-primary);color:#fff;'
         + 'display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;overflow:hidden;}'
         + '.row .ava img{width:100%;height:100%;object-fit:cover;}'
@@ -756,6 +761,7 @@ WIDGET_LOADER_JS = r"""
         '<div class="header">' +
           '<div class="av">' + avatarInner + '</div>' +
           '<div class="meta"><div class="name"></div><div class="status">Typically replies instantly</div></div>' +
+          '<button class="ib newc" aria-label="New conversation" title="New conversation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/></svg></button>' +
           '<button class="ib close" aria-label="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>' +
         '</div>' +
         '<div class="messages"></div>' +
@@ -775,6 +781,12 @@ WIDGET_LOADER_JS = r"""
       var greeted = false, busy = false, history = [], chipsEl = null;
 
       function scrollDown() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+      var STORE_KEY = '__ewidget_' + botId;
+      function saveConv() { try { localStorage.setItem(STORE_KEY, JSON.stringify({ t: Date.now(), h: history.slice(-40) })); } catch (e) {} }
+      function loadConv() { try { var d = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (d && d.h && d.h.length && (Date.now() - d.t) < 21600000) return d.h; } catch (e) {} return null; }
+      function clearConv() { try { localStorage.removeItem(STORE_KEY); } catch (e) {} }
+      function newConversation() { clearConv(); history = []; chipsEl = null; messagesEl.innerHTML = ''; showWelcome(); inputEl.focus(); }
 
       function showWelcome() {
         var w = document.createElement('div'); w.className = 'welcome';
@@ -812,7 +824,12 @@ WIDGET_LOADER_JS = r"""
         dismissTeaser();
         panel.classList.add('open'); launcher.classList.add('open');
         launcher.setAttribute('aria-label', 'Close chat');
-        if (!greeted) { greeted = true; showWelcome(); }
+        if (!greeted) {
+          greeted = true;
+          var saved = loadConv();
+          if (saved && saved.length) { history = saved.slice(); saved.forEach(function (m) { addMessage(m.content, m.role === 'user' ? 'user' : 'bot'); }); }
+          else showWelcome();
+        }
         setTimeout(function () { inputEl.focus(); }, 120);
       }
       function close() {
@@ -821,12 +838,19 @@ WIDGET_LOADER_JS = r"""
       }
       launcher.addEventListener('click', function () { panel.classList.contains('open') ? close() : open(); });
       panel.querySelector('.header .close').addEventListener('click', close);
+      panel.querySelector('.header .newc').addEventListener('click', newConversation);
 
       function botAva() { var a = document.createElement('div'); a.className = 'ava'; a.innerHTML = avatarInner; return a; }
       function addRow(who) {
         var row = document.createElement('div'); row.className = 'row ' + who;
         if (who === 'bot') row.appendChild(botAva());
         var bubble = document.createElement('div'); bubble.className = 'bubble'; row.appendChild(bubble);
+        if (who === 'bot') {
+          var cp = document.createElement('button'); cp.className = 'cp'; cp.setAttribute('aria-label', 'Copy');
+          cp.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>';
+          cp.addEventListener('click', function () { try { navigator.clipboard.writeText(bubble.innerText || bubble.textContent || ''); cp.classList.add('ok'); setTimeout(function () { cp.classList.remove('ok'); }, 1200); } catch (e) {} });
+          row.appendChild(cp);
+        }
         messagesEl.appendChild(row); scrollDown();
         return bubble;
       }
@@ -871,7 +895,7 @@ WIDGET_LOADER_JS = r"""
         text = (text || '').trim(); if (!text || busy) return;
         removeChips();
         var prior = history.slice(-8);
-        addMessage(text, 'user'); history.push({ role: 'user', content: text });
+        addMessage(text, 'user'); history.push({ role: 'user', content: text }); saveConv();
         inputEl.value = ''; autogrow(); setBusy(true);
         streamAnswer(text, prior).then(function () { setBusy(false); inputEl.focus(); });
       }
@@ -908,7 +932,7 @@ WIDGET_LOADER_JS = r"""
           }
           msg.finalize(answer);
           if (sources) msg.setSources(sources);
-          history.push({ role: 'bot', content: answer });
+          history.push({ role: 'bot', content: answer }); saveConv();
         } catch (e) { typing.remove(); addMessage('Network error. Please try again.', 'bot'); }
       }
 
@@ -921,7 +945,7 @@ WIDGET_LOADER_JS = r"""
           });
           var j = await r.json(); typing.remove();
           if (!r.ok) { addMessage((j && j.detail) || 'Sorry, something went wrong.', 'bot'); return; }
-          var ans = j.answer || ''; addMessage(ans, 'bot', j.sources); history.push({ role: 'bot', content: ans });
+          var ans = j.answer || ''; addMessage(ans, 'bot', j.sources); history.push({ role: 'bot', content: ans }); saveConv();
         } catch (e) { typing.remove(); addMessage('Network error. Please try again.', 'bot'); }
       }
       function autogrow() {
