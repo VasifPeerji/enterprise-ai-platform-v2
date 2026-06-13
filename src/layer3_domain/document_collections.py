@@ -344,6 +344,8 @@ class DocumentCollectionService:
         if json_path.exists():
             json_path.unlink()
 
+        self._clear_original_files(collection_id)
+
         try:
             async with get_async_session_maker()() as session:
                 await GroundedDocumentCollectionRepository.delete_collection(

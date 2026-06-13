@@ -294,6 +294,47 @@ RAG_CITATIONS_DEMO_HTML = """
       display: grid;
       gap: 16px;
     }
+    .view-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .view-toggle button {
+      margin: 0;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fffaf2;
+      color: var(--ink);
+      font-size: 0.84rem;
+    }
+    .view-toggle button.active {
+      background: var(--accent);
+      color: #fffaf2;
+      border-color: transparent;
+    }
+    .page-image-wrap {
+      position: relative;
+      display: block;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .page-image {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .rect-highlight {
+      position: absolute;
+      background: rgba(255, 214, 10, 0.32);
+      box-shadow: inset 0 0 0 1px rgba(138, 90, 43, 0.55);
+      border-radius: 2px;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
     @media (max-width: 1040px) {
       .hero, .layout, .proof-shell, .row, .row.two, .kpis {
         grid-template-columns: 1fr;
@@ -491,6 +532,67 @@ RAG_CITATIONS_DEMO_HTML = """
       return '<div class="proof-text">' + html + '</div>';
     }
 
+    let activeProofIndex = -1;
+    let proofViewMode = 'original';  // 'original' | 'text'
+
+    function buildPageImageUrl(proof) {
+      const cid = encodeURIComponent(selectedCollectionId());
+      const params = new URLSearchParams({
+        document_key: proof.document_id || '',
+        page_number: String(proof.page_number || 1),
+        tenant_id: selectedTenant()
+      });
+      return '/grounded-documents/collections/' + cid + '/page-image?' + params.toString();
+    }
+
+    function collectProofRects(proof) {
+      const rects = [];
+      for (const highlight of (proof.highlights || [])) {
+        for (const rect of (highlight.rects || [])) {
+          if (Number.isFinite(rect.x0) && Number.isFinite(rect.y0)
+              && Number.isFinite(rect.x1) && Number.isFinite(rect.y1)
+              && rect.x1 > rect.x0 && rect.y1 > rect.y0) {
+            rects.push(rect);
+          }
+        }
+      }
+      return rects;
+    }
+
+    function renderOriginalPage(proof) {
+      const rects = collectProofRects(proof);
+      const overlays = rects.map((rect) => {
+        const left = (rect.x0 * 100).toFixed(3);
+        const top = (rect.y0 * 100).toFixed(3);
+        const width = ((rect.x1 - rect.x0) * 100).toFixed(3);
+        const height = ((rect.y1 - rect.y0) * 100).toFixed(3);
+        return '<div class="rect-highlight" style="left:' + left + '%;top:' + top + '%;width:' + width + '%;height:' + height + '%;"></div>';
+      }).join('');
+      const note = rects.length
+        ? ''
+        : '<div class="proof-empty" style="margin-top:8px">Original page shown; the exact highlight could not be located on this page — switch to Extracted Text to see the supporting passage.</div>';
+      return ''
+        + '<div class="page-image-wrap">'
+        + '<img class="page-image" src="' + escapeHtml(buildPageImageUrl(proof)) + '" alt="Original source page" onerror="onPageImageError()">'
+        + overlays
+        + '</div>'
+        + note;
+    }
+
+    function onPageImageError() {
+      proofViewMode = 'text';
+      if (activeProofIndex >= 0) {
+        renderProofViewer(activeProofIndex);
+      }
+    }
+
+    function setProofView(mode) {
+      proofViewMode = mode;
+      if (activeProofIndex >= 0) {
+        renderProofViewer(activeProofIndex);
+      }
+    }
+
     function renderProofViewer(index) {
       const viewer = document.getElementById('proofViewer');
       const proof = currentProofs[index];
@@ -498,6 +600,7 @@ RAG_CITATIONS_DEMO_HTML = """
         viewer.innerHTML = '<div class="proof-empty">Select a citation to inspect the matching page proof.</div>';
         return;
       }
+      activeProofIndex = index;
 
       const pills = (proof.citation_indices || []).map((citationIndex) => {
         const citation = currentCitations[citationIndex];
@@ -507,6 +610,18 @@ RAG_CITATIONS_DEMO_HTML = """
         return '<span class="pill">Citation ' + (citationIndex + 1) + ': ' + escapeHtml(citation.snippet || citation.title || '') + '</span>';
       }).join('');
 
+      const hasImage = !!proof.has_page_image;
+      const mode = hasImage ? proofViewMode : 'text';
+      const toggle = hasImage
+        ? ('<div class="view-toggle">'
+            + '<button type="button" class="' + (mode === 'original' ? 'active' : '') + '" onclick="setProofView(\\'original\\')">Original page</button>'
+            + '<button type="button" class="' + (mode === 'text' ? 'active' : '') + '" onclick="setProofView(\\'text\\')">Extracted text</button>'
+          + '</div>')
+        : '';
+      const body = mode === 'original'
+        ? renderOriginalPage(proof)
+        : renderHighlightedText(proof.page_text || '', proof.highlights || []);
+
       viewer.innerHTML = ''
         + '<div class="proof-header">'
         + '  <div>'
@@ -515,7 +630,8 @@ RAG_CITATIONS_DEMO_HTML = """
         + '  </div>'
         + '  <div class="proof-page">Page ' + escapeHtml(proof.page_number || '-') + '</div>'
         + '</div>'
-        + renderHighlightedText(proof.page_text || '', proof.highlights || [])
+        + toggle
+        + body
         + '<div class="pill-row">' + (pills || '<span class="pill">No linked citation snippets</span>') + '</div>';
 
       document.querySelectorAll('.citation-card').forEach((element, elementIndex) => {
