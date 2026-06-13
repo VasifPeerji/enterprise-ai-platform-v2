@@ -212,6 +212,26 @@ NEUTRAL_PROTOTYPES: list[str] = [
     "what is the history of common law",
     "what is the difference between civil and criminal law",
     "explain what the federal reserve does",
+    # exam / scenario knowledge questions in a high-risk DOMAIN (third-person,
+    # factual, asking for THE correct answer — not first-person advice). Bar-exam
+    # law MCQs, finance/actuarial math, and science facts sit semantically in the
+    # legal/financial/medical space but must not trip the advice floor. They embed
+    # near these anchors, away from the personal "should I / can I / is it safe"
+    # advice prototypes, so recall on genuine advice-seeking queries is preserved.
+    "a defendant is on trial, which element must the prosecution prove",
+    "in which of the following situations is the defendant guilty of the crime",
+    "a landlord leased the property to a tenant for a fixed term",
+    "what is the legal definition of justiciability",
+    "how is a conflict between a federal statute and a treaty resolved",
+    # NOTE: deliberately NO generic "is this contract enforceable" anchor here —
+    # it sits too close to the advice-seeking positive "is a verbal agreement
+    # legally enforceable" and would suppress it (recall is the hard constraint).
+    "calculate the future value of an ordinary annuity at a fixed rate",
+    "find the monthly payment on a loan over a number of months",
+    "compute the property tax given the assessment rate and the tax rate",
+    "which hormone regulates blood glucose levels in the human body",
+    "what enzyme breaks down proteins during digestion",
+    "how much heat energy is required to turn ice into steam",
 ]
 
 

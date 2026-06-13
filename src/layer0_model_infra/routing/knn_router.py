@@ -582,6 +582,15 @@ class KnnRouter:
                 model = self.registry.get(mid)
             except KeyError:
                 continue
+            # A keyless / inactive model can't actually serve the query: selecting
+            # it would only fall back to a free model at execution while the
+            # decision (and its cost telemetry) mis-reports a premium tier that
+            # never ran. Exclude it like the other can't-serve filters, so the
+            # qualifying set holds only models that can really answer. When no
+            # ACTIVE model clears the floor, the not-qualifying branch below routes
+            # to the best available active model instead of a phantom premium pick.
+            if not model.is_active:
+                continue
             # Vision / multimodal queries need a vision-capable model — a text
             # model can't serve them however high its text prior.
             if (
@@ -599,8 +608,7 @@ class KnnRouter:
             if q >= floor:
                 any_cleared_floor = True
                 # M4 — skip models that just rate-limited (429); they clear the
-                # floor but can't serve right now. (Inactive models are never
-                # cooling — they simply fall back at execution time.)
+                # floor but can't serve right now.
                 if not self.cooldown.is_cooling_down(mid):
                     qualifying[mid] = q
 
