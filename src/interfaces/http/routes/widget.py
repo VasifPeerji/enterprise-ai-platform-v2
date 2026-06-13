@@ -406,6 +406,56 @@ async def widget_chat_stream(bot_id: str, body: WidgetChatRequest, request: Requ
     )
 
 
+class SuggestRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=4000)
+    answer: str = Field(default="", max_length=6000)
+
+
+class SuggestResponse(BaseModel):
+    suggestions: list[str] = Field(default_factory=list)
+
+
+_SUGGEST_SYSTEM = (
+    "You propose follow-up questions a website visitor might ask next, based on a prior "
+    "question and answer about a company. Output EXACTLY three questions, one per line, each "
+    "under 9 words, phrased from the visitor's point of view, no numbering and no preamble."
+)
+
+
+@router.post("/{bot_id}/suggest", response_model=SuggestResponse, summary="Follow-up question suggestions")
+async def widget_suggest(bot_id: str, body: SuggestRequest, request: Request) -> SuggestResponse:
+    """Generate a few natural next questions to keep the conversation going. Best
+    effort and non-blocking for the widget — returns an empty list on any failure."""
+    bot = _resolve_and_guard(bot_id, request)
+    message, answer = body.message.strip(), body.answer.strip()
+    if not message or not answer:
+        return SuggestResponse(suggestions=[])
+    decision = model_router.route(query=message, user_tier="standard", budget_remaining=1.0)
+    messages = [
+        {"role": "system", "content": _SUGGEST_SYSTEM},
+        {"role": "user", "content": f"Question: {message}\nAnswer: {answer}\n\nThree follow-up questions:"},
+    ]
+    try:
+        from src.layer0_model_infra.gateway import LLMRequest, get_gateway
+
+        resp = await get_gateway().complete(
+            LLMRequest(model_id=decision.selected_model.model_id, messages=messages, temperature=0.4, max_tokens=90)
+        )
+        lines = [re.sub(r"^[\s\d.)*\-]+", "", ln).strip() for ln in (resp.content or "").splitlines()]
+        questions = [ln for ln in lines if ln.endswith("?")] or [ln for ln in lines if ln]
+        seen, out = set(), []
+        for q in questions:
+            key = q.lower()
+            if q and key not in seen and key != message.lower():
+                seen.add(key)
+                out.append(q[:120])
+        logger.info("widget_suggest", bot_id=bot_id, count=len(out[:3]))
+        return SuggestResponse(suggestions=out[:3])
+    except Exception as exc:
+        logger.info("widget_suggest_failed", bot_id=bot_id, error=str(exc))
+        return SuggestResponse(suggestions=[])
+
+
 # ---------------------------------------------------------------------------
 # Embeddable front-end: a single vanilla-JS loader served from the backend.
 #
@@ -671,6 +721,12 @@ WIDGET_LOADER_JS = r"""
         + '.chip:active{transform:scale(.99);}'
         + '.chip .ar{color:var(--bot-primary);opacity:.55;flex-shrink:0;display:flex;}'
         + '.chip .ar svg{width:15px;height:15px;}'
+        + '.followups{display:flex;flex-direction:column;gap:7px;padding:0 0 6px;animation:msgIn .3s cubic-bezier(.22,1,.36,1);}'
+        + '.fulab{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;color:var(--bot-muted);opacity:.7;}'
+        + '.fu{align-self:flex-start;max-width:100%;text-align:left;border:1px solid var(--bot-line);background:transparent;'
+        + 'color:var(--bot-accent);border-radius:14px;padding:8px 13px;font-size:13px;cursor:pointer;font-family:inherit;'
+        + 'transition:background .15s,border-color .15s;}'
+        + '.fu:hover{background:rgba(' + fg + ',0.03);border-color:var(--bot-accent);}'
         // composer
         + '.composer{padding:10px 14px 12px;border-top:1px solid var(--bot-line);flex-shrink:0;}'
         + '.inwrap{display:flex;align-items:flex-end;gap:6px;background:rgba(' + fg + ',0.04);border:1px solid var(--bot-line);'
@@ -891,9 +947,25 @@ WIDGET_LOADER_JS = r"""
 
       function setBusy(b) { busy = b; inputEl.disabled = b; sendBtn.disabled = b || !inputEl.value.trim(); }
 
+      function removeFollowUps() { var f = messagesEl.querySelector('.followups'); if (f) f.remove(); }
+      function showFollowUps(question, answer) {
+        if (!answer) return;
+        fetch(apiBase + '/widget/' + encodeURIComponent(botId) + '/suggest', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: question, answer: answer })
+        }).then(function (r) { return r.ok ? r.json() : { suggestions: [] }; })
+          .then(function (j) {
+            var s = (j && j.suggestions) || []; if (!s.length) return;
+            removeFollowUps();
+            var fu = document.createElement('div'); fu.className = 'followups';
+            var lab = document.createElement('div'); lab.className = 'fulab'; lab.textContent = 'Related'; fu.appendChild(lab);
+            s.forEach(function (q) { var b = document.createElement('button'); b.className = 'fu'; b.type = 'button'; b.textContent = q; b.addEventListener('click', function () { send(q); }); fu.appendChild(b); });
+            messagesEl.appendChild(fu); scrollDown();
+          }).catch(function () {});
+      }
+
       function send(text) {
         text = (text || '').trim(); if (!text || busy) return;
-        removeChips();
+        removeChips(); removeFollowUps();
         var prior = history.slice(-8);
         addMessage(text, 'user'); history.push({ role: 'user', content: text }); saveConv();
         inputEl.value = ''; autogrow(); setBusy(true);
@@ -933,6 +1005,7 @@ WIDGET_LOADER_JS = r"""
           msg.finalize(answer);
           if (sources) msg.setSources(sources);
           history.push({ role: 'bot', content: answer }); saveConv();
+          showFollowUps(text, answer);
         } catch (e) { typing.remove(); addMessage('Network error. Please try again.', 'bot'); }
       }
 
@@ -946,6 +1019,7 @@ WIDGET_LOADER_JS = r"""
           var j = await r.json(); typing.remove();
           if (!r.ok) { addMessage((j && j.detail) || 'Sorry, something went wrong.', 'bot'); return; }
           var ans = j.answer || ''; addMessage(ans, 'bot', j.sources); history.push({ role: 'bot', content: ans }); saveConv();
+          showFollowUps(text, ans);
         } catch (e) { typing.remove(); addMessage('Network error. Please try again.', 'bot'); }
       }
       function autogrow() {
