@@ -65,12 +65,33 @@ class IngestedDocument(BaseModel):
     metadata: dict[str, str] = Field(default_factory=dict, description="Document metadata")
 
 
+class NormalizedRect(BaseModel):
+    """Highlight rectangle in normalized page coordinates.
+
+    All values are fractions in [0, 1] relative to the page width/height with
+    the origin at the top-left, so the UI can overlay the rectangle on the
+    rendered original-page image at any display size.
+    """
+
+    x0: float = Field(..., ge=0.0, le=1.0)
+    y0: float = Field(..., ge=0.0, le=1.0)
+    x1: float = Field(..., ge=0.0, le=1.0)
+    y1: float = Field(..., ge=0.0, le=1.0)
+
+
 class HighlightSpan(BaseModel):
     """Exact span to highlight inside a page or chunk."""
 
     start_char: int = Field(..., ge=0, description="Inclusive start offset")
     end_char: int = Field(..., gt=0, description="Exclusive end offset")
     text: str = Field(..., description="Matched text from the source")
+    rects: list["NormalizedRect"] = Field(
+        default_factory=list,
+        description=(
+            "Normalized rectangles locating this span on the rendered original "
+            "page image (empty when no original page render is available)"
+        ),
+    )
 
 
 class SourceCitation(BaseModel):
@@ -110,6 +131,12 @@ class PageProof(BaseModel):
     page_number: int = Field(..., ge=1, description="1-based page number")
     section_title: Optional[str] = Field(default=None, description="Section heading if known")
     page_text: str = Field(..., description="Full normalized page text used to render the proof")
+    page_width: float = Field(default=0.0, ge=0.0, description="Source page width in PDF points (0 if unknown)")
+    page_height: float = Field(default=0.0, ge=0.0, description="Source page height in PDF points (0 if unknown)")
+    has_page_image: bool = Field(
+        default=False,
+        description="Whether a rendered original-page image is available for this proof",
+    )
     highlights: list[HighlightSpan] = Field(
         default_factory=list,
         description="Exact highlight spans inside page_text",
