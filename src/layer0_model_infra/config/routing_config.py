@@ -663,6 +663,32 @@ class Layer3UncertaintyConfig(BaseModel):
     )
 
 
+class Layer3QualityHeadConfig(BaseModel):
+    """Learned per-(query, model) quality head used on the prior path.
+
+    When the query has no kNN neighbours, the flat aggregate prior is
+    query-INDEPENDENT and can't tell an easy query from a hard one. A small
+    per-model regressor over the query embedding (scripts/layer3/
+    train_quality_head.py) predicts a model's quality on THIS query, so an easy
+    off-distribution query can clear the floor on a cheaper model. Only models
+    whose head genuinely beats the flat prior in CV are in the artifact; everyone
+    else keeps the flat prior. Inert (falls back to prior) if the artifact is
+    absent.
+    """
+
+    enable: bool = Field(
+        default=True,
+        description="Use the learned head (when its artifact is present) in place "
+                    "of the flat aggregate prior on the prior path.",
+    )
+    confidence: float = Field(
+        default=0.40, ge=0.0, le=1.0,
+        description="Confidence assigned to a head-based prediction - above a flat "
+                    "prior (it is query-aware) but below a kNN-grounded one. Mainly "
+                    "telemetry; prior-path escalation is gated off regardless.",
+    )
+
+
 class Layer3Config(BaseModel):
     """All Layer 3 settings in one place. No hardcoded numbers in the router."""
 
@@ -676,6 +702,7 @@ class Layer3Config(BaseModel):
     encoder: Layer3EncoderConfig = Field(default_factory=Layer3EncoderConfig)
     high_risk: Layer3HighRiskConfig = Field(default_factory=Layer3HighRiskConfig)
     uncertainty: Layer3UncertaintyConfig = Field(default_factory=Layer3UncertaintyConfig)
+    quality_head: Layer3QualityHeadConfig = Field(default_factory=Layer3QualityHeadConfig)
     success_targets: Layer3SuccessTargets = Field(default_factory=Layer3SuccessTargets)
 
     registry_path: str = Field(

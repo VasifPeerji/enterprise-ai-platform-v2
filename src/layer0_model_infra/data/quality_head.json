@@ -1,0 +1,92 @@
+{
+  "_meta": {
+    "computed_at": "2026-06-13T12:41:40.715151+00:00",
+    "encoder": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "min_outcomes": 300,
+    "min_corr": 0.08,
+    "note": "Per-model Ridge over the MiniLM query embedding -> outcome. Used on the prior path only; models absent here keep the flat prior.",
+    "regenerate": "python scripts/layer3/train_quality_head.py --write"
+  },
+  "models": {
+    "llama-3.3-70b-versatile-groq": {
+      "n": 12462,
+      "head_corr": 0.317,
+      "head_mae": 0.4432,
+      "const_mae": 0.4948,
+      "mean_outcome": 0.5305,
+      "included": true
+    },
+    "llama-3.1-8b-instant-groq": {
+      "n": 12542,
+      "head_corr": 0.2753,
+      "head_mae": 0.4286,
+      "const_mae": 0.4653,
+      "mean_outcome": 0.376,
+      "included": true
+    },
+    "gpt-oss-120b-groq": {
+      "n": 139,
+      "included": false,
+      "reason": "insufficient_data"
+    },
+    "gpt-oss-20b-groq": {
+      "n": 136,
+      "included": false,
+      "reason": "insufficient_data"
+    },
+    "qwen3-32b-groq": {
+      "n": 132,
+      "included": false,
+      "reason": "insufficient_data"
+    },
+    "llama-4-scout-17b-groq": {
+      "n": 114,
+      "included": false,
+      "reason": "insufficient_data"
+    },
+    "qwen-2.5-72b-huggingface": {
+      "n": 12047,
+      "head_corr": 0.285,
+      "head_mae": 0.4502,
+      "const_mae": 0.4922,
+      "mean_outcome": 0.5623,
+      "included": true
+    },
+    "gemini-2.5-flash": {
+      "n": 0,
+      "included": false,
+      "reason": "insufficient_data"
+    },
+    "gemini-2.5-flash-lite": {
+      "n": 0,
+      "included": false,
+      "reason": "insufficient_data"
+    },
+    "gpt-4o-mini": {
+      "n": 394,
+      "head_corr": 0.3161,
+      "head_mae": 0.3784,
+      "const_mae": 0.4136,
+      "mean_outcome": 0.4158,
+      "included": true
+    },
+    "gpt-4o": {
+      "n": 894,
+      "head_corr": 0.0344,
+      "head_mae": 0.4496,
+      "const_mae": 0.4531,
+      "mean_outcome": 0.5852,
+      "included": false
+    },
+    "claude-sonnet-4-5": {
+      "n": 0,
+      "included": false,
+      "reason": "insufficient_data"
+    },
+    "claude-opus-4-5": {
+      "n": 0,
+      "included": false,
+      "reason": "insufficient_data"
+    }
+  }
+}

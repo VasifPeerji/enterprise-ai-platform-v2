@@ -195,6 +195,23 @@ def test_predict_falls_to_prior_below_min_outcomes(all_keys_set, reset_registry,
     assert confidence["llama-3.1-8b-instant-groq"] == "high"
 
 
+def test_prior_path_uses_quality_head(all_keys_set, reset_registry, tmp_path):
+    # On the prior path (no neighbours) the learned head's query-aware prediction
+    # replaces the flat prior for the models it covers, when an embedding is given.
+    import numpy as np
+    router = _router(tmp_path)
+    feats = _features(Modality.TEXT)
+    cell = make_feature_cell(feats)
+    emb = np.ones(384, dtype=np.float32)
+    q_head, _c, prior_used, _s = router._predict_qualities(feats, [], cell, embedding=emb)
+    q_flat, _c2, _p2, _s2 = router._predict_qualities(feats, [], cell, embedding=None)
+    head_model = "llama-3.1-8b-instant-groq"  # covered by the trained head
+    assert prior_used[head_model] is True                               # still the non-kNN path
+    assert q_head[head_model] != pytest.approx(q_flat[head_model])      # head changed the value
+    # a model the head does NOT cover keeps the flat prior unchanged
+    assert q_head["gemini-2.5-flash"] == pytest.approx(q_flat["gemini-2.5-flash"])
+
+
 def test_predict_low_coverage_uses_knn_when_grounded(all_keys_set, reset_registry, synthetic_outcomes, tmp_path):
     # A low-coverage model now USES its per-question neighbour outcomes when it
     # has enough of them (>= min_outcomes) — this is what lets generated

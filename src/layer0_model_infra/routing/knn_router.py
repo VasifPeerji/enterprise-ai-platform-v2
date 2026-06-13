@@ -131,6 +131,7 @@ class KnnRouter:
         qdrant_client=None,
         rng=None,
         cooldown=None,
+        quality_head=None,
     ) -> None:
         self._config = config or get_routing_config().layer3
         self._settings = settings or get_settings()
@@ -144,6 +145,7 @@ class KnnRouter:
         self._feature_extractor = feature_extractor
         self._fallback = fallback_router
         self._cooldown = cooldown
+        self._quality_head = quality_head
 
         # Heavy / external dependencies — lazily built.
         self._encoder = encoder
@@ -225,6 +227,13 @@ class KnnRouter:
             from src.layer0_model_infra.routing.rate_limit_cooldown import get_rate_limit_cooldown
             self._cooldown = get_rate_limit_cooldown()
         return self._cooldown
+
+    @property
+    def quality_head(self):
+        if self._quality_head is None:
+            from src.layer0_model_infra.routing.quality_head import get_quality_head
+            self._quality_head = get_quality_head()
+        return self._quality_head
 
     # ------------------------------------------------------------------
     # Encoder (P11 — GPU FP16 primary, CPU fallback)
@@ -350,6 +359,7 @@ class KnnRouter:
         features: QueryFeatures,
         neighbors: list[Any],
         feature_cell: str,
+        embedding=None,
     ) -> tuple[dict[str, float], dict[str, str], dict[str, bool], dict[str, float]]:
         """Return (qualities, confidence, prior_used, confidence_scores) for every
         model. confidence_scores is a 0-1 calibrated confidence in each per-model
@@ -368,6 +378,20 @@ class KnnRouter:
 
         knn_cfg = self._config.knn
         unc_cfg = self._config.uncertainty
+        # Learned quality head (prior path): query-aware predictions that replace
+        # the flat prior for the models it covers. Inert / no embedding -> {} ->
+        # the flat prior is used, so this never changes the kNN-grounded path.
+        qh_cfg = self._config.quality_head
+        head_preds: dict[str, float] = {}
+        qh_confidence = unc_cfg.prior_confidence
+        if qh_cfg.enable and embedding is not None:
+            try:
+                head_preds = self.quality_head.predict_all(embedding)
+                if head_preds:
+                    qh_confidence = qh_cfg.confidence
+            except Exception as exc:  # the head must never break routing
+                logger.warning("layer3_quality_head_predict_failed", reason=str(exc))
+                head_preds = {}
         query_len = features.char_count or 0
         # Pre-compute the length-adjusted similarity for each neighbor once.
         neighbor_sims: list[tuple[str, float]] = []
@@ -406,12 +430,19 @@ class KnnRouter:
             # ignored because the model's *global* coverage is still low.
             sim_sum = sum(s for s, _ in pairs)
             if len(pairs) < knn_cfg.min_outcomes_per_model or sim_sum <= 0:
-                # Prior-only: a benchmark guess with no local evidence, so the
-                # prediction is low-confidence by construction.
-                raw = self.aggregate_scores.prior_quality(mid, features.modality)
+                # No local neighbour evidence. Prefer the learned head's
+                # query-aware prediction for the models it covers; otherwise fall
+                # back to the flat (query-independent) benchmark prior. Either way
+                # this is the non-kNN path, low-confidence by construction.
+                head_q = head_preds.get(mid)
+                if head_q is not None:
+                    raw = head_q
+                    conf_score = qh_confidence
+                else:
+                    raw = self.aggregate_scores.prior_quality(mid, features.modality)
+                    conf_score = unc_cfg.prior_confidence
                 confidence[mid] = "low"
                 prior_used[mid] = True
-                conf_score = unc_cfg.prior_confidence
             else:
                 raw = sum(s * o for s, o in pairs) / sim_sum
                 confidence[mid] = "high"
@@ -857,7 +888,7 @@ class KnnRouter:
                     # route by benchmark DATA (aggregate priors over the full
                     # catalog), not a hard-coded default. Source = PRIOR.
                     qualities, confidence, _prior, conf_scores = self._predict_qualities(
-                        features, [], feature_cell
+                        features, [], feature_cell, embedding=embedding
                     )
                     decision = self._choose(
                         query, features, qualities, confidence, [], request_id,
@@ -865,7 +896,7 @@ class KnnRouter:
                     )
                 else:
                     qualities, confidence, _prior, conf_scores = self._predict_qualities(
-                        features, neighbors, feature_cell
+                        features, neighbors, feature_cell, embedding=embedding
                     )
                     decision = self._choose(
                         query, features, qualities, confidence, neighbors, request_id,
