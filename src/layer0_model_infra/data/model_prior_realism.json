@@ -1,0 +1,85 @@
+{
+  "_meta": {
+    "computed_at": "2026-06-13T07:33:02.953200+00:00",
+    "method": "factor = clamp(measured_mean / prior, [0.4, 1.0]); priors are never inflated",
+    "source": "data/processed/outcomes.parquet JOIN questions.parquet",
+    "min_n_model": 30,
+    "min_n_modality": 50,
+    "note": "Loaded by aggregate_scores.prior_quality() to debias the prior-fallback path ONLY; the kNN-grounded path (real neighbour outcomes) is untouched. Models without a model-specific factor here are left UNCHANGED (factor 1.0); global_factor is informational, not auto-applied.",
+    "regenerate": "python scripts/layer3/calibrate_priors.py --write"
+  },
+  "global_factor": 0.6844,
+  "models": {
+    "llama-3.3-70b-versatile-groq": {
+      "overall_factor": 0.716,
+      "n": 12462,
+      "by_modality": {
+        "text": 0.7652,
+        "code": 0.7157,
+        "math": 0.63
+      }
+    },
+    "llama-3.1-8b-instant-groq": {
+      "overall_factor": 0.6709,
+      "n": 12542,
+      "by_modality": {
+        "text": 0.732,
+        "code": 0.6441,
+        "math": 0.5724
+      }
+    },
+    "gpt-oss-120b-groq": {
+      "overall_factor": 0.7989,
+      "n": 139,
+      "by_modality": {
+        "text": 0.8424
+      }
+    },
+    "gpt-oss-20b-groq": {
+      "overall_factor": 0.5061,
+      "n": 136,
+      "by_modality": {
+        "text": 0.5434
+      }
+    },
+    "qwen3-32b-groq": {
+      "overall_factor": 0.4264,
+      "n": 132,
+      "by_modality": {
+        "text": 0.4429
+      }
+    },
+    "llama-4-scout-17b-groq": {
+      "overall_factor": 0.6844,
+      "n": 114,
+      "by_modality": {
+        "text": 0.6843
+      }
+    },
+    "qwen-2.5-72b-huggingface": {
+      "overall_factor": 0.763,
+      "n": 12047,
+      "by_modality": {
+        "code": 0.8095,
+        "math": 0.6912,
+        "text": 0.7984
+      }
+    },
+    "gpt-4o-mini": {
+      "overall_factor": 0.5953,
+      "n": 394,
+      "by_modality": {
+        "text": 0.5858,
+        "code": 0.6007
+      }
+    },
+    "gpt-4o": {
+      "overall_factor": 0.7556,
+      "n": 894,
+      "by_modality": {
+        "text": 0.7289,
+        "code": 0.77
+      }
+    }
+  }
+}

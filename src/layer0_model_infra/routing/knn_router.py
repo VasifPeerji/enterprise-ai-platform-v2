@@ -455,7 +455,16 @@ class KnnRouter:
         return base
 
     def _effective_floor(self, model, base_floor: float) -> float:
-        if model.coverage_quality == CoverageQuality.LOW:
+        # The low-coverage penalty exists to stop a model winning on an INFLATED,
+        # untrusted aggregate prior. Once a model has a measured realism factor
+        # (aggregate_scores), its prior is debiased onto observed outcomes and is
+        # trustworthy, so adding the penalty on top would double-count the same
+        # correction — skip it for measured models, keep it only for the still-
+        # unverified ones (e.g. keyless premium with estimate-only priors).
+        if (
+            model.coverage_quality == CoverageQuality.LOW
+            and not self.aggregate_scores.has_realism(model.model_id)
+        ):
             qf = self._config.quality_floor
             return min(base_floor + qf.low_coverage_penalty, qf.floor_ceiling)
         return base_floor
@@ -662,11 +671,20 @@ class KnnRouter:
         # cheap pick — escalate to the strongest qualifier (highest predicted
         # quality). The confidence comes free from the neighbours; measured
         # selective over a random escalation of the same budget.
+        #
+        # Gated to the GROUNDED path: on the prior path every prediction carries
+        # the same placeholder confidence (prior_confidence, ~0.20) because there
+        # are no neighbours, so the "< escalate_below_confidence" test would fire
+        # on EVERY off-distribution query and silently escalate the cheapest free
+        # pick to the strongest (often paid / unverified) model — defeating cost
+        # minimization for no benefit. Escalation only means something when the
+        # confidence is a real, per-query neighbour signal.
         selected = candidates_sorted[0]
         escalated = False
         unc = self._config.uncertainty
         if (
-            unc.enable
+            knn_grounded
+            and unc.enable
             and unc.escalate_below_confidence > 0.0
             and len(candidates_sorted) > 1
             and confidence_scores.get(selected, 1.0) < unc.escalate_below_confidence

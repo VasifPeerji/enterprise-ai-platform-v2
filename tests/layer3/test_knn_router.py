@@ -265,6 +265,25 @@ def test_uncertainty_keeps_confident_cheap_pick(all_keys_set, reset_registry, tm
     assert decision.prediction_confidence_score == pytest.approx(0.85)
 
 
+def test_no_escalation_on_prior_path(all_keys_set, reset_registry, tmp_path):
+    # On the prior path (knn_grounded=False) every prediction carries the same
+    # placeholder confidence (no neighbours), so risk-aware escalation must NOT
+    # fire — the cheapest qualifier wins and cost-minimization is preserved.
+    # Regression: prior-path queries were escalating every cheap free pick up to
+    # the strongest active model, over-routing easy off-distribution queries.
+    router = _router(tmp_path)
+    feats = _features(Modality.TEXT)
+    qualities = {"llama-3.1-8b-instant-groq": 0.70, "gpt-oss-120b-groq": 0.82}
+    confidence = {k: "low" for k in qualities}
+    conf_scores = {"llama-3.1-8b-instant-groq": 0.20, "gpt-oss-120b-groq": 0.20}
+    decision = router._choose(
+        "q", feats, qualities, confidence, [], "rid", make_feature_cell(feats),
+        knn_grounded=False, confidence_scores=conf_scores,
+    )
+    assert decision.uncertainty_escalated is False
+    assert decision.selected_model == "llama-3.1-8b-instant-groq"  # cheapest, no escalation
+
+
 def test_below_floor_models_excluded(all_keys_set, reset_registry, tmp_path):
     router = _router(tmp_path)
     feats = _features(Modality.TEXT)

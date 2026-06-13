@@ -94,6 +94,12 @@ RELEVANCE_WEIGHTS: dict[str, dict[str, float]] = {
 DEFAULT_FALLBACK_BENCH = "arena_elo_normalised"
 DEFAULT_FALLBACK_VALUE = 0.50  # used only when the model has zero benchmarks scored
 
+# Sidecar (same directory as the scores file) holding per-model measured/prior
+# "realism" factors that debias the published-benchmark priors toward the quality
+# the models actually deliver — see scripts/layer3/calibrate_priors.py. Absent →
+# priors are used exactly as published (factor 1.0 everywhere).
+REALISM_FILENAME = "model_prior_realism.json"
+
 
 # ============================================================================
 # Loader
@@ -111,6 +117,7 @@ class AggregateScores:
         self._lock = threading.RLock()
         self._scores: dict[str, dict[str, float]] = {}
         self._meta: dict = {}
+        self._realism: dict[str, dict] = {}
         self.reload()
 
     def reload(self) -> None:
@@ -123,16 +130,58 @@ class AggregateScores:
                 payload = json.load(f)
             self._meta = payload.get("_meta", {})
             self._scores = payload.get("models", {})
+            self._realism = self._load_realism()
             logger.info(
                 "layer3_aggregate_scores_loaded",
                 path=str(self._path),
                 models=len(self._scores),
+                realism_models=len(self._realism),
                 last_refresh=self._meta.get("last_refresh", "unknown"),
             )
+
+    def _load_realism(self) -> dict[str, dict]:
+        """Load the per-model prior-realism factors from the sidecar next to the
+        scores file. Absent or unreadable sidecar → empty dict (priors used as
+        published). Best-effort: a malformed sidecar must never break routing."""
+        realism_path = self._path.with_name(REALISM_FILENAME)
+        if not realism_path.exists():
+            return {}
+        try:
+            with realism_path.open("r", encoding="utf-8") as f:
+                payload = json.load(f)
+            return payload.get("models", {}) or {}
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "layer3_prior_realism_load_failed",
+                path=str(realism_path),
+                reason=str(exc),
+            )
+            return {}
+
+    def _realism_factor(self, model_id: str, modality_key: str) -> float:
+        """Multiplicative realism correction for a model's prior on this modality.
+        Prefers a per-modality factor, falls back to the model's overall factor,
+        and to 1.0 when the model has no measured factor (unmeasured → prior left
+        as published). Caller holds self._lock."""
+        entry = self._realism.get(model_id)
+        if not entry:
+            return 1.0
+        by_mod = entry.get("by_modality") or {}
+        if modality_key in by_mod:
+            return float(by_mod[modality_key])
+        return float(entry.get("overall_factor", 1.0))
 
     def has(self, model_id: str) -> bool:
         with self._lock:
             return model_id in self._scores
+
+    def has_realism(self, model_id: str) -> bool:
+        """True when a measured realism factor exists for this model — i.e. its
+        prior has been debiased onto observed outcomes and is therefore
+        trustworthy. The kNN router uses this to skip the low-coverage
+        'untrusted-prior' floor penalty for models that no longer need it."""
+        with self._lock:
+            return model_id in self._realism
 
     def scores_for(self, model_id: str) -> dict[str, float]:
         with self._lock:
@@ -164,9 +213,16 @@ class AggregateScores:
             if total_weight == 0.0:
                 # None of the modality-relevant benchmarks are scored — fall
                 # back to arena Elo as a last resort.
-                return float(scores.get(DEFAULT_FALLBACK_BENCH, DEFAULT_FALLBACK_VALUE))
+                base = float(scores.get(DEFAULT_FALLBACK_BENCH, DEFAULT_FALLBACK_VALUE))
+            else:
+                base = total_score / total_weight
 
-            return total_score / total_weight
+            # Debias the published prior toward measured reality (prior-path only;
+            # the kNN-grounded path never calls this). factor ≤ 1.0 for measured
+            # models, 1.0 for unmeasured ones — so a model is never inflated and
+            # an inflated cheap model can no longer clear a floor it shouldn't.
+            factor = self._realism_factor(model_id, modality_key)
+            return max(0.0, min(1.0, base * factor))
 
     def coverage_summary(self) -> dict:
         """Per-model summary: which benchmarks they have, how many, mean score.
