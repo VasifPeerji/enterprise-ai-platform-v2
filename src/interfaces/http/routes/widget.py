@@ -692,6 +692,29 @@ WIDGET_LOADER_JS = r"""
         + '.launcher{bottom:18px;' + side + ':18px;}.teaser{display:none;}}';
     }
 
+    function prefersDark() { try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); } catch (e) { return false; } }
+    function detectBrand() {
+      try {
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m && m.content) { var c = m.content.trim(); if (/^#?[0-9a-fA-F]{3,8}$/.test(c)) return c.charAt(0) === '#' ? c : '#' + c; }
+      } catch (e) {}
+      return '';
+    }
+    // Make the widget blend into the host: adapt to the visitor's dark-mode
+    // preference (derive a dark palette while keeping the brand color), and
+    // optionally match the site's theme-color as the primary.
+    function resolveTheme(theme) {
+      var t = {}; for (var k in theme) t[k] = theme[k];
+      if (!t.dark_mode && t.auto_dark !== false && prefersDark()) {
+        t.dark_mode = true; t.surface_color = '#0f172a'; t.text_color = '#e5e7eb';
+      }
+      if (t.auto_brand) {
+        var b = detectBrand();
+        if (b) { t.primary_color = b; if (!t.accent_color) t.accent_color = b; if (!t.user_bubble_color) t.user_bubble_color = b; }
+      }
+      return t;
+    }
+
     function boot(cfg) {
       var t = cfg.theme || {};
       var host = document.createElement('div');
@@ -702,7 +725,10 @@ WIDGET_LOADER_JS = r"""
       if (t.font_url) {
         var fl = document.createElement('link'); fl.rel = 'stylesheet'; fl.href = t.font_url; root.appendChild(fl);
       }
-      var st = document.createElement('style'); st.textContent = css(t); root.appendChild(st);
+      var st = document.createElement('style'); root.appendChild(st);
+      function applyStyle() { st.textContent = css(resolveTheme(t)); }
+      applyStyle();
+      try { var mq = window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener ? mq.addEventListener('change', applyStyle) : mq.addListener(applyStyle); } catch (e) {}
 
       var dn = cfg.display_name || 'Assistant';
       var avatarInner = t.logo_url

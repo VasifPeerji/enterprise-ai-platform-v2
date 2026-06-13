@@ -102,7 +102,13 @@ class BotTheme(BaseModel):
     launcher_icon_url: Optional[str] = Field(default=None, description="Icon for the floating launcher bubble")
     launcher_position: str = Field(default="bottom-right", description="bottom-right or bottom-left")
     corner_radius_px: int = Field(default=16, ge=0, le=40, description="Panel/border corner radius")
-    dark_mode: bool = Field(default=False, description="Hint the widget to use a dark surface")
+    dark_mode: bool = Field(default=False, description="Force a dark surface regardless of visitor preference")
+    auto_dark: bool = Field(
+        default=True, description="Adapt to the visitor's prefers-color-scheme (dark) automatically"
+    )
+    auto_brand: bool = Field(
+        default=False, description="Use the host page's theme-color as the primary, so it matches the site"
+    )
 
 
 class SuggestedPrompt(BaseModel):
