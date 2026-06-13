@@ -604,7 +604,7 @@ WIDGET_LOADER_JS = r"""
         + '--bot-surface:' + (t.surface_color || '#ffffff') + ';'
         + '--bot-text:' + (t.text_color || '#1f2937') + ';'
         + '--bot-user:' + (t.user_bubble_color || t.primary_color || '#4f46e5') + ';'
-        + '--bot-bubble:' + bubble + ';'
+        + '--bot-bubble:' + (t.bot_bubble_color || bubble) + ';'
         + '--bot-line:rgba(' + fg + ',0.10);'
         + '--bot-muted:rgba(' + fg + ',0.55);'
         + '--bot-radius:' + (t.corner_radius_px != null ? t.corner_radius_px : 20) + 'px;'

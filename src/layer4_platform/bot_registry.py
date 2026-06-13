@@ -93,6 +93,10 @@ class BotTheme(BaseModel):
     user_bubble_color: Optional[str] = Field(
         default=None, description="Visitor bubble background; falls back to primary so partial themes stay coherent"
     )
+    bot_bubble_color: Optional[str] = Field(
+        default=None,
+        description="Assistant bubble background; falls back to an adaptive neutral tint (light/dark) when unset",
+    )
     font_family: str = Field(
         default="system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
         description="CSS font-family stack",
