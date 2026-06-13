@@ -37,11 +37,13 @@ from src.layer3_domain.document_collections import (
     CollectionNotFoundError,
     get_document_collection_service,
 )
+from src.layer4_platform.autopilot import screenshot_path
 from src.layer4_platform.bot_registry import (
     BotConfig,
     BotNotFoundError,
     PublicBotConfig,
     get_bot_config_service,
+    normalize_origin,
 )
 from src.layer4_platform.widget_rate_limit import WidgetRateLimiter
 from src.shared.config import get_settings
@@ -143,6 +145,17 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _is_self_origin(origin: str, request: Request) -> bool:
+    """True when the request comes from the app's own host (the admin console and
+    the ``/widget/preview`` page). That surface is internal/trusted, so a preview
+    can chat with any bot without the demo host being listed in every bot's
+    ``allowed_origins``. External embeds still go through the per-bot origin gate."""
+    if not origin:
+        return False
+    app_origin = normalize_origin(str(request.base_url))
+    return bool(app_origin) and normalize_origin(origin) == app_origin
+
+
 def _resolve_and_guard(bot_id: str, request: Request) -> BotConfig:
     """Shared gate for both chat surfaces: kill switch, bot existence, per-bot
     origin enforcement, and rate limiting. Raises the appropriate HTTPException;
@@ -156,7 +169,7 @@ def _resolve_and_guard(bot_id: str, request: Request) -> BotConfig:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bot not found")
 
     origin = request.headers.get("origin") or request.headers.get("referer") or ""
-    if not bot_service.is_origin_allowed(bot_id, origin):
+    if not (_is_self_origin(origin, request) or bot_service.is_origin_allowed(bot_id, origin)):
         logger.warning("widget_origin_rejected", bot_id=bot_id, origin=origin[:120])
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origin not allowed")
 
@@ -1089,6 +1102,31 @@ WIDGET_LOADER_JS = r"""
 """
 
 
+# Shown for AutoPilot bots: the captured full-page screenshot of the company's
+# site as the page itself (a fixed-position widget floats over it), so a prospect
+# sees exactly how the assistant looks on their own website.
+_PREVIEW_SITE_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widget Preview</title>
+<style>
+  html, body { margin:0; padding:0; background:#fff; }
+  img.site-shot { display:block; width:100%; height:auto; }
+  .pv-note { position:fixed; top:12px; left:12px; z-index:5;
+    background:rgba(17,24,39,.82); color:#fff; font:600 12px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;
+    padding:7px 11px; border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+</style>
+</head>
+<body>
+  <div class="pv-note">Live preview — your assistant on this site</div>
+  <img class="site-shot" src="__SHOT_URL__" alt="">
+  __SCRIPT__
+</body>
+</html>
+"""
+
 _PREVIEW_HTML = """<!doctype html>
 <html lang="en">
 <head>
@@ -1138,6 +1176,21 @@ async def widget_preview(request: Request, bot_id: str = "") -> HTMLResponse:
             f'<script src="{api_base_attr}/widget/loader.js" '
             f'data-bot-id="{bot_id}" data-api-base="{api_base_attr}" async></script>'
         )
+        # If this bot carries an AutoPilot screenshot, preview it floating over a
+        # render of the real site instead of the hostile-CSS isolation harness.
+        shot_id = ""
+        try:
+            bot = bot_service.get_bot(bot_id)
+            if bot.preview_screenshot_id and screenshot_path(bot.preview_screenshot_id) is not None:
+                shot_id = bot.preview_screenshot_id
+        except BotNotFoundError:
+            shot_id = ""
+        if shot_id:
+            shot_url = f"{api_base_attr}/admin/autopilot/screenshot/{html.escape(shot_id, quote=True)}"
+            page = (
+                _PREVIEW_SITE_HTML.replace("__SHOT_URL__", shot_url).replace("__SCRIPT__", snippet)
+            )
+            return HTMLResponse(content=page)
         status_line = (
             f"Embedding bot <code>{html.escape(bot_id)}</code>. "
             f"Its allowed_origins must include <code>{html.escape(api_base)}</code>."

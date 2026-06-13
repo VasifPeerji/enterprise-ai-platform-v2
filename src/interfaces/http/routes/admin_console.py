@@ -306,6 +306,7 @@ Support | How do I contact support?</textarea>
 <script>
 const API = window.location.origin;
 let editingBotId = null;
+let lastShotId = null;   // AutoPilot screenshot id to save on the bot for its /widget/preview backdrop
 
 function $(id){ return document.getElementById(id); }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
@@ -391,7 +392,7 @@ function payloadFromForm(){
     tenant_id:$('tenant_id').value.trim(), collection_id:$('collection_id').value.trim(),
     display_name:$('display_name').value.trim(), greeting:$('greeting').value.trim(),
     subtitle:$('subtitle').value.trim(), teaser:$('teaser').value, show_teaser:$('show_teaser').checked,
-    branding:$('branding').value,
+    branding:$('branding').value, preview_screenshot_id:lastShotId,
     suggested_prompts:parsePrompts(), allowed_origins:parseOrigins(), theme:themeFromForm()
   };
 }
@@ -416,13 +417,13 @@ function setEditing(id){
   $('saveBtn').textContent = id ? 'Save changes' : 'Create bot';
   $('editingNote').textContent = id ? ('editing '+id) : '';
 }
-function resetForm(){ setEditing(null); $('formMsg').innerHTML=''; $('crawlMsg').innerHTML=''; }
+function resetForm(){ setEditing(null); lastShotId=null; setStageBackground(null); $('formMsg').innerHTML=''; $('crawlMsg').innerHTML=''; }
 
 function editBot(c){
   $('tenant_id').value=c.tenant_id; $('collection_id').value=c.collection_id;
   $('display_name').value=c.display_name; $('greeting').value=c.greeting;
   $('subtitle').value=c.subtitle||''; $('teaser').value=c.teaser||''; $('show_teaser').checked=c.show_teaser!==false;
-  $('branding').value=c.branding!=null?c.branding:'';
+  $('branding').value=c.branding!=null?c.branding:''; lastShotId=c.preview_screenshot_id||null;
   $('prompts').value=(c.suggested_prompts||[]).map(p=>`${p.label} | ${p.prompt}`).join('\n');
   $('origins').value=(c.allowed_origins||[]).join('\n');
   const t=c.theme||{};
@@ -529,6 +530,7 @@ async function runAutopilot(){
     const j=await r.json();
     if(!r.ok){ $('apMsg').innerHTML=`<div class="warn">${(j.detail)||'AutoPilot failed'}</div>`; return; }
     fillFromDraft(j);
+    lastShotId = j.screenshot_id || null;   // saved on Create -> used as the bot's /widget/preview backdrop
     if(j.screenshot_url) setStageBackground(`${API}${j.screenshot_url}`);
     let html=`<div class="ok">Bot drafted from <b>${j.origin||url}</b>`;
     if(j.authored_by_model) html+=` · copy by <b>${j.authored_by_model}</b>`;

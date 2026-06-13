@@ -137,6 +137,10 @@ class BotConfig(BaseModel):
     )
     show_teaser: bool = Field(default=True, description="Show the proactive teaser bubble")
     branding: str = Field(default="Powered by Smart Routing", description="Footer text; empty string hides it")
+    preview_screenshot_id: Optional[str] = Field(
+        default=None,
+        description="AutoPilot screenshot id used as the /widget/preview backdrop (admin-only; never projected to the browser)",
+    )
     suggested_prompts: list[SuggestedPrompt] = Field(default_factory=list)
     theme: BotTheme = Field(default_factory=BotTheme)
     allowed_origins: list[str] = Field(
@@ -280,6 +284,7 @@ class BotConfigService:
         teaser: Optional[str] = None,
         show_teaser: Optional[bool] = None,
         branding: Optional[str] = None,
+        preview_screenshot_id: Optional[str] = None,
         suggested_prompts: Optional[list[SuggestedPrompt]] = None,
         theme: Optional[BotTheme] = None,
         allowed_origins: Optional[list[str]] = None,
@@ -292,7 +297,13 @@ class BotConfigService:
         # Only override BotConfig's defaults for content fields that were given.
         extra = {
             k: v
-            for k, v in {"subtitle": subtitle, "teaser": teaser, "show_teaser": show_teaser, "branding": branding}.items()
+            for k, v in {
+                "subtitle": subtitle,
+                "teaser": teaser,
+                "show_teaser": show_teaser,
+                "branding": branding,
+                "preview_screenshot_id": preview_screenshot_id,
+            }.items()
             if v is not None
         }
         config = BotConfig(
