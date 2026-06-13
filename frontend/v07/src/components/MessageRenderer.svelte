@@ -572,6 +572,33 @@
       .filter(([, c]) => (c || 0) > 0)
       .map(([k, c]) => ({ count: c, ...VERDICT_META[k] }));
   }
+
+  // ── LLM Jury block ────────────────────────────────────────
+  // A message has at most one jury block, so a single expand flag + a
+  // per-juror open map are enough state for this renderer instance.
+  let juryExpanded = $state(false);
+  let openJurors = $state({});
+  function toggleJuror(i) {
+    openJurors = { ...openJurors, [i]: !openJurors[i] };
+  }
+  function juryTierColor(tier) {
+    if (tier === 'premium') return 'var(--tier-premium)';
+    if (tier === 'moderate') return 'var(--tier-moderate)';
+    if (tier === 'cheap') return 'var(--tier-cheap)';
+    return 'var(--text-muted)';
+  }
+  function juryCost(v) {
+    if (v === null || v === undefined) return null;
+    if (v === 0) return 'Free';
+    if (v < 0.0001) return '<$0.0001';
+    if (v < 0.01) return `$${v.toFixed(4)}`;
+    return `$${v.toFixed(2)}`;
+  }
+  function juryLatency(ms) {
+    if (ms === null || ms === undefined) return null;
+    if (ms < 1000) return `${Math.round(ms)} ms`;
+    return `${(ms / 1000).toFixed(1)} s`;
+  }
 </script>
 
 <div class="message-content" class:user-content={role === 'user'} onclick={handleContentClick} role="presentation">
@@ -959,6 +986,54 @@
                 </div>
                 {#if claim.reasoning}
                   <div class="ver-claim-reason">{claim.reasoning}</div>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+    {:else if block.type === 'jury'}
+      {@const jurors = block.jurors || []}
+      <div class="jury-block">
+        <button class="jury-bar" onclick={() => (juryExpanded = !juryExpanded)} aria-expanded={juryExpanded}>
+          <span class="jury-bar-emblem">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v18M3 7h18M7 7l-3 7a3 3 0 0 0 6 0l-3-7zM17 7l-3 7a3 3 0 0 0 6 0l-3-7z"/>
+            </svg>
+          </span>
+          <span class="jury-bar-text">
+            <span class="jury-bar-title">Synthesized by LLM Jury</span>
+            <span class="jury-bar-sub">
+              Combined {block.okCount ?? jurors.length} of {block.memberCount ?? jurors.length} models{#if block.synthesizer?.name} · via {block.synthesizer.name}{/if}{#if block.synthesizer?.fallback} · synthesis unavailable, showing top answer{/if}
+            </span>
+          </span>
+          <svg class="jury-bar-caret" class:open={juryExpanded} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+
+        {#if juryExpanded}
+          <div class="jury-jurors">
+            {#each jurors as juror, ji}
+              <div class="jury-juror" class:has-error={!!juror.error}>
+                <button class="jury-juror-head" onclick={() => toggleJuror(ji)} aria-expanded={!!openJurors[ji]} disabled={!juror.text}>
+                  <span class="jury-juror-dot" style="background: {juryTierColor(juror.tier)}"></span>
+                  <span class="jury-juror-name">{juror.name}</span>
+                  <span class="jury-juror-meta">
+                    {#if juror.error}
+                      <span class="jury-juror-err">{juror.error}</span>
+                    {:else}
+                      {#if juryLatency(juror.latencyMs)}<span>{juryLatency(juror.latencyMs)}</span>{/if}
+                      {#if juryCost(juror.cost)}<span class="jury-juror-cost">{juryCost(juror.cost)}</span>{/if}
+                    {/if}
+                  </span>
+                  {#if juror.text}
+                    <svg class="jury-juror-caret" class:open={openJurors[ji]} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                  {/if}
+                </button>
+                {#if openJurors[ji] && juror.text}
+                  <div class="jury-juror-body">
+                    {@html renderMarkdown(juror.text, false)}
+                  </div>
                 {/if}
               </div>
             {/each}
@@ -1523,5 +1598,103 @@
     font-style: italic;
     margin-top: 4px;
     line-height: var(--leading-normal);
+  }
+
+  /* ── LLM Jury block ─────────────────────────── */
+  .jury-block {
+    margin-top: var(--space-3);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: rgba(139, 92, 246, 0.05);
+  }
+  .jury-bar {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    text-align: left;
+    transition: background var(--duration-fast);
+  }
+  .jury-bar:hover { background: rgba(139, 92, 246, 0.08); }
+  .jury-bar-emblem {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .jury-bar-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .jury-bar-title {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    color: var(--text-primary);
+  }
+  .jury-bar-sub { font-size: var(--text-xs); color: var(--text-tertiary); line-height: 1.4; }
+  .jury-bar-caret { color: var(--text-muted); flex-shrink: 0; transition: transform var(--duration-fast); }
+  .jury-bar-caret.open { transform: rotate(180deg); }
+
+  .jury-jurors {
+    border-top: 1px solid rgba(139, 92, 246, 0.18);
+    padding: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .jury-juror {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    overflow: hidden;
+  }
+  .jury-juror.has-error { opacity: 0.7; }
+  .jury-juror-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    text-align: left;
+    transition: background var(--duration-fast);
+  }
+  .jury-juror-head:hover:not(:disabled) { background: var(--bg-hover); }
+  .jury-juror-head:disabled { cursor: default; }
+  .jury-juror-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .jury-juror-name {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .jury-juror-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .jury-juror-cost { color: var(--text-tertiary); }
+  .jury-juror-err { color: var(--error); font-family: var(--font-sans); }
+  .jury-juror-caret { color: var(--text-muted); flex-shrink: 0; transition: transform var(--duration-fast); }
+  .jury-juror-caret.open { transform: rotate(180deg); }
+  .jury-juror-body {
+    padding: var(--space-2) var(--space-3) var(--space-3);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: var(--leading-relaxed);
+    max-height: 360px;
+    overflow-y: auto;
   }
 </style>

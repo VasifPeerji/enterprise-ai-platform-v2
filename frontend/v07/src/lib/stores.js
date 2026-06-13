@@ -187,6 +187,13 @@ export const pageViewerProof = writable(null); // set to a proof object to open 
 // Set to { src, alt, caption } to open the fullscreen image viewer.
 export const lightboxImage = writable(null);
 
+// ── LLM Jury ──────────────────────────────────────────────
+// Config overlay for assembling a panel of models that each answer a query,
+// after which a synthesizer model combines them into one strong answer.
+// Convening a jury sets `selectedModel` to mode 'jury' (carrying `members`
+// and `synthesizer`), so every send runs as a jury until the user switches.
+export const juryConfigOpen = writable(false);
+
 // ── Side-by-side model comparison ────────────────────────
 // Ephemeral A/B overlay: runs the SAME prompt on two models at once so the
 // router's pick can be weighed against a specific model on answer, latency,

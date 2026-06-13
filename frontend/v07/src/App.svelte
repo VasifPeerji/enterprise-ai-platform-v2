@@ -4,6 +4,7 @@
   import ChatArea from './components/ChatArea.svelte';
   import InputBar from './components/InputBar.svelte';
   import ModelSelector from './components/ModelSelector.svelte';
+  import JuryConfig from './components/JuryConfig.svelte';
   import PageViewer from './components/PageViewer.svelte';
   import {
     sidebarOpen,
@@ -45,6 +46,7 @@
     commandPaletteOpen,
     shortcutsOpen,
     openCompare,
+    juryConfigOpen,
   } from './lib/stores.js';
   import {
     sendMessage,
@@ -270,6 +272,14 @@
       let modelState;
       const unsubModel = selectedModel.subscribe((v) => (modelState = v));
       unsubModel();
+
+      // LLM Jury — fan the prompt out to a panel of models, then synthesize a
+      // single combined answer. Runs its own pipeline + message; returning here
+      // still triggers the outer finally that clears the loading/stream state.
+      if (modelState.mode === 'jury') {
+        await runJury(convId, message, modelState, controller, () => stopRequested);
+        return;
+      }
 
       // 1) Web search enrichment — fetch top web results and inline them
       //    into the prompt as numbered context. Failures here are non-fatal:
@@ -729,6 +739,162 @@
     openCompare(prompt, conv.messages[asstIdx].model || null);
   }
 
+  // ── LLM Jury orchestration ─────────────────────────────────
+  // Fan the prompt out to every juror model in parallel, then have the
+  // synthesizer combine their answers into one. The assistant message carries
+  // the synthesized answer plus a `jury` block holding each juror's answer.
+  async function runJury(convId, prompt, modelState, ctrl, isStopped) {
+    const members = Array.isArray(modelState.members) ? modelState.members : [];
+    const synth = modelState.synthesizer || { model_id: 'smart_routing', display_name: 'Smart Routing' };
+
+    // Jury-flavored loading pipeline with live juror progress.
+    loadingMode.set('jury');
+    loadingMeta.set({ total: members.length, done: 0, synthName: synth.display_name });
+    loadingStage.set('polling');
+
+    // 1) Fan out — each juror answers the same prompt independently.
+    const settled = await Promise.allSettled(
+      members.map(async (m) => {
+        const res = await sendMessage(prompt, {
+          modelId: m.model_id,
+          sessionId: $sessionId,
+          signal: ctrl.signal,
+        });
+        loadingMeta.update((meta) => ({ ...meta, done: (meta.done || 0) + 1 }));
+        return res;
+      }),
+    );
+    if (isStopped()) return; // user hit stop mid-fan-out — finally cleans up
+
+    const jurors = settled.map((s, i) => {
+      const m = members[i];
+      if (s.status === 'fulfilled') {
+        const res = s.value;
+        applyJuryCost(res);
+        return {
+          name: m.display_name,
+          tier: m.tier,
+          provider: m.provider,
+          text: extractJurorText(res.content),
+          latencyMs: res.routing?.latencyMs ?? null,
+          cost: res.cost?.chargedUsd ?? null,
+          error: null,
+        };
+      }
+      return {
+        name: m.display_name,
+        tier: m.tier,
+        provider: m.provider,
+        text: null,
+        latencyMs: null,
+        cost: null,
+        error: s.reason?.name === 'AbortError' ? 'Cancelled' : humanizeError(s.reason?.message),
+      };
+    });
+
+    const okJurors = jurors.filter((j) => j.text && j.text.trim());
+
+    // Every juror failed — surface one error, skip synthesis.
+    if (!okJurors.length) {
+      isTyping.set(false);
+      addMessage(convId, {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'The jury couldn’t be reached — no model answered. Is the backend running on :8000?' }],
+        model: { name: 'LLM Jury', tier: 'error' },
+      });
+      return;
+    }
+
+    // 2) Synthesize one combined answer from the jurors' answers.
+    loadingStage.set('deliberating');
+    let synthRes = null;
+    try {
+      synthRes = await sendMessage(buildJurySynthesisPrompt(prompt, okJurors), {
+        modelId: synth.model_id || 'smart_routing',
+        sessionId: $sessionId,
+        signal: ctrl.signal,
+      });
+      applyJuryCost(synthRes);
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      synthRes = null; // synthesis failed — fall back to the top juror's answer
+    }
+    if (isStopped()) return;
+
+    // 3) Assemble the assistant message: synthesized answer + jury panel.
+    isTyping.set(false);
+    const synthContent =
+      synthRes?.content?.length ? synthRes.content : [{ type: 'text', text: okJurors[0].text }];
+    const juryBlock = {
+      type: 'jury',
+      jurors,
+      synthesizer: {
+        name: synth.display_name || (synth.model_id === 'smart_routing' ? 'Smart Routing' : synth.model_id),
+        smart: (synth.model_id || 'smart_routing') === 'smart_routing',
+        fallback: !synthRes,
+      },
+      memberCount: members.length,
+      okCount: okJurors.length,
+    };
+    const finalContent = [...synthContent, juryBlock];
+
+    const asstId = addMessageAndGetId(convId, {
+      role: 'assistant',
+      content: [],
+      model: { name: 'LLM Jury', tier: 'jury' },
+      routing: { mode: 'jury' },
+      cost: synthRes?.cost || null,
+    });
+    streamingMessageId.set(asstId);
+    isStreaming.set(true);
+    if ($suggestionsEnabled) prewarmSuggestions(asstId, prompt, synthContent);
+    await typewriterStream(convId, asstId, finalContent, isStopped);
+  }
+
+  // Mirror the single-model path's wallet update for a juror/synthesis call so
+  // the balance + activity feed stay accurate (synthesis runs last, so its
+  // balance_after reflects the full jury spend even if jurors raced).
+  function applyJuryCost(res) {
+    if (res?.cost?.balanceUsd !== null && res?.cost?.balanceUsd !== undefined) {
+      walletBalance.set(res.cost.balanceUsd);
+    }
+    if (res?.cost?.chargedUsd) {
+      recordTransaction({ amount: res.cost.chargedUsd, modelName: res.model?.name || 'AI', mode: 'jury' });
+    }
+  }
+
+  // Flatten a juror's content blocks to markdown text (for the panel + the
+  // synthesis prompt). Tables collapse to pipe-delimited rows.
+  function extractJurorText(content) {
+    if (!Array.isArray(content)) return '';
+    const parts = [];
+    for (const b of content) {
+      if (!b) continue;
+      if (b.type === 'text') parts.push(b.text || '');
+      else if (b.type === 'table') {
+        const rows = [b.headers || [], ...(b.rows || [])];
+        parts.push(rows.map((r) => r.join(' | ')).join('\n'));
+      }
+    }
+    return parts.join('\n\n').trim();
+  }
+
+  // The aggregator ("presiding judge") prompt — combine the jurors' answers
+  // into the single best response without exposing the panel mechanics.
+  function buildJurySynthesisPrompt(query, jurors) {
+    const panel = jurors
+      .map((j, i) => `--- Answer ${String.fromCharCode(65 + i)} (from ${j.name}) ---\n${j.text}`)
+      .join('\n\n');
+    return (
+      `You are the presiding judge of an expert panel. A user asked the question below, and ${jurors.length} AI models each answered it independently. ` +
+      `Deliver the single best possible answer by combining their strengths: merge the correct and complementary points, resolve any disagreements using the most accurate reasoning, drop anything wrong or redundant, and present a clear, well-structured final answer. ` +
+      `Do not mention that multiple models were consulted, do not refer to them as "Answer A/B" or "the models", and do not describe your process — just give the user the best answer directly.\n\n` +
+      `USER QUESTION:\n${query}\n\n` +
+      `CANDIDATE ANSWERS:\n${panel}\n\n` +
+      `Now write the best combined answer:`
+    );
+  }
+
   // ── Edit a user message and regenerate downstream ──────────
   async function handleEditCommit(userMessageId, newText) {
     const trimmed = (newText || '').trim();
@@ -977,8 +1143,8 @@
 
         <!-- Model selector chip -->
         <button class="model-chip" onclick={() => modelSelectorOpen.update((v) => !v)}>
-          <span class="model-dot" class:smart={$selectedModel.mode === 'smart'}></span>
-          <span class="model-chip-label">{$selectedModel.name}</span>
+          <span class="model-dot" class:smart={$selectedModel.mode === 'smart'} class:jury={$selectedModel.mode === 'jury'}></span>
+          <span class="model-chip-label">{$selectedModel.name}{#if $selectedModel.mode === 'jury' && $selectedModel.members?.length} · {$selectedModel.members.length}{/if}</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M6 9l6 6 6-6" />
           </svg>
@@ -1005,6 +1171,10 @@
 
   {#if $modelSelectorOpen}
     <ModelSelector />
+  {/if}
+
+  {#if $juryConfigOpen}
+    <JuryConfig />
   {/if}
 
   {#if $commandPaletteOpen}
@@ -1315,6 +1485,10 @@
   .model-dot.smart {
     background: var(--accent-primary);
     box-shadow: 0 0 8px var(--accent-glow);
+  }
+  .model-dot.jury {
+    background: #8b5cf6;
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
   }
 
   .model-chip-label {

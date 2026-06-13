@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { selectedModel, modelSelectorOpen } from '../lib/stores.js';
+  import { selectedModel, modelSelectorOpen, juryConfigOpen } from '../lib/stores.js';
   import { getModels } from '../lib/api.js';
 
   let models = $state([]);
@@ -258,6 +258,12 @@
     modelSelectorOpen.set(false);
   }
 
+  function openJury() {
+    // Configuration lives in its own overlay; close this one as it opens.
+    modelSelectorOpen.set(false);
+    juryConfigOpen.set(true);
+  }
+
   function formatCost(cost) {
     if (cost < 0.001) return `$${(cost * 1000).toFixed(2)}/M`;
     return `$${cost.toFixed(4)}/1K`;
@@ -304,6 +310,33 @@
         </div>
         {#if $selectedModel.mode === 'smart'}
           <div class="active-check">✓</div>
+        {/if}
+      </button>
+
+      <!-- LLM Jury option -->
+      <button
+        class="model-item jury-option"
+        class:active={$selectedModel.mode === 'jury'}
+        onclick={openJury}
+      >
+        <div class="model-icon jury-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v18M3 7h18M7 7l-3 7a3 3 0 0 0 6 0l-3-7zM17 7l-3 7a3 3 0 0 0 6 0l-3-7z"/>
+          </svg>
+        </div>
+        <div class="model-info">
+          <div class="model-name">
+            LLM Jury
+            {#if $selectedModel.mode === 'jury' && $selectedModel.members?.length}
+              <span class="jury-badge">{$selectedModel.members.length}</span>
+            {/if}
+          </div>
+          <div class="model-desc">Many models answer · strengths combined into one</div>
+        </div>
+        {#if $selectedModel.mode === 'jury'}
+          <div class="active-check">✓</div>
+        {:else}
+          <svg class="jury-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         {/if}
       </button>
 
@@ -565,6 +598,29 @@
     background: rgba(16, 163, 127, 0.04);
     margin-bottom: var(--space-1);
   }
+
+  /* ── LLM Jury option ────────────── */
+  .jury-option { margin-bottom: var(--space-1); }
+  .jury-icon {
+    background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
+    color: #fff !important;
+  }
+  .jury-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 16px;
+    padding: 0 5px;
+    margin-left: 4px;
+    border-radius: 8px;
+    background: rgba(16, 163, 127, 0.15);
+    color: var(--accent-primary);
+    font-size: 10px;
+    font-weight: var(--weight-bold);
+    vertical-align: middle;
+  }
+  .jury-chevron { color: var(--text-muted); flex-shrink: 0; }
 
   @media (max-width: 480px) {
     .model-panel {

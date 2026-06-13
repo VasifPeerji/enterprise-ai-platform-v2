@@ -20,6 +20,10 @@
       { id: 'retrieving', label: 'Searching your documents' },
       { id: 'composing', label: 'Generating grounded answer' },
     ],
+    jury: [
+      { id: 'polling', label: 'Consulting the jury' },
+      { id: 'deliberating', label: 'Synthesizing the verdict' },
+    ],
   };
 
   let pipeline = $derived(PIPELINES[$loadingMode] || PIPELINES.normal);
@@ -61,6 +65,14 @@
         </div>
         <div class="scan-line"></div>
       </div>
+    {:else if $loadingMode === 'jury'}
+      <div class="icon-slot jury-slot">
+        <span class="pulse-ring ring1"></span>
+        <span class="pulse-ring ring2"></span>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="z-index:1">
+          <path d="M12 3v18M3 7h18M7 7l-3 7a3 3 0 0 0 6 0l-3-7zM17 7l-3 7a3 3 0 0 0 6 0l-3-7z"/>
+        </svg>
+      </div>
     {:else}
       <div class="icon-slot orb-slot">
         <span class="orbit-ring"></span>
@@ -79,6 +91,8 @@
           for <em>"{$loadingMeta.query.length > 60 ? $loadingMeta.query.slice(0, 60) + '…' : $loadingMeta.query}"</em>
         {:else if $loadingMode === 'file_rag' && $loadingMeta?.files?.length}
           {$loadingMeta.files.length} file{$loadingMeta.files.length === 1 ? '' : 's'}{#if $loadingMeta.totalBytes} · {humanSize($loadingMeta.totalBytes)}{/if}
+        {:else if $loadingMode === 'jury'}
+          {$loadingMeta?.done || 0} / {$loadingMeta?.total || 0} models answered{#if $loadingMeta?.synthName} · {$loadingMeta.synthName} synthesizing{/if}
         {:else if $loadingMode === 'normal'}
           analysing your message
         {/if}
@@ -291,6 +305,9 @@
   }
 
   /* ── Web mode: globe with radar pulses ────────────────── */
+  .jury-slot { color: #a78bfa; }
+  .jury-slot .pulse-ring { border-color: #8b5cf6; }
+
   .globe-slot { }
   .globe-svg {
     width: 26px;
