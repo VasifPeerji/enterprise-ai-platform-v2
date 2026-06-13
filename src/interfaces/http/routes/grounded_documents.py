@@ -22,6 +22,8 @@ from src.layer3_domain.document_collections import (
 )
 from src.layer3_domain.document_models import GroundedAnswerContext, IngestedDocument, RetrievalQuery
 from src.layer3_domain.document_parsing import RawDocumentAsset
+from src.layer3_domain.web_crawler import WebCrawler
+from src.shared.config import get_settings
 from src.shared.errors import DocumentParsingError, NoRelevantContextError
 from src.shared.logger import get_logger
 
@@ -87,12 +89,37 @@ class GroundedCollectionListResponse(BaseModel):
     collections: list[DocumentCollectionSummary] = Field(default_factory=list)
 
 
+class CrawlRequest(BaseModel):
+    """Ingest a company website into a grounded collection by crawling it."""
+
+    start_url: str = Field(..., min_length=4, description="Page to start crawling from")
+    tenant_id: str = Field(default="default")
+    domain: str = Field(default="general")
+    max_pages: int = Field(default=25, ge=1, le=500, description="Pages to fetch (clamped to server cap)")
+    max_depth: int = Field(default=2, ge=0, le=10, description="Link-follow depth (clamped to server cap)")
+    generation_mode: str = Field(default="gateway", pattern="^(heuristic|gateway)$")
+    top_k: int = Field(default=6, ge=1, le=20)
+
+
+class CrawlSummary(BaseModel):
+    """Result of a crawl ingestion: the collection plus crawl statistics."""
+
+    collection: DocumentCollectionSummary
+    start_url: str
+    pages_crawled: int
+    pages_skipped: int
+    thin_pages: int
+    robots_blocked: int
+    warnings: list[str] = Field(default_factory=list)
+
+
 GroundedDocumentsRequest.model_rebuild()
 GroundedDocumentsResponse.model_rebuild()
 GroundedDocumentsAnalyzeResponse.model_rebuild()
 GroundedCollectionQueryRequest.model_rebuild()
 GroundedCollectionAnswerResponse.model_rebuild()
 GroundedCollectionListResponse.model_rebuild()
+CrawlSummary.model_rebuild()
 
 
 def _document_parsing_detail(exc: DocumentParsingError) -> str:
@@ -271,6 +298,73 @@ async def upload_grounded_documents(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Grounded collection upload failed: {str(exc)}",
         ) from exc
+
+
+@router.post(
+    "/collections/{collection_id}/crawl",
+    response_model=CrawlSummary,
+    summary="Crawl a website into a grounded collection",
+    description=(
+        "Fetch a company's website (same-domain, depth- and page-capped, robots-aware), "
+        "extract page text, and index it into a grounded collection. Each page keeps its "
+        "URL as the citation source. Static/server-rendered sites only — JavaScript-rendered "
+        "SPAs return little text and are reported in `warnings`."
+    ),
+)
+async def crawl_into_collection(collection_id: str, request: CrawlRequest) -> CrawlSummary:
+    settings = get_settings()
+    max_pages = min(request.max_pages, settings.WIDGET_CRAWLER_MAX_PAGES)
+    max_depth = min(request.max_depth, settings.WIDGET_CRAWLER_MAX_DEPTH)
+
+    crawler = WebCrawler(max_pages=max_pages, max_depth=max_depth)
+    try:
+        result = await crawler.crawl(
+            request.start_url,
+            collection_id=collection_id,
+            tenant_id=request.tenant_id,
+            domain=request.domain,
+        )
+    except Exception as exc:
+        logger.error("grounded_collection_crawl_failed", error=str(exc), error_type=type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Crawl failed: {exc}",
+        ) from exc
+
+    if not result.assets:
+        reason = " ".join(result.warnings) or (
+            "No readable text was found. The site may be JavaScript-rendered, empty, or "
+            "disallowed by robots.txt."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Crawl produced no ingestable pages. {reason}",
+        )
+
+    try:
+        summary = await collection_service.ingest_assets(
+            collection_id=collection_id,
+            tenant_id=request.tenant_id,
+            domain=request.domain,
+            assets=result.assets,
+            generation_mode=request.generation_mode,
+            top_k=request.top_k,
+        )
+    except DocumentParsingError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_document_parsing_detail(exc),
+        ) from exc
+
+    return CrawlSummary(
+        collection=summary,
+        start_url=request.start_url,
+        pages_crawled=result.pages_crawled,
+        pages_skipped=result.pages_skipped,
+        thin_pages=result.thin_pages,
+        robots_blocked=result.robots_blocked,
+        warnings=result.warnings,
+    )
 
 
 @router.get(
