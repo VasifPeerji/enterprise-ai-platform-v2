@@ -10,6 +10,7 @@ import SmartRoutingLayer1 from '../routes/smart-routing/Layer1.svelte'
 import SmartRoutingLayer15 from '../routes/smart-routing/Layer15.svelte'
 import SmartRoutingLayer2 from '../routes/smart-routing/Layer2.svelte'
 import SmartRoutingLayer3 from '../routes/smart-routing/Layer3.svelte'
+import SmartRoutingLayer6 from '../routes/smart-routing/Layer6.svelte'
 
 export const pages = {
   'smart-routing/overview': SmartRoutingOverview,
@@ -18,6 +19,7 @@ export const pages = {
   'smart-routing/layer-1-5': SmartRoutingLayer15,
   'smart-routing/layer-2': SmartRoutingLayer2,
   'smart-routing/layer-3': SmartRoutingLayer3,
+  'smart-routing/layer-6': SmartRoutingLayer6,
   // ...registered incrementally as each dashboard is built.
 }
 
