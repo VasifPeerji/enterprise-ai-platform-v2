@@ -16,6 +16,7 @@ import SmartRoutingLayer8 from '../routes/smart-routing/Layer8.svelte'
 import SmartRoutingLayer9 from '../routes/smart-routing/Layer9.svelte'
 import RagOverview from '../routes/rag/Overview.svelte'
 import RagParsing from '../routes/rag/Parsing.svelte'
+import RagChunking from '../routes/rag/Chunking.svelte'
 
 export const pages = {
   'smart-routing/overview': SmartRoutingOverview,
@@ -31,6 +32,7 @@ export const pages = {
   // --- RAG + Citation ---
   'rag/overview': RagOverview,
   'rag/parsing': RagParsing,
+  'rag/chunking': RagChunking,
   // ...registered incrementally as each dashboard is built.
 }
 
