@@ -46,7 +46,7 @@ export const systems = [
       { slug: 'overview', badge: '∑', nav: 'Pipeline Overview', title: 'Pipeline Overview', tagline: 'Ingestion + query-time, end to end', status: 'ready', kind: 'overview' },
       { slug: 'parsing', badge: '1', nav: 'Document Parsing', title: 'Document Parsing & Ingestion', tagline: 'Seven formats → clean, page-bounded text', status: 'ready' },
       { slug: 'chunking', badge: '2', nav: 'Structure-Aware Chunking', title: 'Structure-Aware Chunking', tagline: 'Chunks that respect articles, sections & pages', status: 'ready' },
-      { slug: 'embedding', badge: '3', nav: 'Embedding & Indexing', title: 'Resilient Embedding & Indexing', tagline: 'Primary embedding with a never-fail fallback', status: 'soon' },
+      { slug: 'embedding', badge: '3', nav: 'Embedding & Indexing', title: 'Resilient Embedding & Indexing', tagline: 'Primary embedding with a never-fail fallback', status: 'ready' },
       { slug: 'retrieval', badge: '4', nav: 'Query-Aware Retrieval', title: 'Query-Aware Retrieval', tagline: 'Hybrid search + five intent-driven strategies', status: 'soon' },
       { slug: 'reranking', badge: '5', nav: 'Domain-Aware Reranking', title: 'Domain-Aware Reranking', tagline: 'Lift the right evidence to the top', status: 'soon' },
       { slug: 'assembly', badge: '6', nav: 'Context Assembly', title: 'Grounded Context Assembly', tagline: 'Citation slots, page proofs & evidence groups', status: 'soon' },
