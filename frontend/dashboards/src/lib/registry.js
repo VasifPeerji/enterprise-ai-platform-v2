@@ -25,7 +25,7 @@ export const systems = [
       { slug: 'layer-0', badge: 'L0', nav: 'Layer 0 · Fast Path', title: 'Fast Path Bypass', tagline: 'Sub-millisecond bypass for trivial queries', status: 'ready' },
       { slug: 'layer-1', badge: 'L1', nav: 'Layer 1 · Modality Gate', title: 'Modality Gate', tagline: 'Security + modality / language / code signal extraction', status: 'ready' },
       { slug: 'layer-1-5', badge: 'L1½', nav: 'Layer 1.5 · Input Signals', title: 'Input Signals', tagline: 'Continuous difficulty signal extraction', status: 'ready' },
-      { slug: 'layer-2', badge: 'L2', nav: 'Layer 2 · Semantic Memory', title: 'Semantic Memory', tagline: 'Outcome-aware cache with 5 correctness guards', status: 'soon' },
+      { slug: 'layer-2', badge: 'L2', nav: 'Layer 2 · Semantic Memory', title: 'Semantic Memory', tagline: 'Outcome-aware cache with 6 correctness guards', status: 'ready' },
       { slug: 'layer-3', badge: 'L3', nav: 'Layer 3 · kNN Router', title: 'Benchmark-Grounded kNN Router', tagline: 'The brain — predicts per-model quality from benchmark neighbours', status: 'soon', flagship: true },
       { slug: 'layer-6', badge: 'L6', nav: 'Layer 6 · Test-Time Compute', title: 'Test-Time Compute', tagline: 'Spend more compute only where uncertainty warrants it', status: 'soon' },
       { slug: 'layer-7', badge: 'L7', nav: 'Layer 7 · Quality Eval', title: 'Quality Evaluation', tagline: 'Cost-free correctness signal — no per-query judge LLM', status: 'soon' },
