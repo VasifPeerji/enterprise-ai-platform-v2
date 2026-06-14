@@ -22,6 +22,7 @@ import RagRetrieval from '../routes/rag/Retrieval.svelte'
 import RagReranking from '../routes/rag/Reranking.svelte'
 import RagAssembly from '../routes/rag/Assembly.svelte'
 import RagGeneration from '../routes/rag/Generation.svelte'
+import RagVerification from '../routes/rag/Verification.svelte'
 
 export const pages = {
   'smart-routing/overview': SmartRoutingOverview,
@@ -43,6 +44,7 @@ export const pages = {
   'rag/reranking': RagReranking,
   'rag/assembly': RagAssembly,
   'rag/generation': RagGeneration,
+  'rag/verification': RagVerification,
   // ...registered incrementally as each dashboard is built.
 }
 

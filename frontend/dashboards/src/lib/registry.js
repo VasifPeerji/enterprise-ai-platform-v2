@@ -51,7 +51,7 @@ export const systems = [
       { slug: 'reranking', badge: '5', nav: 'Domain-Aware Reranking', title: 'Domain-Aware Reranking', tagline: 'Lift the right evidence to the top', status: 'ready' },
       { slug: 'assembly', badge: '6', nav: 'Context Assembly', title: 'Grounded Context Assembly', tagline: 'Citation slots, page proofs & evidence groups', status: 'ready' },
       { slug: 'generation', badge: '7', nav: 'Constrained Generation', title: 'Evidence-Constrained Generation', tagline: 'Answer only from the cited sources', status: 'ready' },
-      { slug: 'verification', badge: '8', nav: 'Claim Verification', title: 'Claim Verification', tagline: 'Every assertion checked against its source — or refused', status: 'soon' },
+      { slug: 'verification', badge: '8', nav: 'Claim Verification', title: 'Claim Verification', tagline: 'Every assertion checked against its source — or refused', status: 'ready' },
       { slug: 'citation', badge: '9', nav: 'Citation & Highlighting', title: 'Citation Packaging & Highlighting', tagline: 'Exact highlighted spans on the rendered page', status: 'soon', flagship: true },
     ],
   },
