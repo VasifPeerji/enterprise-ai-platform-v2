@@ -43,7 +43,7 @@ export const systems = [
     accent1: '#10b981',
     accent2: '#2dd4bf',
     items: [
-      { slug: 'overview', badge: '∑', nav: 'Pipeline Overview', title: 'Pipeline Overview', tagline: 'Ingestion + query-time, end to end', status: 'soon', kind: 'overview' },
+      { slug: 'overview', badge: '∑', nav: 'Pipeline Overview', title: 'Pipeline Overview', tagline: 'Ingestion + query-time, end to end', status: 'ready', kind: 'overview' },
       { slug: 'parsing', badge: '1', nav: 'Document Parsing', title: 'Document Parsing & Ingestion', tagline: 'Seven formats → clean, page-bounded text', status: 'soon' },
       { slug: 'chunking', badge: '2', nav: 'Structure-Aware Chunking', title: 'Structure-Aware Chunking', tagline: 'Chunks that respect articles, sections & pages', status: 'soon' },
       { slug: 'embedding', badge: '3', nav: 'Embedding & Indexing', title: 'Resilient Embedding & Indexing', tagline: 'Primary embedding with a never-fail fallback', status: 'soon' },
