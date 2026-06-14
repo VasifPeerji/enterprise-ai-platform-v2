@@ -30,7 +30,7 @@ export const systems = [
       { slug: 'layer-6', badge: 'L6', nav: 'Layer 6 · Test-Time Compute', title: 'Test-Time Compute', tagline: 'Spend more compute only where uncertainty warrants it', status: 'ready' },
       { slug: 'layer-7', badge: 'L7', nav: 'Layer 7 · Quality Eval', title: 'Quality Evaluation', tagline: 'Cost-free correctness signal — no per-query judge LLM', status: 'ready' },
       { slug: 'layer-8', badge: 'L8', nav: 'Layer 8 · Escalation', title: 'Escalation Ladder', tagline: 'Climb to a stronger model only when quality fails', status: 'ready' },
-      { slug: 'layer-9', badge: 'L9', nav: 'Layer 9 · Telemetry + Drift', title: 'Telemetry & Drift', tagline: 'Observability + KL-divergence drift detection', status: 'soon' },
+      { slug: 'layer-9', badge: 'L9', nav: 'Layer 9 · Telemetry + Drift', title: 'Telemetry & Drift', tagline: 'Observability + KL-divergence drift detection', status: 'ready' },
     ],
   },
   {
