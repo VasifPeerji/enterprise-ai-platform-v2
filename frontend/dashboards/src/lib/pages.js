@@ -5,9 +5,11 @@
    Eager imports keep routing synchronous and bullet-proof for live demos. */
 
 import SmartRoutingOverview from '../routes/smart-routing/Overview.svelte'
+import SmartRoutingLayer0 from '../routes/smart-routing/Layer0.svelte'
 
 export const pages = {
   'smart-routing/overview': SmartRoutingOverview,
+  'smart-routing/layer-0': SmartRoutingLayer0,
   // ...registered incrementally as each dashboard is built.
 }
 
