@@ -48,7 +48,7 @@ export const systems = [
       { slug: 'chunking', badge: '2', nav: 'Structure-Aware Chunking', title: 'Structure-Aware Chunking', tagline: 'Chunks that respect articles, sections & pages', status: 'ready' },
       { slug: 'embedding', badge: '3', nav: 'Embedding & Indexing', title: 'Resilient Embedding & Indexing', tagline: 'Primary embedding with a never-fail fallback', status: 'ready' },
       { slug: 'retrieval', badge: '4', nav: 'Query-Aware Retrieval', title: 'Query-Aware Retrieval', tagline: 'Hybrid search + five intent-driven strategies', status: 'ready' },
-      { slug: 'reranking', badge: '5', nav: 'Domain-Aware Reranking', title: 'Domain-Aware Reranking', tagline: 'Lift the right evidence to the top', status: 'soon' },
+      { slug: 'reranking', badge: '5', nav: 'Domain-Aware Reranking', title: 'Domain-Aware Reranking', tagline: 'Lift the right evidence to the top', status: 'ready' },
       { slug: 'assembly', badge: '6', nav: 'Context Assembly', title: 'Grounded Context Assembly', tagline: 'Citation slots, page proofs & evidence groups', status: 'soon' },
       { slug: 'generation', badge: '7', nav: 'Constrained Generation', title: 'Evidence-Constrained Generation', tagline: 'Answer only from the cited sources', status: 'soon' },
       { slug: 'verification', badge: '8', nav: 'Claim Verification', title: 'Claim Verification', tagline: 'Every assertion checked against its source — or refused', status: 'soon' },
