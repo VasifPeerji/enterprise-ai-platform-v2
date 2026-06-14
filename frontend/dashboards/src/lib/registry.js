@@ -21,7 +21,7 @@ export const systems = [
     accent1: '#6366f1',
     accent2: '#22d3ee',
     items: [
-      { slug: 'overview', badge: '∑', nav: 'Pipeline Overview', title: 'Pipeline Overview', tagline: 'The whole 9-layer routing brain, end to end', status: 'soon', kind: 'overview' },
+      { slug: 'overview', badge: '∑', nav: 'Pipeline Overview', title: 'Pipeline Overview', tagline: 'The whole 9-layer routing brain, end to end', status: 'ready', kind: 'overview' },
       { slug: 'layer-0', badge: 'L0', nav: 'Layer 0 · Fast Path', title: 'Fast Path Bypass', tagline: 'Sub-millisecond bypass for trivial queries', status: 'soon' },
       { slug: 'layer-1', badge: 'L1', nav: 'Layer 1 · Modality Gate', title: 'Modality Gate', tagline: 'Security + modality / language / code signal extraction', status: 'soon' },
       { slug: 'layer-1-5', badge: 'L1½', nav: 'Layer 1.5 · Input Signals', title: 'Input Signals', tagline: 'Continuous difficulty signal extraction', status: 'soon' },
